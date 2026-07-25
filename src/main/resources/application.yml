@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: booking-saas
+  datasource:
+    url: jdbc:postgresql://localhost:5432/booking_saas
+    username: booking_saas
+    password: booking_saas
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    properties:
+      mail:
+        smtp:
+          auth: false
+          starttls:
+            enable: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  api-docs:
+    path: /v3/api-docs
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dev-only-secret-change-me-please-override-in-prod-min-32-bytes}
+    expiration-minutes: 60
+  mail:
+    from: ${MAIL_FROM:no-reply@booking-saas.local}
+  rate-limit:
+    # Applies to the whole unauthenticated /api/public/** surface, keyed by client IP.
+    capacity: ${RATE_LIMIT_CAPACITY:30}
+    refill-tokens: ${RATE_LIMIT_REFILL_TOKENS:30}
+    refill-duration-seconds: ${RATE_LIMIT_REFILL_SECONDS:60}
+  mercadopago:
+    # One platform-level sandbox account for every tenant in this MVP — see README "Design notes"
+    # for why (a real multi-tenant deployment would need per-tenant OAuth Connect instead).
+    base-url: ${MERCADOPAGO_BASE_URL:https://api.mercadopago.com}
+    access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
+    webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:}
+    success-url: ${MERCADOPAGO_SUCCESS_URL:https://example.com/payment/success}
+    failure-url: ${MERCADOPAGO_FAILURE_URL:https://example.com/payment/failure}
+    pending-url: ${MERCADOPAGO_PENDING_URL:https://example.com/payment/pending}

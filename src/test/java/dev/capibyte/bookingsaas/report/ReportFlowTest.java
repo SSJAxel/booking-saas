@@ -1,0 +1,73 @@
+package dev.capibyte.bookingsaas.report;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+import dev.capibyte.bookingsaas.IntegrationTestBase;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.ResponseEntity;
+
+class ReportFlowTest extends IntegrationTestBase {
+
+	@Test
+	void summaryAggregatesRevenueAndNoShowRateCorrectly() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+
+		String branchId = (String) post("/api/branches", Map.of("name", "Main"), headers).get("id");
+		String professionalId = (String) post("/api/professionals",
+				Map.of("branchId", branchId, "displayName", "Pro"), headers).get("id");
+		post("/api/professionals/" + professionalId + "/availability",
+				Map.of("dayOfWeek", "MONDAY", "startTime", "09:00:00", "endTime", "18:00:00"), headers);
+		String serviceId = (String) post("/api/services",
+				Map.of("name", "Cut", "durationMinutes", 60, "price", 50.0), headers).get("id");
+		restTemplate.exchange("/api/services/" + serviceId + "/professionals", HttpMethod.POST,
+				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
+
+		String appt1 = bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T10:00:00Z", "a@example.com");
+		String appt2 = bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T11:00:00Z", "b@example.com");
+		bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T12:00:00Z", "c@example.com"); // stays PENDING
+
+		transition(appt1, "CONFIRMED", headers);
+		transition(appt1, "COMPLETED", headers);
+		transition(appt2, "CONFIRMED", headers);
+		transition(appt2, "NO_SHOW", headers);
+
+		ResponseEntity<Map> response = restTemplate.exchange("/api/reports/summary", HttpMethod.GET,
+				new HttpEntity<>(headers), Map.class);
+
+		Map<String, Object> body = response.getBody();
+		assertThat(((Number) body.get("totalAppointments")).intValue()).isEqualTo(3);
+		assertThat(new java.math.BigDecimal(body.get("revenue").toString())).isEqualByComparingTo("50.00");
+		assertThat(((Number) body.get("noShowRate")).doubleValue()).isEqualTo(0.5);
+
+		Map<String, Object> byStatus = (Map<String, Object>) body.get("byStatus");
+		assertThat(((Number) byStatus.get("PENDING")).intValue()).isEqualTo(1);
+		assertThat(((Number) byStatus.get("COMPLETED")).intValue()).isEqualTo(1);
+		assertThat(((Number) byStatus.get("NO_SHOW")).intValue()).isEqualTo(1);
+	}
+
+	private String bookAppointment(String tenantSlug, String professionalId, String serviceId, String startTime,
+			String clientEmail) {
+		Map<String, Object> body = Map.of(
+				"professionalId", professionalId, "serviceId", serviceId, "startTime", startTime,
+				"clientName", "Client", "clientEmail", clientEmail, "clientPhone", "+541100000000");
+		ResponseEntity<Map> response = restTemplate.postForEntity("/api/public/" + tenantSlug + "/appointments", body,
+				Map.class);
+		return (String) response.getBody().get("id");
+	}
+
+	private void transition(String appointmentId, String status, HttpHeaders headers) {
+		restTemplate.exchange("/api/appointments/" + appointmentId + "/status", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("status", status), headers), Map.class);
+	}
+
+	private Map post(String path, Map<String, Object> body, HttpHeaders headers) {
+		ResponseEntity<Map> response = restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers),
+				Map.class);
+		return response.getBody();
+	}
+}

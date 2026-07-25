@@ -1,0 +1,58 @@
+package dev.capibyte.bookingsaas.staff;
+
+import dev.capibyte.bookingsaas.staff.dto.ProfessionalRequest;
+import dev.capibyte.bookingsaas.staff.dto.ProfessionalResponse;
+import dev.capibyte.bookingsaas.staff.dto.ProfessionalUpdateRequest;
+import jakarta.validation.Valid;
+import java.util.List;
+import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/professionals")
+@RequiredArgsConstructor
+@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+public class ProfessionalController {
+
+	private final ProfessionalService professionalService;
+
+	@GetMapping
+	public List<ProfessionalResponse> list() {
+		return professionalService.findAll().stream().map(ProfessionalResponse::from).toList();
+	}
+
+	@GetMapping("/{id}")
+	public ProfessionalResponse get(@PathVariable UUID id) {
+		return ProfessionalResponse.from(professionalService.findById(id));
+	}
+
+	@PostMapping
+	@ResponseStatus(HttpStatus.CREATED)
+	public ProfessionalResponse create(@Valid @RequestBody ProfessionalRequest request) {
+		return ProfessionalResponse
+				.from(professionalService.create(request.branchId(), request.displayName(), request.bio()));
+	}
+
+	@PutMapping("/{id}")
+	public ProfessionalResponse update(@PathVariable UUID id, @Valid @RequestBody ProfessionalUpdateRequest request) {
+		return ProfessionalResponse
+				.from(professionalService.update(id, request.displayName(), request.bio(), request.active()));
+	}
+
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@PathVariable UUID id) {
+		professionalService.delete(id);
+	}
+}
