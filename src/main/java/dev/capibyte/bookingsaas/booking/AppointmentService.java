@@ -61,8 +61,11 @@ public class AppointmentService {
 		appointment.setClientId(client.getId());
 		appointment.setStartTime(startTime);
 		appointment.setEndTime(endTime);
-		appointment.setStatus(AppointmentStatus.PENDING);
-		appointment.setPaymentStatus(service.getDepositAmount() != null ? PaymentStatus.PENDING : PaymentStatus.NOT_REQUIRED);
+		PaymentStatus paymentStatus = service.getDepositAmount() != null ? PaymentStatus.PENDING : PaymentStatus.NOT_REQUIRED;
+		appointment.setPaymentStatus(paymentStatus);
+		// No deposit to wait for, so there's nothing PENDING should mean here — confirm immediately
+		// instead of leaving it stuck until a human clicks "confirm" for no reason.
+		appointment.setStatus(paymentStatus == PaymentStatus.NOT_REQUIRED ? AppointmentStatus.CONFIRMED : AppointmentStatus.PENDING);
 
 		try {
 			// saveAndFlush (not save): the EXCLUDE constraint violation only surfaces once the

@@ -9,4 +9,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
 	List<Appointment> findAllByProfessionalIdAndStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNotIn(
 			UUID professionalId, Instant from, Instant to, List<AppointmentStatus> excludedStatuses);
+
+	List<Appointment> findAllByStatusAndPaymentStatusAndCreatedAtBefore(AppointmentStatus status,
+			PaymentStatus paymentStatus, Instant cutoff);
 }

@@ -26,10 +26,16 @@ class ReportFlowTest extends IntegrationTestBase {
 				Map.of("name", "Cut", "durationMinutes", 60, "price", 50.0), headers).get("id");
 		restTemplate.exchange("/api/services/" + serviceId + "/professionals", HttpMethod.POST,
 				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
+		// A deposit-requiring service, so this appointment has something to wait for and stays
+		// PENDING instead of auto-confirming (that's what a no-deposit booking does now).
+		String depositServiceId = (String) post("/api/services",
+				Map.of("name", "Color", "durationMinutes", 60, "price", 80.0, "depositAmount", 20.0), headers).get("id");
+		restTemplate.exchange("/api/services/" + depositServiceId + "/professionals", HttpMethod.POST,
+				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
 
 		String appt1 = bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T10:00:00Z", "a@example.com");
 		String appt2 = bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T11:00:00Z", "b@example.com");
-		bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T12:00:00Z", "c@example.com"); // stays PENDING
+		bookAppointment(tenant.slug(), professionalId, depositServiceId, "2026-08-17T12:00:00Z", "c@example.com"); // stays PENDING, awaiting deposit
 
 		transition(appt1, "CONFIRMED", headers);
 		transition(appt1, "COMPLETED", headers);
