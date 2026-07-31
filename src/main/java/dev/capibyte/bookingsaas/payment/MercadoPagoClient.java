@@ -1,6 +1,7 @@
 package dev.capibyte.bookingsaas.payment;
 
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
+import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
 import java.math.BigDecimal;
 import java.util.List;
@@ -72,5 +73,55 @@ public class MercadoPagoClient {
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
 				.retrieve()
 				.body(MercadoPagoPayment.class);
+	}
+
+	/**
+	 * Preapproval = MercadoPago's recurring-billing product, distinct from the one-off Checkout Pro
+	 * preference above. {@code init_point} here is where the payer authorizes the recurring charge
+	 * (not a one-off payment) — same "never trust the webhook payload, always re-fetch" rule
+	 * applies once it fires (see {@code getPreapproval}).
+	 */
+	public MercadoPagoPreapproval createPreapproval(UUID tenantId, UUID subscriptionId, String reason,
+			BigDecimal monthlyAmount, String payerEmail) {
+		String externalReference = tenantId + ":" + subscriptionId;
+
+		Map<String, Object> autoRecurring = Map.of(
+				"frequency", 1,
+				"frequency_type", "months",
+				"transaction_amount", monthlyAmount,
+				"currency_id", "ARS");
+		Map<String, Object> body = Map.of(
+				"reason", reason,
+				"external_reference", externalReference,
+				"payer_email", payerEmail,
+				"back_url", successUrl,
+				"auto_recurring", autoRecurring,
+				"status", "pending");
+
+		return restClient.post()
+				.uri("/preapproval")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(body)
+				.retrieve()
+				.body(MercadoPagoPreapproval.class);
+	}
+
+	public MercadoPagoPreapproval getPreapproval(String providerSubscriptionId) {
+		return restClient.get()
+				.uri("/preapproval/{id}", providerSubscriptionId)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+				.retrieve()
+				.body(MercadoPagoPreapproval.class);
+	}
+
+	public void cancelPreapproval(String providerSubscriptionId) {
+		restClient.put()
+				.uri("/preapproval/{id}", providerSubscriptionId)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.body(Map.of("status", "cancelled"))
+				.retrieve()
+				.toBodilessEntity();
 	}
 }

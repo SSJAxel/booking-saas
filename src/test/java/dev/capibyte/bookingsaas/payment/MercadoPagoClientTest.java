@@ -9,6 +9,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
+import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
 import java.math.BigDecimal;
 import java.util.UUID;
@@ -77,6 +78,64 @@ class MercadoPagoClientTest {
 		assertThat(payment.id()).isEqualTo("mp-999");
 		assertThat(payment.status()).isEqualTo("approved");
 		assertThat(payment.externalReference()).isEqualTo("tenant-id:payment-id");
+		mockServer.verify();
+	}
+
+	@Test
+	void createPreapprovalSendsTheExpectedRequestAndParsesTheResponse() {
+		UUID tenantId = UUID.randomUUID();
+		UUID subscriptionId = UUID.randomUUID();
+
+		mockServer.expect(requestTo("https://api.mercadopago.com/preapproval"))
+				.andExpect(method(HttpMethod.POST))
+				.andExpect(header("Authorization", "Bearer TEST-access-token"))
+				.andExpect(content().string(containsString(tenantId + ":" + subscriptionId)))
+				.andExpect(content().string(containsString("owner@example.com")))
+				.andExpect(content().string(containsString("\"frequency_type\":\"months\"")))
+				.andRespond(withSuccess(
+						"""
+						{"id":"preapproval-123","status":"pending","init_point":"https://mercadopago.com/subscriptions/preapproval-123","external_reference":"ignored-here"}
+						""",
+						MediaType.APPLICATION_JSON));
+
+		MercadoPagoPreapproval preapproval = client.createPreapproval(tenantId, subscriptionId, "PRO plan",
+				new BigDecimal("15000.00"), "owner@example.com");
+
+		assertThat(preapproval.id()).isEqualTo("preapproval-123");
+		assertThat(preapproval.status()).isEqualTo("pending");
+		assertThat(preapproval.initPoint()).isEqualTo("https://mercadopago.com/subscriptions/preapproval-123");
+		mockServer.verify();
+	}
+
+	@Test
+	void getPreapprovalParsesTheResponse() {
+		mockServer.expect(requestTo("https://api.mercadopago.com/preapproval/preapproval-999"))
+				.andExpect(method(HttpMethod.GET))
+				.andExpect(header("Authorization", "Bearer TEST-access-token"))
+				.andRespond(withSuccess(
+						"""
+						{"id":"preapproval-999","status":"authorized","external_reference":"tenant-id:subscription-id"}
+						""",
+						MediaType.APPLICATION_JSON));
+
+		MercadoPagoPreapproval preapproval = client.getPreapproval("preapproval-999");
+
+		assertThat(preapproval.id()).isEqualTo("preapproval-999");
+		assertThat(preapproval.status()).isEqualTo("authorized");
+		assertThat(preapproval.externalReference()).isEqualTo("tenant-id:subscription-id");
+		mockServer.verify();
+	}
+
+	@Test
+	void cancelPreapprovalSendsTheExpectedRequest() {
+		mockServer.expect(requestTo("https://api.mercadopago.com/preapproval/preapproval-999"))
+				.andExpect(method(HttpMethod.PUT))
+				.andExpect(header("Authorization", "Bearer TEST-access-token"))
+				.andExpect(content().string(containsString("\"status\":\"cancelled\"")))
+				.andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
+
+		client.cancelPreapproval("preapproval-999");
+
 		mockServer.verify();
 	}
 }

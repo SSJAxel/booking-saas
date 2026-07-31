@@ -4,10 +4,11 @@ A multi-tenant appointment-booking backend for service businesses (tattoo studio
 salons) — think a small AgendaPro. Each tenant has branches, professionals, a service catalog,
 weekly availability, and clients who book time slots through a public API.
 
-Backend only (REST API + OpenAPI/Swagger docs) — no frontend. Built as a "serious" portfolio
-project: the two hardest correctness properties of this domain (never double-booking a
-professional, never leaking one tenant's data to another) are enforced structurally rather than
-just in application code — see [Design notes](#design-notes) below.
+REST API + OpenAPI/Swagger docs, plus two minimal React/Vite frontends (`frontend/` — the
+owner/staff admin panel, `frontend-public/` — the client-facing multi-tenant booking site).
+Built as a "serious" portfolio project: the two hardest correctness properties of this domain
+(never double-booking a professional, never leaking one tenant's data to another) are enforced
+structurally rather than just in application code — see [Design notes](#design-notes) below.
 
 ## Stack
 
@@ -18,10 +19,15 @@ just in application code — see [Design notes](#design-notes) below.
 - springdoc-openapi (Swagger UI)
 - Spring Mail — booking/status-change email notifications, event-driven
 - Bucket4j + Caffeine — per-IP rate limiting on the public booking API
-- MercadoPago (Checkout Pro) — optional deposit/payment on booking, via plain `RestClient` calls
+- MercadoPago Checkout Pro — optional deposit/payment on booking, via plain `RestClient` calls
+- MercadoPago Preapproval — recurring monthly billing for paid `PlanTier`s, same `RestClient`
+  approach, same shared webhook endpoint routed by notification `type`
 - Waitlist with FIFO auto-notify, and an aggregate business reporting endpoint
+- A small inventory/stock module (products + sales), capped by plan tier
 - JUnit 5, Testcontainers (integration tests run against real Postgres, not H2)
 - Docker Compose (local Postgres + MailHog)
+- React + Vite (`frontend/`, `frontend-public/`) — no TypeScript, no UI kit, plain `fetch` against
+  the REST API
 
 ## Running locally
 
@@ -139,6 +145,31 @@ The webhook resolves which tenant a notification belongs to from the payment's
 `TenantContext`-before-any-`@Transactional`-call pattern as `AuthService`, since there's no JWT or
 URL slug on an inbound webhook call to resolve it from otherwise.
 
+**Plan billing (MercadoPago Preapproval).** `PlanTier` (`BASIC`/`PRO`) carries a `monthlyPrice`;
+`BASIC` is free and can be set directly (`PATCH /api/tenant/plan`), but a paid tier can only be
+reached through `POST /api/tenant/subscription`, which creates a `Subscription` row plus a
+MercadoPago Preapproval (their recurring-billing product — a different API from the one-off
+Checkout Pro used for deposits above) and returns its `init_point` for the owner to authorize the
+recurring charge. `PATCH /api/tenant/plan` and `POST /api/tenant/subscription` reject the tier
+they don't handle (`TenantService.changePlan` throws on a paid tier, `SubscriptionService.subscribe`
+throws on a free one), so there's exactly one path to get onto — or off of — a paid plan.
+
+Both MercadoPago products land on the same `POST /api/webhooks/mercadopago`, routed by the
+`type` query param MercadoPago sends (`payment` → `PaymentService`, `subscription_preapproval` →
+`SubscriptionService`) — same never-trust-the-payload rule as deposits: the webhook only carries
+an id, `SubscriptionService` always re-fetches the preapproval from MercadoPago before acting.
+`authorized` flips the tenant onto the subscribed tier; `paused`/`cancelled` drops it back to
+`BASIC`. Downgrading manually (`PATCH .../plan` to `BASIC`) cancels any active subscription at
+MercadoPago too, so a tenant who downgrades by hand stops being charged for the plan they no
+longer have.
+
+Known gap, same honesty policy as the Checkout Pro section above: this only reacts to the
+preapproval's own status webhook, not MercadoPago's separate `authorized_payment` topic (fired for
+each individual recurring charge) — so a single missed/retried monthly charge that MercadoPago is
+still retrying isn't reflected here yet, only an eventual pause/cancellation is. Also unverified
+against a live sandbox, for the same reason as Checkout Pro (see below) — covered instead by
+`MercadoPagoClientTest` (request/response contract) and `SubscriptionServiceTest` (business logic).
+
 **Waitlist.** Date-level, not exact-time: a client waitlists for "this professional/service on
 this date" rather than one specific slot, since freeing up any appointment that day changes what's
 available. When `AppointmentService.transitionStatus()` cancels an appointment, it calls
@@ -181,17 +212,20 @@ de negocio detrás.
 
 ### Para poder vender el plan de autoservicio (prioridad alta)
 
-1. **Cobro recurrente real.** Hoy `PlanTier` es un campo que cualquiera cambia desde
-   `PATCH /api/tenant/plan` sin pagar nada — es un stand-in, no un sistema de facturación (ver su
-   Javadoc). Falta integrar el producto de suscripciones de Mercado Pago (Preapproval API,
-   distinto del Checkout Pro que ya se usa para señas) y manejar su webhook de ciclo de vida
-   (cobro exitoso, cobro fallido, cancelación) para que el plan suba o baje solo según si se pagó.
-2. **Cuenta de Mercado Pago por tenant, no compartida.** Hoy todos los depósitos van a una sola
-   cuenta sandbox (ver "Design notes" → Payments). Un producto real necesita que cada negocio
-   cobre a su propia cuenta — requiere el flujo OAuth Connect de Mercado Pago por tenant.
+1. ~~**Cobro recurrente real.**~~ Hecho — `POST /api/tenant/subscription` +
+   MercadoPago Preapproval, ver "Design notes" → Plan billing. `PlanTier` ya no es un campo libre:
+   un plan pago solo se activa cuando el webhook confirma `authorized`. Lo que quedó afuera a
+   propósito: solo reacciona al estado del preapproval, no al webhook de cada cobro individual
+   (`authorized_payment`) — un cobro puntual que Mercado Pago está reintentando todavía no se ve
+   reflejado, recién cuando termina en pausa/cancelación.
+2. **Cuenta de Mercado Pago por tenant, no compartida.** Hoy todos los depósitos *y* las
+   suscripciones van a una sola cuenta sandbox (ver "Design notes" → Payments). Un producto real
+   necesita que cada negocio cobre a su propia cuenta — requiere el flujo OAuth Connect de Mercado
+   Pago por tenant.
 3. **Verificación contra Mercado Pago real.** Nunca se probó contra credenciales reales (ver
-   "Design notes"). Antes de cobrarle a un cliente de verdad hace falta un smoke test contra una
-   cuenta sandbox real, no solo el mock casero.
+   "Design notes"), ni el Checkout Pro de señas ni el Preapproval de suscripciones. Antes de
+   cobrarle a un cliente de verdad hace falta un smoke test contra una cuenta sandbox real, no
+   solo el mock casero y los tests de contrato.
 4. **Página pública de precios y alta.** Hoy registrarse es un `POST /api/auth/register` a mano.
    Falta una landing en `frontend-public` (hoy `LandingPage` es un stub) que explique los planes y
    deje crear la cuenta sin tocar la API directo.

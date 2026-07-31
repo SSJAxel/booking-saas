@@ -1,5 +1,6 @@
 package dev.capibyte.bookingsaas.tenant;
 
+import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
 import java.util.Optional;
 import java.util.UUID;
@@ -41,14 +42,19 @@ public class TenantService {
 	}
 
 	/**
-	 * Stands in for what should eventually be driven by a billing webhook, not a direct client
-	 * call — there's no payment integration behind plan changes yet. Downgrading below the new
-	 * tier's product limit isn't blocked here: existing products over the limit stay active
-	 * (grandfathered), ProductService.create() just refuses new ones until the tenant is back
-	 * under it.
+	 * Only free tiers can be set directly here — a paid one requires an authorized subscription
+	 * (see SubscriptionService.subscribe), which flips planTier itself once MercadoPago confirms
+	 * it via webhook. This is the downgrade/cancellation path, not the upgrade path. Downgrading
+	 * below the new tier's product limit isn't blocked here: existing products over the limit stay
+	 * active (grandfathered), ProductService.create() just refuses new ones until the tenant is
+	 * back under it.
 	 */
 	@Transactional
 	public Tenant changePlan(UUID tenantId, PlanTier newTier) {
+		if (!newTier.isFree()) {
+			throw new BadRequestException(
+					"Paid plans require an active subscription — use POST /api/tenant/subscription instead");
+		}
 		Tenant tenant = findById(tenantId);
 		tenant.setPlanTier(newTier);
 		return tenant;

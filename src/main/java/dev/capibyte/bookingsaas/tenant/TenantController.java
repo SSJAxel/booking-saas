@@ -1,15 +1,20 @@
 package dev.capibyte.bookingsaas.tenant;
 
 import dev.capibyte.bookingsaas.common.TenantContext;
+import dev.capibyte.bookingsaas.payment.SubscriptionService;
+import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 /** Self-service settings for the caller's own tenant — the tenant-level counterpart to /api/me. */
@@ -19,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class TenantController {
 
 	private final TenantService tenantService;
+	private final SubscriptionService subscriptionService;
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN','STAFF')")
@@ -26,10 +32,25 @@ public class TenantController {
 		return TenantResponse.from(tenantService.findById(TenantContext.getTenantId()));
 	}
 
-	/** Owner-only: this is the closest thing to a billing action this MVP has. */
+	/** Owner-only: starts a MercadoPago subscription for a paid plan — this is the upgrade path. */
+	@PostMapping("/subscription")
+	@PreAuthorize("hasRole('OWNER')")
+	@ResponseStatus(HttpStatus.CREATED)
+	public SubscriptionCheckoutResponse subscribe(@Valid @RequestBody PlanChangeRequest request) {
+		return subscriptionService.subscribe(TenantContext.getTenantId(), request.planTier());
+	}
+
+	/**
+	 * Owner-only: only accepts a free tier (see TenantService.changePlan) — this is the
+	 * downgrade/cancellation path. tenantService.changePlan runs (and validates) first so an
+	 * invalid request (e.g. trying to PATCH straight to a paid tier) never triggers the
+	 * cancellation side effect below it.
+	 */
 	@PatchMapping("/plan")
 	@PreAuthorize("hasRole('OWNER')")
 	public TenantResponse changePlan(@Valid @RequestBody PlanChangeRequest request) {
-		return TenantResponse.from(tenantService.changePlan(TenantContext.getTenantId(), request.planTier()));
+		Tenant tenant = tenantService.changePlan(TenantContext.getTenantId(), request.planTier());
+		subscriptionService.cancelActiveSubscription(TenantContext.getTenantId());
+		return TenantResponse.from(tenant);
 	}
 }
