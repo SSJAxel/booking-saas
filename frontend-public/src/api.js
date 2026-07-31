@@ -17,9 +17,13 @@ export const api = {
 	getPlans: () => request("/api/plans"),
 	register: (body) => request("/api/auth/register", { method: "POST", body }),
 	getTenant: (slug) => request(`/api/public/${slug}`),
-	getServices: (slug) => request(`/api/public/${slug}/services`),
-	getProfessionals: (slug, serviceId) =>
-		request(`/api/public/${slug}/professionals?serviceId=${serviceId}`),
+	getBranches: (slug) => request(`/api/public/${slug}/branches`),
+	getServices: (slug, branchId) =>
+		request(`/api/public/${slug}/services${branchId ? `?branchId=${branchId}` : ""}`),
+	getProfessionals: (slug, serviceId, branchId) =>
+		request(
+			`/api/public/${slug}/professionals?serviceId=${serviceId}` + (branchId ? `&branchId=${branchId}` : ""),
+		),
 	getAvailability: (slug, professionalId, serviceId, date) =>
 		request(
 			`/api/public/${slug}/availability?professionalId=${professionalId}&serviceId=${serviceId}&date=${date}`,

@@ -86,4 +86,16 @@ public class ServiceOfferingService {
 		return assignmentRepository.findAllByServiceId(serviceId).stream()
 				.map(ProfessionalServiceAssignment::getProfessionalId).toList();
 	}
+
+	/**
+	 * A service isn't itself branch-scoped (the catalog is tenant-wide) — whether it's "offered at"
+	 * a branch is derived from whether any active professional there is assigned to it. Used by the
+	 * public API to filter the service list once a client picks a branch (PublicBookingController).
+	 */
+	@Transactional(readOnly = true)
+	public boolean isOfferedAtBranch(UUID serviceId, UUID branchId) {
+		return findProfessionalIdsForService(serviceId).stream()
+				.map(professionalService::findById)
+				.anyMatch(p -> p.isActive() && p.getBranchId().equals(branchId));
+	}
 }

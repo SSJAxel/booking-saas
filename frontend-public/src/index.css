@@ -108,6 +108,15 @@ h1 {
 	margin-bottom: 2.2rem;
 }
 
+.branch-picker {
+	margin-bottom: 2rem;
+	text-align: center;
+}
+
+.branch-picker .chip-row {
+	justify-content: center;
+}
+
 .service-grid {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

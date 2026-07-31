@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 
 function todayIso() {
@@ -8,6 +8,9 @@ function todayIso() {
 
 export default function BookingPage() {
 	const { tenantSlug, serviceId } = useParams();
+	const [searchParams] = useSearchParams();
+	const branchId = searchParams.get("branch");
+	const homeLink = `/${tenantSlug}${branchId ? `?branch=${branchId}` : ""}`;
 	const [service, setService] = useState(null);
 	const [professionals, setProfessionals] = useState([]);
 	const [professionalId, setProfessionalId] = useState("");
@@ -24,7 +27,10 @@ export default function BookingPage() {
 	useEffect(() => {
 		setLoading(true);
 		setError("");
-		Promise.all([api.getServices(tenantSlug), api.getProfessionals(tenantSlug, serviceId)])
+		Promise.all([
+			api.getServices(tenantSlug, branchId ?? undefined),
+			api.getProfessionals(tenantSlug, serviceId, branchId ?? undefined),
+		])
 			.then(([services, pros]) => {
 				const found = services.find((s) => s.id === serviceId);
 				if (!found) throw new Error("No encontramos ese servicio.");
@@ -33,7 +39,8 @@ export default function BookingPage() {
 			})
 			.catch((err) => setError(err.message))
 			.finally(() => setLoading(false));
-	}, [tenantSlug, serviceId]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [tenantSlug, serviceId, branchId]);
 
 	useEffect(() => {
 		if (!professionalId || !date) {
@@ -91,7 +98,7 @@ export default function BookingPage() {
 						.
 					</p>
 					{appointment.status === "PENDING" && <p className="muted">Te vamos a avisar por mail apenas se confirme.</p>}
-					<Link to={`/${tenantSlug}`} className="button-link">
+					<Link to={homeLink} className="button-link">
 						Volver al inicio
 					</Link>
 				</div>
@@ -101,7 +108,7 @@ export default function BookingPage() {
 
 	return (
 		<div className="page">
-			<Link to={`/${tenantSlug}`} className="back-link">
+			<Link to={homeLink} className="back-link">
 				&larr; Volver
 			</Link>
 			<h1>{service.name}</h1>

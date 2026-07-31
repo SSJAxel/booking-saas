@@ -2,6 +2,7 @@ package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.AppointmentResponse;
 import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
+import dev.capibyte.bookingsaas.booking.dto.PublicBranchResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicProfessionalResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicServiceResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicTenantResponse;
@@ -10,6 +11,8 @@ import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.Branch;
+import dev.capibyte.bookingsaas.tenant.BranchService;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -41,6 +44,7 @@ public class PublicBookingController {
 
 	private final ServiceOfferingService serviceOfferingService;
 	private final ProfessionalService professionalService;
+	private final BranchService branchService;
 	private final PublicAvailabilityService publicAvailabilityService;
 	private final AppointmentService appointmentService;
 	private final TenantService tenantService;
@@ -50,19 +54,38 @@ public class PublicBookingController {
 		return PublicTenantResponse.from(tenantService.findById(TenantContext.getTenantId()));
 	}
 
+	@GetMapping("/branches")
+	public List<PublicBranchResponse> branches(@PathVariable String tenantSlug) {
+		return branchService.findAll().stream()
+				.filter(Branch::isActive)
+				.map(PublicBranchResponse::from)
+				.toList();
+	}
+
+	/**
+	 * {@code branchId} is optional: a single-branch tenant (most of them, today) never needs a
+	 * client to pick one, so the frontend only sends it once GET .../branches returns more than
+	 * one. Filtering happens by "is this service offered by an active professional at that
+	 * branch", not a direct service-branch link — the catalog itself isn't branch-scoped (see
+	 * ServiceOfferingService.isOfferedAtBranch).
+	 */
 	@GetMapping("/services")
-	public List<PublicServiceResponse> services(@PathVariable String tenantSlug) {
+	public List<PublicServiceResponse> services(@PathVariable String tenantSlug,
+			@RequestParam(required = false) UUID branchId) {
 		return serviceOfferingService.findAll().stream()
 				.filter(ServiceOffering::isActive)
+				.filter(s -> branchId == null || serviceOfferingService.isOfferedAtBranch(s.getId(), branchId))
 				.map(PublicServiceResponse::from)
 				.toList();
 	}
 
 	@GetMapping("/professionals")
-	public List<PublicProfessionalResponse> professionals(@PathVariable String tenantSlug, @RequestParam UUID serviceId) {
+	public List<PublicProfessionalResponse> professionals(@PathVariable String tenantSlug, @RequestParam UUID serviceId,
+			@RequestParam(required = false) UUID branchId) {
 		return serviceOfferingService.findProfessionalIdsForService(serviceId).stream()
 				.map(professionalService::findById)
 				.filter(Professional::isActive)
+				.filter(p -> branchId == null || p.getBranchId().equals(branchId))
 				.map(PublicProfessionalResponse::from)
 				.toList();
 	}

@@ -333,9 +333,14 @@ un tercer nivel).
    `frontend-public`'s `TenantLayout` (logo + color propio via `--accent`, en todas las páginas
    del negocio, no solo el home). Logo es una URL, no un archivo subido — no hay almacenamiento de
    archivos en el proyecto todavía (ver Design notes).
-6. **Selección de sucursal en la reserva pública.** El flujo público hoy no filtra por sucursal
-   (`PublicBookingController`) — no importa con una sola sucursal, pero un negocio multi-local lo
-   va a pedir.
+6. ~~**Selección de sucursal en la reserva pública.**~~ Hecho — `GET /api/public/{tenantSlug}/branches`
+   nuevo, y `.../services`/`.../professionals` ahora aceptan un `branchId` opcional
+   (`ServiceOfferingService.isOfferedAtBranch` filtra el catálogo, que no es branch-scoped en sí
+   mismo, por si algún profesional activo de esa sucursal lo ofrece). Un tenant de una sola
+   sucursal no ve ningún selector — `frontend-public`'s `TenantHomePage` solo lo muestra si
+   `GET .../branches` devuelve más de una, así que la experiencia no cambió para el caso común.
+   La sucursal del turno se sigue derivando del profesional elegido (`Professional.branchId`), no
+   de un campo nuevo — eso ya era correcto de antes.
 7. ~~**Zona horaria real por tenant.**~~ Hecho — `PATCH /api/tenant/timezone` (owner o admin,
    validado contra `ZoneId.of(...)`, no una regex), consumido en `AppointmentService` y
    `PublicAvailabilityService` (ver "Design notes" → Timezones) en vez del supuesto "todo es UTC"
