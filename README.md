@@ -279,6 +279,28 @@ de negocio detrás.
   `requiere_aprobacion`), no como un fork del código — así una integración a medida no ensucia el
   producto base.
 
+### Pendiente sin resolver: comercialización y hosting
+
+Todavía no está decidido **cómo se cobra esto ni dónde se hostea**, y es una decisión que
+condiciona a las demás — no tiene sentido terminar de afinar precios de plan sin saber qué cuesta
+sostener la infraestructura por tenant, ni elegir hosting sin saber cuántos tenants/tráfico hay que
+soportar. Puntos concretos sin cerrar:
+
+- El precio de `PRO` en `PlanTier.java` (`$15.000/mes`) es un placeholder puesto para poder
+  programar el flujo de suscripción — nunca se calculó contra un costo real de infraestructura por
+  tenant, ni contra lo que cobra la competencia (AgendaPro, Booksy) en Argentina.
+- No hay hosting elegido todavía (se habló de Hostinger VPS vs AWS Lightsail en algún momento, sin
+  resolución) — falta estimar qué sale sostener Postgres + backend + los dos frontends para una
+  cantidad realista de tenants activos, y con qué margen queda el plan `PRO` una vez restado eso.
+- El costo de soporte (alguien tiene que responder cuando algo se rompe, ayudar a un negocio nuevo
+  a configurarse la primera vez, etc.) no está contemplado en el precio todavía — hoy el número de
+  `PRO` es arbitrario, no el resultado de una cuenta real que incluya soporte + hosting + margen.
+
+En criollo: antes de vender el plan de autoservicio en serio, hay que armar esa cuenta — cuánto
+sale por tenant, cuánto hay que cobrar para que sobre algo después de hosting y soporte, y recién
+ahí fijar el precio real de `PRO` (y decidir si `BASIC` se sostiene siendo gratis o si hace falta
+un tercer nivel).
+
 ### Para poder vender el plan de autoservicio (prioridad alta)
 
 1. ~~**Cobro recurrente real.**~~ Hecho — `POST /api/tenant/subscription` +
