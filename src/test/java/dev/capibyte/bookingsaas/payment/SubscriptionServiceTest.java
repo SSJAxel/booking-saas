@@ -33,9 +33,11 @@ class SubscriptionServiceTest {
 	private final TenantService tenantService = mock(TenantService.class);
 	private final AppUserRepository appUserRepository = mock(AppUserRepository.class);
 	private final MercadoPagoClient mercadoPagoClient = mock(MercadoPagoClient.class);
+	private final MercadoPagoAccountService mercadoPagoAccountService = mock(MercadoPagoAccountService.class);
 	private final WebhookSignatureVerifier signatureVerifier = mock(WebhookSignatureVerifier.class);
 	private final SubscriptionService subscriptionService = new SubscriptionService(subscriptionRepository,
-			tenantService, appUserRepository, mercadoPagoClient, signatureVerifier, "test-webhook-secret");
+			tenantService, appUserRepository, mercadoPagoClient, mercadoPagoAccountService, signatureVerifier,
+			"test-webhook-secret");
 
 	@AfterEach
 	void clearTenantContext() {
@@ -64,8 +66,9 @@ class SubscriptionServiceTest {
 			org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
 			return saved;
 		});
-		when(mercadoPagoClient.createPreapproval(eq(tenantId), any(), anyString(), eq(PlanTier.PRO.getMonthlyPrice()),
-				eq("owner@demo.com")))
+		when(mercadoPagoAccountService.resolveAccessToken(tenantId)).thenReturn("tenant-access-token");
+		when(mercadoPagoClient.createPreapproval(eq("tenant-access-token"), eq(tenantId), any(), anyString(),
+				eq(PlanTier.PRO.getMonthlyPrice()), eq("owner@demo.com")))
 				.thenReturn(new MercadoPagoPreapproval("preapproval-1", "pending",
 						"https://mp.example/subscriptions/preapproval-1", "ignored"));
 
@@ -91,7 +94,8 @@ class SubscriptionServiceTest {
 
 		UUID tenantId = UUID.randomUUID();
 		UUID subscriptionId = UUID.randomUUID();
-		when(mercadoPagoClient.getPreapproval("preapproval-1"))
+		when(mercadoPagoAccountService.getPlatformAccessToken()).thenReturn("platform-access-token");
+		when(mercadoPagoClient.getPreapproval("platform-access-token", "preapproval-1"))
 				.thenReturn(new MercadoPagoPreapproval("preapproval-1", "authorized", null, tenantId + ":" + subscriptionId));
 
 		Subscription subscription = new Subscription();
@@ -117,7 +121,8 @@ class SubscriptionServiceTest {
 
 		UUID tenantId = UUID.randomUUID();
 		UUID subscriptionId = UUID.randomUUID();
-		when(mercadoPagoClient.getPreapproval("preapproval-1"))
+		when(mercadoPagoAccountService.getPlatformAccessToken()).thenReturn("platform-access-token");
+		when(mercadoPagoClient.getPreapproval("platform-access-token", "preapproval-1"))
 				.thenReturn(new MercadoPagoPreapproval("preapproval-1", "cancelled", null, tenantId + ":" + subscriptionId));
 
 		Subscription subscription = new Subscription();
@@ -143,10 +148,11 @@ class SubscriptionServiceTest {
 		when(subscriptionRepository.findFirstByStatusInOrderByCreatedAtDesc(
 				List.of(SubscriptionStatus.PENDING, SubscriptionStatus.AUTHORIZED, SubscriptionStatus.PAUSED)))
 				.thenReturn(Optional.of(subscription));
+		when(mercadoPagoAccountService.resolveAccessToken(any())).thenReturn("tenant-access-token");
 
 		subscriptionService.cancelActiveSubscription(UUID.randomUUID());
 
-		verify(mercadoPagoClient).cancelPreapproval("preapproval-1");
+		verify(mercadoPagoClient).cancelPreapproval("tenant-access-token", "preapproval-1");
 		assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.CANCELLED);
 	}
 
@@ -156,6 +162,6 @@ class SubscriptionServiceTest {
 
 		subscriptionService.cancelActiveSubscription(UUID.randomUUID());
 
-		verify(mercadoPagoClient, never()).cancelPreapproval(anyString());
+		verify(mercadoPagoClient, never()).cancelPreapproval(anyString(), anyString());
 	}
 }

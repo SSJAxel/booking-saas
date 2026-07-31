@@ -34,17 +34,19 @@ public class SubscriptionService {
 	private final TenantService tenantService;
 	private final AppUserRepository appUserRepository;
 	private final MercadoPagoClient mercadoPagoClient;
+	private final MercadoPagoAccountService mercadoPagoAccountService;
 	private final WebhookSignatureVerifier signatureVerifier;
 	private final String webhookSecret;
 
 	public SubscriptionService(SubscriptionRepository subscriptionRepository, TenantService tenantService,
 			AppUserRepository appUserRepository, MercadoPagoClient mercadoPagoClient,
-			WebhookSignatureVerifier signatureVerifier,
+			MercadoPagoAccountService mercadoPagoAccountService, WebhookSignatureVerifier signatureVerifier,
 			@Value("${app.mercadopago.webhook-secret}") String webhookSecret) {
 		this.subscriptionRepository = subscriptionRepository;
 		this.tenantService = tenantService;
 		this.appUserRepository = appUserRepository;
 		this.mercadoPagoClient = mercadoPagoClient;
+		this.mercadoPagoAccountService = mercadoPagoAccountService;
 		this.signatureVerifier = signatureVerifier;
 		this.webhookSecret = webhookSecret;
 	}
@@ -63,9 +65,10 @@ public class SubscriptionService {
 		subscription.setAmount(requestedTier.getMonthlyPrice());
 		subscription = subscriptionRepository.save(subscription);
 
-		MercadoPagoPreapproval preapproval = mercadoPagoClient.createPreapproval(tenantId, subscription.getId(),
-				"booking-saas " + tenant.getSlug() + " — plan " + requestedTier, requestedTier.getMonthlyPrice(),
-				owner.getEmail());
+		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
+		MercadoPagoPreapproval preapproval = mercadoPagoClient.createPreapproval(accessToken, tenantId,
+				subscription.getId(), "booking-saas " + tenant.getSlug() + " — plan " + requestedTier,
+				requestedTier.getMonthlyPrice(), owner.getEmail());
 		subscription.setProviderSubscriptionId(preapproval.id());
 
 		return new SubscriptionCheckoutResponse(subscription.getId(), preapproval.initPoint());
@@ -75,14 +78,16 @@ public class SubscriptionService {
 	 * Deliberately NOT @Transactional at this level — same reasoning as PaymentService.handleWebhook:
 	 * the tenant isn't known until the preapproval is fetched and its external_reference parsed, so
 	 * TenantContext has to be set before any @TenantId-scoped repository call, not partway through
-	 * one already-open transaction.
+	 * one already-open transaction. Re-fetches with the platform token for the same reason
+	 * PaymentService.handleWebhook does — see its Javadoc.
 	 */
 	public void handleWebhook(String preapprovalId, String requestId, String signatureHeader) {
 		if (!signatureVerifier.isValid(preapprovalId, requestId, signatureHeader, webhookSecret)) {
 			throw new UnauthorizedException("Invalid MercadoPago webhook signature");
 		}
 
-		MercadoPagoPreapproval preapproval = mercadoPagoClient.getPreapproval(preapprovalId);
+		MercadoPagoPreapproval preapproval =
+				mercadoPagoClient.getPreapproval(mercadoPagoAccountService.getPlatformAccessToken(), preapprovalId);
 		String[] reference = parseExternalReference(preapproval.externalReference());
 		UUID tenantId = UUID.fromString(reference[0]);
 		UUID subscriptionId = UUID.fromString(reference[1]);
@@ -116,7 +121,8 @@ public class SubscriptionService {
 	public void cancelActiveSubscription(UUID tenantId) {
 		subscriptionRepository.findFirstByStatusInOrderByCreatedAtDesc(CANCELLABLE_STATUSES).ifPresent(subscription -> {
 			if (subscription.getProviderSubscriptionId() != null) {
-				mercadoPagoClient.cancelPreapproval(subscription.getProviderSubscriptionId());
+				String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
+				mercadoPagoClient.cancelPreapproval(accessToken, subscription.getProviderSubscriptionId());
 			}
 			subscription.setStatus(SubscriptionStatus.CANCELLED);
 		});

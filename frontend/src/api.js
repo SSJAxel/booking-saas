@@ -39,6 +39,8 @@ export const api = {
 	tenant: {
 		get: () => request("/api/tenant"),
 		changePlan: (planTier) => request("/api/tenant/plan", { method: "PATCH", body: { planTier } }),
+		subscribe: (planTier) => request("/api/tenant/subscription", { method: "POST", body: { planTier } }),
+		connectMercadoPago: () => request("/api/tenant/mercadopago/connect"),
 	},
 	branches: {
 		list: () => request("/api/branches"),

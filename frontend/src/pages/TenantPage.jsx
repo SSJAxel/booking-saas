@@ -19,10 +19,30 @@ export default function TenantPage() {
 		refresh();
 	}, []);
 
-	async function handleChangePlan(planTier) {
+	async function handleDowngrade() {
 		setError("");
 		try {
-			setTenant(await api.tenant.changePlan(planTier));
+			setTenant(await api.tenant.changePlan("BASIC"));
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleSubscribe() {
+		setError("");
+		try {
+			const { checkoutUrl } = await api.tenant.subscribe("PRO");
+			window.location.href = checkoutUrl;
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleConnectMercadoPago() {
+		setError("");
+		try {
+			const { authorizationUrl } = await api.tenant.connectMercadoPago();
+			window.location.href = authorizationUrl;
 		} catch (err) {
 			setError(err.message);
 		}
@@ -43,15 +63,30 @@ export default function TenantPage() {
 				</p>
 				{session.role === "OWNER" ? (
 					<div className="button-row">
-						<button type="button" disabled={tenant.planTier === "BASIC"} onClick={() => handleChangePlan("BASIC")}>
+						<button type="button" disabled={tenant.planTier === "BASIC"} onClick={handleDowngrade}>
 							Pasar a BASIC
 						</button>
-						<button type="button" disabled={tenant.planTier === "PRO"} onClick={() => handleChangePlan("PRO")}>
-							Pasar a PRO
+						<button type="button" disabled={tenant.planTier === "PRO"} onClick={handleSubscribe}>
+							Suscribirme a PRO
 						</button>
 					</div>
 				) : (
 					<p className="muted">Solo el dueño puede cambiar el plan.</p>
+				)}
+			</div>
+
+			<p className="label">Cobros</p>
+			<div className="card">
+				<p className="muted">
+					Conectá tu propia cuenta de Mercado Pago para que las señas y la suscripción se cobren directo a tu
+					cuenta, en vez de una cuenta compartida de la plataforma.
+				</p>
+				{session.role === "OWNER" ? (
+					<button type="button" onClick={handleConnectMercadoPago}>
+						Conectar Mercado Pago
+					</button>
+				) : (
+					<p className="muted">Solo el dueño puede conectar la cuenta.</p>
 				)}
 			</div>
 		</div>

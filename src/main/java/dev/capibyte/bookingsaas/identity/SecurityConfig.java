@@ -25,6 +25,7 @@ public class SecurityConfig {
 			"/api/auth/**",
 			"/api/public/**",
 			"/api/webhooks/**",
+			"/api/mercadopago/oauth/callback",
 			"/actuator/health",
 			"/swagger-ui/**",
 			"/swagger-ui.html",

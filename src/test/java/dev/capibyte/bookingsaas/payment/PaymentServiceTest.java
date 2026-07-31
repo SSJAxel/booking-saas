@@ -34,9 +34,11 @@ class PaymentServiceTest {
 	private final AppointmentService appointmentService = mock(AppointmentService.class);
 	private final ServiceOfferingService serviceOfferingService = mock(ServiceOfferingService.class);
 	private final MercadoPagoClient mercadoPagoClient = mock(MercadoPagoClient.class);
+	private final MercadoPagoAccountService mercadoPagoAccountService = mock(MercadoPagoAccountService.class);
 	private final WebhookSignatureVerifier signatureVerifier = mock(WebhookSignatureVerifier.class);
 	private final PaymentService paymentService = new PaymentService(paymentRepository, appointmentService,
-			serviceOfferingService, mercadoPagoClient, signatureVerifier, "test-webhook-secret");
+			serviceOfferingService, mercadoPagoClient, mercadoPagoAccountService, signatureVerifier,
+			"test-webhook-secret");
 
 	@AfterEach
 	void clearTenantContext() {
@@ -74,7 +76,9 @@ class PaymentServiceTest {
 			org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
 			return saved;
 		});
-		when(mercadoPagoClient.createPreference(any(), any(), anyString(), eq(new BigDecimal("20.00"))))
+		when(mercadoPagoAccountService.resolveAccessToken(any())).thenReturn("tenant-access-token");
+		when(mercadoPagoClient.createPreference(eq("tenant-access-token"), any(), any(), anyString(),
+				eq(new BigDecimal("20.00"))))
 				.thenReturn(new MercadoPagoPreference("pref-1", "https://mp.example/checkout/pref-1"));
 
 		TenantContext.setTenantId(UUID.randomUUID());
@@ -101,7 +105,8 @@ class PaymentServiceTest {
 		UUID tenantId = UUID.randomUUID();
 		UUID paymentId = UUID.randomUUID();
 		UUID appointmentId = UUID.randomUUID();
-		when(mercadoPagoClient.getPayment("mp-1"))
+		when(mercadoPagoAccountService.getPlatformAccessToken()).thenReturn("platform-access-token");
+		when(mercadoPagoClient.getPayment("platform-access-token", "mp-1"))
 				.thenReturn(new MercadoPagoPayment("mp-1", "approved", tenantId + ":" + paymentId));
 
 		Payment payment = new Payment();
@@ -123,7 +128,8 @@ class PaymentServiceTest {
 
 		UUID tenantId = UUID.randomUUID();
 		UUID paymentId = UUID.randomUUID();
-		when(mercadoPagoClient.getPayment("mp-1"))
+		when(mercadoPagoAccountService.getPlatformAccessToken()).thenReturn("platform-access-token");
+		when(mercadoPagoClient.getPayment("platform-access-token", "mp-1"))
 				.thenReturn(new MercadoPagoPayment("mp-1", "in_process", tenantId + ":" + paymentId));
 
 		Payment payment = new Payment();
@@ -141,7 +147,8 @@ class PaymentServiceTest {
 	void handleWebhookClearsTenantContextEvenOnFailure() {
 		when(signatureVerifier.isValid(anyString(), anyString(), anyString(), eq("test-webhook-secret")))
 				.thenReturn(true);
-		when(mercadoPagoClient.getPayment("mp-1"))
+		when(mercadoPagoAccountService.getPlatformAccessToken()).thenReturn("platform-access-token");
+		when(mercadoPagoClient.getPayment("platform-access-token", "mp-1"))
 				.thenReturn(new MercadoPagoPayment("mp-1", "approved", UUID.randomUUID() + ":" + UUID.randomUUID()));
 		when(paymentRepository.findById(any())).thenReturn(Optional.empty());
 

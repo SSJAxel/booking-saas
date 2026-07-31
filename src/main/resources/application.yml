@@ -40,8 +40,8 @@ springdoc:
 app:
   booking:
     # How long a PENDING appointment waits for its deposit before it's cancelled and the slot
-    # freed back up. Global for now, same MVP simplification as the single MercadoPago account
-    # below — a real multi-tenant deployment would let each tenant tune this.
+    # freed back up. Global for now — a real multi-tenant deployment would let each tenant tune
+    # this.
     deposit-expiration-minutes: ${DEPOSIT_EXPIRATION_MINUTES:30}
     expiration-check-interval-ms: ${EXPIRATION_CHECK_INTERVAL_MS:60000}
   cors:
@@ -59,11 +59,18 @@ app:
     refill-tokens: ${RATE_LIMIT_REFILL_TOKENS:30}
     refill-duration-seconds: ${RATE_LIMIT_REFILL_SECONDS:60}
   mercadopago:
-    # One platform-level sandbox account for every tenant in this MVP — see README "Design notes"
-    # for why (a real multi-tenant deployment would need per-tenant OAuth Connect instead).
     base-url: ${MERCADOPAGO_BASE_URL:https://api.mercadopago.com}
+    # Platform-level fallback account, used for a tenant who hasn't connected their own via OAuth
+    # yet (see MercadoPagoAccountService) — not a hard requirement to keep operating.
     access-token: ${MERCADOPAGO_ACCESS_TOKEN:}
     webhook-secret: ${MERCADOPAGO_WEBHOOK_SECRET:}
     success-url: ${MERCADOPAGO_SUCCESS_URL:https://example.com/payment/success}
     failure-url: ${MERCADOPAGO_FAILURE_URL:https://example.com/payment/failure}
     pending-url: ${MERCADOPAGO_PENDING_URL:https://example.com/payment/pending}
+    # OAuth Connect ("Application" credentials from MercadoPago's developer dashboard — platform-
+    # wide, not per-tenant) — used only for the authorization-code exchange itself.
+    client-id: ${MERCADOPAGO_CLIENT_ID:}
+    client-secret: ${MERCADOPAGO_CLIENT_SECRET:}
+    oauth-redirect-uri: ${MERCADOPAGO_OAUTH_REDIRECT_URI:http://localhost:8080/api/mercadopago/oauth/callback}
+    # Where a tenant owner's browser lands after connecting (or failing to) — the admin panel.
+    connect-return-url: ${MERCADOPAGO_CONNECT_RETURN_URL:http://localhost:5180/tenant}

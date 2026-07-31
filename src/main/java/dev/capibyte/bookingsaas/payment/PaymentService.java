@@ -24,17 +24,19 @@ public class PaymentService {
 	private final AppointmentService appointmentService;
 	private final ServiceOfferingService serviceOfferingService;
 	private final MercadoPagoClient mercadoPagoClient;
+	private final MercadoPagoAccountService mercadoPagoAccountService;
 	private final WebhookSignatureVerifier signatureVerifier;
 	private final String webhookSecret;
 
 	public PaymentService(PaymentRepository paymentRepository, AppointmentService appointmentService,
 			ServiceOfferingService serviceOfferingService, MercadoPagoClient mercadoPagoClient,
-			WebhookSignatureVerifier signatureVerifier,
+			MercadoPagoAccountService mercadoPagoAccountService, WebhookSignatureVerifier signatureVerifier,
 			@Value("${app.mercadopago.webhook-secret}") String webhookSecret) {
 		this.paymentRepository = paymentRepository;
 		this.appointmentService = appointmentService;
 		this.serviceOfferingService = serviceOfferingService;
 		this.mercadoPagoClient = mercadoPagoClient;
+		this.mercadoPagoAccountService = mercadoPagoAccountService;
 		this.signatureVerifier = signatureVerifier;
 		this.webhookSecret = webhookSecret;
 	}
@@ -59,8 +61,10 @@ public class PaymentService {
 		payment.setStatus(PaymentStatus.PENDING);
 		payment = paymentRepository.save(payment);
 
-		MercadoPagoPreference preference = mercadoPagoClient.createPreference(TenantContext.getTenantId(),
-				payment.getId(), "Deposit for " + service.getName(), service.getDepositAmount());
+		UUID tenantId = TenantContext.getTenantId();
+		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
+		MercadoPagoPreference preference = mercadoPagoClient.createPreference(accessToken, tenantId, payment.getId(),
+				"Deposit for " + service.getName(), service.getDepositAmount());
 		payment.setProviderPreferenceId(preference.id());
 
 		return new CheckoutResponse(payment.getId(), preference.initPoint());
@@ -76,13 +80,20 @@ public class PaymentService {
 	 * the annotation would be silently ignored. Instead it calls straight through to
 	 * paymentRepository (each JpaRepository method is already its own transactional proxy call)
 	 * and appointmentService (a different bean, so its @Transactional methods proxy correctly).
+	 *
+	 * <p>The re-fetch below uses the platform's own token, not a resolved-per-tenant one — the
+	 * tenant isn't known yet at this point (that's the whole reason for the re-fetch), and
+	 * MercadoPago's marketplace model gives the integrating application read access to payments it
+	 * created through a connected account's OAuth flow. Unverified against a live sandbox, same
+	 * disclaimer as the rest of this integration (see README).
 	 */
 	public void handleWebhook(String dataId, String requestId, String signatureHeader) {
 		if (!signatureVerifier.isValid(dataId, requestId, signatureHeader, webhookSecret)) {
 			throw new UnauthorizedException("Invalid MercadoPago webhook signature");
 		}
 
-		MercadoPagoPayment mpPayment = mercadoPagoClient.getPayment(dataId);
+		MercadoPagoPayment mpPayment = mercadoPagoClient.getPayment(mercadoPagoAccountService.getPlatformAccessToken(),
+				dataId);
 		String[] reference = parseExternalReference(mpPayment.externalReference());
 		UUID tenantId = UUID.fromString(reference[0]);
 		UUID paymentId = UUID.fromString(reference[1]);

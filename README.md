@@ -170,6 +170,33 @@ still retrying isn't reflected here yet, only an eventual pause/cancellation is.
 against a live sandbox, for the same reason as Checkout Pro (see below) — covered instead by
 `MercadoPagoClientTest` (request/response contract) and `SubscriptionServiceTest` (business logic).
 
+**Per-tenant MercadoPago accounts (OAuth Connect).** `MercadoPagoClient` takes an
+`accessToken` on every call that moves money or reads a payment/subscription — it has no
+opinion on whose account a call is for. `MercadoPagoAccountService.resolveAccessToken` decides
+that: a tenant's own connected account if they have one, the platform's shared token otherwise
+(connecting is additive, not required — every existing tenant keeps working through the shared
+account exactly like before this feature existed).
+
+The connect flow: `GET /api/tenant/mercadopago/connect` (owner-only) returns the URL to send their
+browser to (`MercadoPagoClient.buildAuthorizationUrl`), with the tenant id as the OAuth `state`
+param — the same "embed the id we'll need on the way back" convention as `external_reference`
+elsewhere in this file. MercadoPago redirects the browser to
+`GET /api/mercadopago/oauth/callback?code=...&state=...` (public — no JWT reaches a browser
+redirect), which exchanges the code for an access/refresh token pair
+(`MercadoPagoAccountService.handleOAuthCallback`) and stores it in a new `MercadoPagoAccount` row,
+then redirects back into the admin panel. A hardened version would use an opaque per-request nonce
+for `state` and look the tenant up server-side, instead of trusting a client-suppliable value
+directly — noted in `MercadoPagoClient.buildAuthorizationUrl`'s Javadoc.
+
+`resolveAccessToken` also refreshes an expired stored token before handing it out
+(`MercadoPagoClient.refreshAccessToken`), so a caller never gets handed a token MercadoPago's
+about to reject. One deliberate asymmetry: webhook re-fetches (`getPayment`/`getPreapproval` inside
+`handleWebhook`) keep using the *platform* token, not a resolved tenant one — the tenant isn't
+known until after that re-fetch succeeds (that's the whole reason for re-fetching), and
+MercadoPago's marketplace model is assumed to give the integrating application read access to
+transactions it created through a connected account's OAuth flow. That assumption is unverified
+against a live sandbox, same as the rest of this integration.
+
 **Waitlist.** Date-level, not exact-time: a client waitlists for "this professional/service on
 this date" rather than one specific slot, since freeing up any appointment that day changes what's
 available. When `AppointmentService.transitionStatus()` cancels an appointment, it calls
@@ -218,14 +245,16 @@ de negocio detrás.
    propósito: solo reacciona al estado del preapproval, no al webhook de cada cobro individual
    (`authorized_payment`) — un cobro puntual que Mercado Pago está reintentando todavía no se ve
    reflejado, recién cuando termina en pausa/cancelación.
-2. **Cuenta de Mercado Pago por tenant, no compartida.** Hoy todos los depósitos *y* las
-   suscripciones van a una sola cuenta sandbox (ver "Design notes" → Payments). Un producto real
-   necesita que cada negocio cobre a su propia cuenta — requiere el flujo OAuth Connect de Mercado
-   Pago por tenant.
+2. ~~**Cuenta de Mercado Pago por tenant, no compartida.**~~ Hecho — OAuth Connect, ver
+   "Design notes" → Per-tenant MercadoPago accounts. `GET /api/tenant/mercadopago/connect` +
+   `MercadoPagoAccountService`; conectar es opcional, no obligatorio (el que no conecta sigue
+   usando la cuenta compartida exactamente como antes). Quedó afuera a propósito: el `state` del
+   OAuth es el `tenantId` directo, no un nonce opaco — más simple, pero menos duro contra un
+   `state` forjado; anotado en el Javadoc de `buildAuthorizationUrl`.
 3. **Verificación contra Mercado Pago real.** Nunca se probó contra credenciales reales (ver
-   "Design notes"), ni el Checkout Pro de señas ni el Preapproval de suscripciones. Antes de
-   cobrarle a un cliente de verdad hace falta un smoke test contra una cuenta sandbox real, no
-   solo el mock casero y los tests de contrato.
+   "Design notes"), ni el Checkout Pro de señas, ni el Preapproval de suscripciones, ni el OAuth
+   Connect. Antes de cobrarle a un cliente de verdad hace falta un smoke test contra una cuenta
+   sandbox real, no solo el mock casero y los tests de contrato.
 4. **Página pública de precios y alta.** Hoy registrarse es un `POST /api/auth/register` a mano.
    Falta una landing en `frontend-public` (hoy `LandingPage` es un stub) que explique los planes y
    deje crear la cuenta sin tocar la API directo.

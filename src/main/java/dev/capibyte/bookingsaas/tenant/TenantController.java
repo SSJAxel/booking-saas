@@ -1,7 +1,9 @@
 package dev.capibyte.bookingsaas.tenant;
 
 import dev.capibyte.bookingsaas.common.TenantContext;
+import dev.capibyte.bookingsaas.payment.MercadoPagoAccountService;
 import dev.capibyte.bookingsaas.payment.SubscriptionService;
+import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
@@ -25,11 +27,23 @@ public class TenantController {
 
 	private final TenantService tenantService;
 	private final SubscriptionService subscriptionService;
+	private final MercadoPagoAccountService mercadoPagoAccountService;
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN','STAFF')")
 	public TenantResponse get() {
 		return TenantResponse.from(tenantService.findById(TenantContext.getTenantId()));
+	}
+
+	/**
+	 * Owner-only: where to send their browser to connect this tenant's own MercadoPago account
+	 * (OAuth Connect), so their checkouts/subscriptions pay out to them instead of the shared
+	 * platform account. See MercadoPagoOAuthController for where the flow lands after they approve.
+	 */
+	@GetMapping("/mercadopago/connect")
+	@PreAuthorize("hasRole('OWNER')")
+	public OAuthConnectResponse connectMercadoPago() {
+		return new OAuthConnectResponse(mercadoPagoAccountService.buildAuthorizationUrl(TenantContext.getTenantId()));
 	}
 
 	/** Owner-only: starts a MercadoPago subscription for a paid plan — this is the upgrade path. */
