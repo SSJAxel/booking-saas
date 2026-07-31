@@ -4,10 +4,13 @@ import dev.capibyte.bookingsaas.booking.dto.AppointmentResponse;
 import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
 import dev.capibyte.bookingsaas.booking.dto.PublicProfessionalResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicServiceResponse;
+import dev.capibyte.bookingsaas.booking.dto.PublicTenantResponse;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
+import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.util.List;
@@ -37,6 +40,12 @@ public class PublicBookingController {
 	private final ProfessionalService professionalService;
 	private final PublicAvailabilityService publicAvailabilityService;
 	private final AppointmentService appointmentService;
+	private final TenantService tenantService;
+
+	@GetMapping
+	public PublicTenantResponse tenant(@PathVariable String tenantSlug) {
+		return PublicTenantResponse.from(tenantService.findById(TenantContext.getTenantId()));
+	}
 
 	@GetMapping("/services")
 	public List<PublicServiceResponse> services(@PathVariable String tenantSlug) {
