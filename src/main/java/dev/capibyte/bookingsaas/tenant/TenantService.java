@@ -100,4 +100,11 @@ public class TenantService {
 	public ZoneId getZoneId(UUID tenantId) {
 		return ZoneId.of(findById(tenantId).getTimezone());
 	}
+
+	@Transactional
+	public Tenant updateWhatsAppEnabled(UUID tenantId, boolean enabled) {
+		Tenant tenant = findById(tenantId);
+		tenant.setWhatsappEnabled(enabled);
+		return tenant;
+	}
 }

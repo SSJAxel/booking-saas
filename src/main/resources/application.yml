@@ -74,3 +74,14 @@ app:
     oauth-redirect-uri: ${MERCADOPAGO_OAUTH_REDIRECT_URI:http://localhost:8080/api/mercadopago/oauth/callback}
     # Where a tenant owner's browser lands after connecting (or failing to) — the admin panel.
     connect-return-url: ${MERCADOPAGO_CONNECT_RETURN_URL:http://localhost:5180/tenant}
+  twilio:
+    # One platform-level WhatsApp sender for every tenant — a tenant only controls whether
+    # messages go out (Tenant.whatsappEnabled), not which number they're sent from. Blank
+    # defaults are fine at rest: WhatsAppNotificationService catches and logs send failures
+    # rather than throwing, so an unconfigured Twilio account never breaks a booking.
+    base-url: ${TWILIO_BASE_URL:https://api.twilio.com}
+    account-sid: ${TWILIO_ACCOUNT_SID:}
+    auth-token: ${TWILIO_AUTH_TOKEN:}
+    # Twilio WhatsApp sender number, e.g. "+14155238886" (no "whatsapp:" prefix here — added at
+    # call time).
+    whatsapp-from: ${TWILIO_WHATSAPP_FROM:}

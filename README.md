@@ -113,6 +113,29 @@ consumes it with `@TransactionalEventListener(phase = AFTER_COMMIT)`, so a clien
 about a booking that then rolled back. `MailService` never lets a send failure propagate — a
 broken mail server must not turn a successful booking into a 500.
 
+**WhatsApp notifications.** Opt-in, off by default (`Tenant.whatsappEnabled`, `PATCH
+/api/tenant/notifications`, owner or admin) — an extra channel on top of email, never a
+replacement, per an explicit product call: email alone is enough for a booking to work, so a
+tenant who never touches the toggle sees zero behavior change. Implemented as a second,
+independent `@TransactionalEventListener(phase = AFTER_COMMIT)` (`AppointmentWhatsAppListener`)
+consuming the same `AppointmentNotificationEvent` that `AppointmentNotificationListener` (email)
+already consumes, rather than merging the two — so a bug or outage in one channel can never affect
+the other. `AppointmentNotificationEvent` carries `whatsappEnabled` and `clientPhone` (not just
+`zone`) for the same reason the email listener needs `zone` carried in: it runs after commit, by
+which point `TenantContext` is gone and the transaction that loaded the tenant/client is over, so
+neither can be re-queried. The listener only sends when both are true — tenant opted in AND the
+client actually left a phone number when booking (`Client.phone`, already collected).
+`WhatsAppClient` is a plain `RestClient` wrapper over Twilio's Messages API (Basic Auth with
+`account_sid`/`auth_token`, form-encoded body, `To` prefixed `whatsapp:`) — same "no SDK, explicit
+HTTP contract" style as `MercadoPagoClient`. One platform-level Twilio WhatsApp sender for every
+tenant, not a number per tenant — same MVP simplification as the pre-OAuth-Connect MercadoPago
+account. `WhatsAppNotificationService` catches `RestClientException` and logs rather than
+rethrowing, mirroring `MailService` — a Twilio outage or misconfiguration must never turn a
+successful booking into a 500. Not verified against a live Twilio account (no test credentials
+available while building this) — covered by `WhatsAppClientTest` (`MockRestServiceServer` request
+contract) and `AppointmentWhatsAppListenerTest` (enable/disable/phone-present branching); treat as
+needing a live smoke test before depending on it, same caveat as MercadoPago.
+
 **Rate limiting.** `PublicApiRateLimitFilter` applies a single token bucket (Bucket4j) per client
 IP across all of `/api/public/**` — the only unauthenticated surface, so IP is the only identity
 available to key on. Buckets live in a Caffeine cache with a 10-minute idle expiry so the map of
@@ -346,9 +369,21 @@ un tercer nivel).
    `PublicAvailabilityService` (ver "Design notes" → Timezones) en vez del supuesto "todo es UTC"
    que había antes. El contrato de reserva pública cambió como parte de esto — ver esa sección
    para por qué.
-8. **WhatsApp además de mail.** Evaluado y pospuesto durante el diseño con Luciana por costo/scope
-   (necesita la API de Meta o un proveedor tipo Twilio) — en el mercado de LatAm en el que compite
-   (AgendaPro, Booksy) es casi esperado, no un extra.
+8. ~~**WhatsApp además de mail.**~~ Hecho — canal opcional, apagado por default
+   (`Tenant.whatsappEnabled`, `PATCH /api/tenant/notifications`, owner o admin). A propósito NO
+   reemplaza el mail: `AppointmentNotificationListener` (mail) y `AppointmentWhatsAppListener`
+   (WhatsApp) son dos listeners `AFTER_COMMIT` independientes sobre el mismo
+   `AppointmentNotificationEvent` — un tenant que nunca toca el toggle sigue recibiendo exactamente
+   los mismos mails que antes, sin cambios. `WhatsAppClient` habla con la API de mensajes de Twilio
+   (Basic Auth con `account_sid`/`auth_token`, mismo estilo `RestClient` plano que
+   `MercadoPagoClient`, sin SDK) usando un único número de WhatsApp a nivel plataforma — no hay
+   número por tenant, mismo MVP simplificado que la cuenta de MercadoPago compartida antes de
+   OAuth Connect. Solo envía si el tenant activó el toggle Y el cliente dejó un teléfono al
+   reservar; si Twilio falla, se loguea y se descarta (`WhatsAppNotificationService`, mismo
+   contrato que `MailService`) — un problema con WhatsApp nunca puede tirar abajo una reserva. No
+   verificado contra una cuenta Twilio real (sin credenciales de prueba disponibles al construirlo)
+   — mismo caveat que MercadoPago: falta un smoke test en vivo antes de confiar en esto con un
+   cliente real.
 
 ### Deuda técnica conocida (prioridad según qué tan rápido haga falta)
 

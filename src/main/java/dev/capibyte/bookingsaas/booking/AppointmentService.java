@@ -8,6 +8,7 @@ import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.notification.AppointmentNotificationEvent;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import dev.capibyte.bookingsaas.waitlist.WaitlistService;
 import java.time.Instant;
@@ -185,9 +186,11 @@ public class AppointmentService {
 
 	private void publishNotification(Appointment appointment, Client client, Professional professional,
 			ServiceOffering service, AppointmentStatus status) {
-		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+		ZoneId zone = ZoneId.of(tenant.getTimezone());
 		eventPublisher.publishEvent(new AppointmentNotificationEvent(client.getEmail(), client.getName(),
-				professional.getDisplayName(), service.getName(), appointment.getStartTime(), zone, status));
+				professional.getDisplayName(), service.getName(), appointment.getStartTime(), zone, status,
+				tenant.isWhatsappEnabled(), client.getPhone()));
 	}
 
 	private void validateTransition(AppointmentStatus from, AppointmentStatus to) {

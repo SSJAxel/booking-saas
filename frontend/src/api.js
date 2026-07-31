@@ -43,6 +43,8 @@ export const api = {
 		connectMercadoPago: () => request("/api/tenant/mercadopago/connect"),
 		updateBranding: (body) => request("/api/tenant/branding", { method: "PATCH", body }),
 		updateTimezone: (timezone) => request("/api/tenant/timezone", { method: "PATCH", body: { timezone } }),
+		updateNotifications: (whatsappEnabled) =>
+			request("/api/tenant/notifications", { method: "PATCH", body: { whatsappEnabled } }),
 	},
 	branches: {
 		list: () => request("/api/branches"),

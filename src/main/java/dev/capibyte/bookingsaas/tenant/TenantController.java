@@ -6,6 +6,7 @@ import dev.capibyte.bookingsaas.payment.SubscriptionService;
 import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
+import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
 import dev.capibyte.bookingsaas.tenant.dto.TimezoneUpdateRequest;
@@ -54,6 +55,17 @@ public class TenantController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public TenantResponse updateTimezone(@Valid @RequestBody TimezoneUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateTimezone(TenantContext.getTenantId(), request.timezone()));
+	}
+
+	/**
+	 * Owner/admin: turns the WhatsApp channel on/off for this tenant. Off by default — email alone
+	 * is always enough for a booking to work, this just adds a second channel on top of it.
+	 */
+	@PatchMapping("/notifications")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateNotifications(@Valid @RequestBody NotificationSettingsRequest request) {
+		return TenantResponse
+				.from(tenantService.updateWhatsAppEnabled(TenantContext.getTenantId(), request.whatsappEnabled()));
 	}
 
 	/**

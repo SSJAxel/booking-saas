@@ -50,6 +50,10 @@ public class Tenant extends BaseEntity {
 	@Column
 	private String tagline;
 
+	/** Off by default — an extra channel alongside email, never a replacement for it. */
+	@Column(name = "whatsapp_enabled", nullable = false)
+	private boolean whatsappEnabled = false;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

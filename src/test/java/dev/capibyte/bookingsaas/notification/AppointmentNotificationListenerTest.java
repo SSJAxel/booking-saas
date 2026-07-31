@@ -48,6 +48,7 @@ class AppointmentNotificationListenerTest {
 
 	private AppointmentNotificationEvent event(AppointmentStatus status) {
 		return new AppointmentNotificationEvent("client@example.com", "Jane Doe", "Maria Tattoo", "Small Tattoo",
-				Instant.parse("2026-08-10T10:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"), status);
+				Instant.parse("2026-08-10T10:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"), status, false,
+				null);
 	}
 }

@@ -7,6 +7,7 @@ export default function TenantPage() {
 	const [error, setError] = useState("");
 	const [brandingNotice, setBrandingNotice] = useState("");
 	const [timezoneNotice, setTimezoneNotice] = useState("");
+	const [notificationsNotice, setNotificationsNotice] = useState("");
 	const { session } = useAuth();
 	const canManage = session.role === "OWNER" || session.role === "ADMIN";
 
@@ -79,6 +80,18 @@ export default function TenantPage() {
 		try {
 			setTenant(await api.tenant.updateTimezone(form.get("timezone")));
 			setTimezoneNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleToggleWhatsApp(event) {
+		const enabled = event.target.checked;
+		setError("");
+		setNotificationsNotice("");
+		try {
+			setTenant(await api.tenant.updateNotifications(enabled));
+			setNotificationsNotice("Guardado.");
 		} catch (err) {
 			setError(err.message);
 		}
@@ -182,6 +195,26 @@ export default function TenantPage() {
 					</form>
 				) : (
 					<p className="muted">Solo el dueño o un admin pueden editar la marca.</p>
+				)}
+			</div>
+
+			<p className="label">Notificaciones</p>
+			<div className="card">
+				<p className="muted">
+					El mail se envía siempre que alguien agenda, confirma o cancela un turno — esto es un canal extra, no un
+					reemplazo. Requiere que el cliente haya dejado su teléfono al reservar.
+				</p>
+				{canManage ? (
+					<label className="inline-form" style={{ alignItems: "center", gap: "0.5rem" }}>
+						<input type="checkbox" checked={tenant.whatsappEnabled} onChange={handleToggleWhatsApp} />
+						Avisar también por WhatsApp
+						{notificationsNotice && <span className="notice">{notificationsNotice}</span>}
+					</label>
+				) : (
+					<p className="muted">
+						WhatsApp está {tenant.whatsappEnabled ? "activado" : "desactivado"}. Solo el dueño o un admin pueden
+						cambiarlo.
+					</p>
 				)}
 			</div>
 		</div>

@@ -11,6 +11,8 @@ import java.time.ZoneId;
  * relative to the transaction that published it. {@code zone} is carried for the same reason —
  * the listener runs AFTER_COMMIT (see AppointmentNotificationListener), by which point
  * TenantContext has already been cleared, so it can't re-resolve the tenant's zone itself.
+ * {@code whatsappEnabled}/{@code clientPhone} exist for the same reason, for
+ * AppointmentWhatsAppListener — it can't re-query the tenant or client after commit either.
  */
 public record AppointmentNotificationEvent(
 		String clientEmail,
@@ -19,5 +21,7 @@ public record AppointmentNotificationEvent(
 		String serviceName,
 		Instant startTime,
 		ZoneId zone,
-		AppointmentStatus status) {
+		AppointmentStatus status,
+		boolean whatsappEnabled,
+		String clientPhone) {
 }
