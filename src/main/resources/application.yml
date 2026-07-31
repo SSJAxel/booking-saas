@@ -38,6 +38,10 @@ springdoc:
     path: /v3/api-docs
 
 app:
+  cors:
+    # Comma-separated allow-list of frontend origins allowed to call this API from a browser
+    # (the admin panel, eventually a business's own public site). No wildcard on purpose.
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
   jwt:
     secret: ${JWT_SECRET:dev-only-secret-change-me-please-override-in-prod-min-32-bytes}
     expiration-minutes: 60

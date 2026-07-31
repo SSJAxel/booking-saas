@@ -64,7 +64,8 @@ public class PublicBookingController {
 	@PostMapping("/appointments")
 	@ResponseStatus(HttpStatus.CREATED)
 	public AppointmentResponse book(@PathVariable String tenantSlug, @Valid @RequestBody BookAppointmentRequest request) {
-		return AppointmentResponse.from(appointmentService.book(request.professionalId(), request.serviceId(),
-				request.startTime(), request.clientName(), request.clientEmail(), request.clientPhone()));
+		Appointment appointment = appointmentService.book(request.professionalId(), request.serviceId(),
+				request.startTime(), request.clientName(), request.clientEmail(), request.clientPhone());
+		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));
 	}
 }

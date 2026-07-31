@@ -33,16 +33,20 @@ public class AppointmentController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
 			@RequestParam(required = false) AppointmentStatus status) {
 		return appointmentService.search(branchId, professionalId, from, to, status).stream()
-				.map(AppointmentResponse::from).toList();
+				.map(this::toResponse).toList();
 	}
 
 	@GetMapping("/{id}")
 	public AppointmentResponse get(@PathVariable UUID id) {
-		return AppointmentResponse.from(appointmentService.findById(id));
+		return toResponse(appointmentService.findById(id));
 	}
 
 	@PatchMapping("/{id}/status")
 	public AppointmentResponse transition(@PathVariable UUID id, @Valid @RequestBody StatusTransitionRequest request) {
-		return AppointmentResponse.from(appointmentService.transitionStatus(id, request.status()));
+		return toResponse(appointmentService.transitionStatus(id, request.status()));
+	}
+
+	private AppointmentResponse toResponse(Appointment appointment) {
+		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));
 	}
 }

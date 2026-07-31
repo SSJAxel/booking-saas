@@ -159,6 +159,12 @@ public class AppointmentService {
 		}
 	}
 
+	/** Public so controllers can enrich AppointmentResponse with client contact info. */
+	@Transactional(readOnly = true)
+	public Client findClient(UUID clientId) {
+		return loadClient(clientId);
+	}
+
 	private Client loadClient(UUID clientId) {
 		return clientRepository.findById(clientId)
 				.orElseThrow(() -> new NotFoundException("Client not found: " + clientId));
