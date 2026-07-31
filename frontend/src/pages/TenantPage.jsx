@@ -6,6 +6,7 @@ export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
 	const [error, setError] = useState("");
 	const [brandingNotice, setBrandingNotice] = useState("");
+	const [timezoneNotice, setTimezoneNotice] = useState("");
 	const { session } = useAuth();
 	const canManage = session.role === "OWNER" || session.role === "ADMIN";
 
@@ -69,6 +70,20 @@ export default function TenantPage() {
 		}
 	}
 
+	async function handleSaveTimezone(event) {
+		event.preventDefault();
+		event.stopPropagation();
+		setError("");
+		setTimezoneNotice("");
+		const form = new FormData(event.target);
+		try {
+			setTenant(await api.tenant.updateTimezone(form.get("timezone")));
+			setTimezoneNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	if (!tenant) return <p>Cargando...</p>;
 
 	return (
@@ -93,6 +108,40 @@ export default function TenantPage() {
 					</div>
 				) : (
 					<p className="muted">Solo el dueño puede cambiar el plan.</p>
+				)}
+			</div>
+
+			<p className="label">Zona horaria</p>
+			<div className="card">
+				<p className="muted">
+					Se usa para calcular tus horarios disponibles y a qué hora se registra cada turno — cambiarla no mueve
+					los turnos ya cargados.
+				</p>
+				{canManage ? (
+					<form className="inline-form" onSubmit={handleSaveTimezone}>
+						<input
+							name="timezone"
+							list="timezone-options"
+							defaultValue={tenant.timezone}
+							placeholder="ej: America/Argentina/Buenos_Aires"
+						/>
+						<datalist id="timezone-options">
+							<option value="America/Argentina/Buenos_Aires" />
+							<option value="America/Santiago" />
+							<option value="America/Montevideo" />
+							<option value="America/Sao_Paulo" />
+							<option value="America/Bogota" />
+							<option value="America/Mexico_City" />
+							<option value="America/Lima" />
+							<option value="UTC" />
+						</datalist>
+						<button type="submit">Guardar</button>
+						{timezoneNotice && <span className="notice">{timezoneNotice}</span>}
+					</form>
+				) : (
+					<p className="muted">
+						Actual: <strong>{tenant.timezone}</strong>. Solo el dueño o un admin pueden cambiarla.
+					</p>
 				)}
 			</div>
 

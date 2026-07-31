@@ -12,7 +12,10 @@ import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import jakarta.validation.Valid;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -73,8 +76,10 @@ public class PublicBookingController {
 	@PostMapping("/appointments")
 	@ResponseStatus(HttpStatus.CREATED)
 	public AppointmentResponse book(@PathVariable String tenantSlug, @Valid @RequestBody BookAppointmentRequest request) {
-		Appointment appointment = appointmentService.book(request.professionalId(), request.serviceId(),
-				request.startTime(), request.clientName(), request.clientEmail(), request.clientPhone());
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		Instant startTime = ZonedDateTime.of(request.date(), request.startTime(), zone).toInstant();
+		Appointment appointment = appointmentService.book(request.professionalId(), request.serviceId(), startTime,
+				request.clientName(), request.clientEmail(), request.clientPhone());
 		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));
 	}
 }

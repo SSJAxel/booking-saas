@@ -8,6 +8,7 @@ import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
+import dev.capibyte.bookingsaas.tenant.dto.TimezoneUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -42,6 +43,17 @@ public class TenantController {
 	public TenantResponse updateBranding(@Valid @RequestBody BrandingUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateBranding(TenantContext.getTenantId(), request.logoUrl(),
 				request.accentColor(), request.tagline()));
+	}
+
+	/**
+	 * Owner/admin: the IANA zone (e.g. "America/Argentina/Buenos_Aires") every wall-clock time for
+	 * this tenant is interpreted in — weekly availability hours, booking requests, the "which day"
+	 * an appointment counts toward. Defaults to UTC at registration.
+	 */
+	@PatchMapping("/timezone")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateTimezone(@Valid @RequestBody TimezoneUpdateRequest request) {
+		return TenantResponse.from(tenantService.updateTimezone(TenantContext.getTenantId(), request.timezone()));
 	}
 
 	/**

@@ -2,6 +2,8 @@ package dev.capibyte.bookingsaas.tenant;
 
 import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
+import java.time.DateTimeException;
+import java.time.ZoneId;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -73,5 +75,29 @@ public class TenantService {
 		tenant.setAccentColor(accentColor);
 		tenant.setTagline(tagline);
 		return tenant;
+	}
+
+	/**
+	 * {@code timezone} must be a valid IANA zone id (e.g. "America/Argentina/Buenos_Aires") — this
+	 * is what AppointmentService/PublicAvailabilityService convert every wall-clock time against,
+	 * so an invalid value here would silently corrupt every availability search and booking for
+	 * this tenant. Validated by attempting the parse rather than a regex, since "looks like a zone
+	 * id" and "is a zone id ZoneId actually recognizes" aren't the same check.
+	 */
+	@Transactional
+	public Tenant updateTimezone(UUID tenantId, String timezone) {
+		try {
+			ZoneId.of(timezone);
+		} catch (DateTimeException e) {
+			throw new BadRequestException("Unknown timezone: " + timezone);
+		}
+		Tenant tenant = findById(tenantId);
+		tenant.setTimezone(timezone);
+		return tenant;
+	}
+
+	@Transactional(readOnly = true)
+	public ZoneId getZoneId(UUID tenantId) {
+		return ZoneId.of(findById(tenantId).getTimezone());
 	}
 }

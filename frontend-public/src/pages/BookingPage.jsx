@@ -54,11 +54,14 @@ export default function BookingPage() {
 		setError("");
 		setSubmitting(true);
 		try {
-			const startTime = `${date}T${slot.start}Z`;
+			// date + slot.start are already the tenant's own wall-clock date/time (that's what
+			// GET .../availability returns) — the server converts to an absolute instant using the
+			// tenant's timezone, so there's no client-side date math to get wrong here.
 			const created = await api.book(tenantSlug, {
 				professionalId,
 				serviceId,
-				startTime,
+				date,
+				startTime: slot.start,
 				clientName: client.name,
 				clientEmail: client.email,
 				clientPhone: client.phone || null,

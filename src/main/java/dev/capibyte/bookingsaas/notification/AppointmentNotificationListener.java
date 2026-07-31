@@ -1,6 +1,5 @@
 package dev.capibyte.bookingsaas.notification;
 
-import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Locale;
 import lombok.RequiredArgsConstructor;
@@ -21,14 +20,16 @@ public class AppointmentNotificationListener {
 	// Locale pinned explicitly — DateTimeFormatter otherwise falls back to the JVM's default
 	// locale, which would silently mix Spanish month/day names into this English-language email
 	// on any host whose default locale isn't English (verified: happened on this very machine).
+	// No zone baked in here (unlike before this carried per-tenant zones) — event.zone() supplies
+	// it per email, via withZone() below, since different tenants can be in different zones.
 	private static final DateTimeFormatter WHEN_FORMAT =
-			DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH).withZone(ZoneOffset.UTC);
+			DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH);
 
 	private final MailService mailService;
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onAppointmentNotification(AppointmentNotificationEvent event) {
-		String when = WHEN_FORMAT.format(event.startTime()) + " UTC";
+		String when = WHEN_FORMAT.withZone(event.zone()).format(event.startTime()) + " (" + event.zone() + ")";
 		switch (event.status()) {
 			case PENDING -> mailService.send(event.clientEmail(), "Booking received",
 					greeting(event) + "We received your booking for \"" + event.serviceName() + "\" with "

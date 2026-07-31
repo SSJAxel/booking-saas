@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import dev.capibyte.bookingsaas.IntegrationTestBase;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
 import java.time.temporal.TemporalAdjusters;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +46,8 @@ class DoubleBookingConcurrencyTest extends IntegrationTestBase {
 		restTemplate.exchange("/api/services/" + serviceId + "/professionals", HttpMethod.POST,
 				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
 
-		String startTime = nextMonday().atStartOfDay(ZoneOffset.UTC).plusHours(10).toInstant().toString();
+		String date = nextMonday().toString();
+		String startTime = "10:00:00";
 
 		int attempts = 10;
 		ExecutorService pool = Executors.newFixedThreadPool(attempts);
@@ -60,6 +60,7 @@ class DoubleBookingConcurrencyTest extends IntegrationTestBase {
 				Map<String, Object> body = Map.of(
 						"professionalId", professionalId,
 						"serviceId", serviceId,
+						"date", date,
 						"startTime", startTime,
 						"clientName", "Client " + idx,
 						"clientEmail", "client-" + idx + "-" + UUID.randomUUID() + "@example.com",

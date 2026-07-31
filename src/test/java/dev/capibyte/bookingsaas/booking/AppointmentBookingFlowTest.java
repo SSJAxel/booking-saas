@@ -7,6 +7,7 @@ import java.sql.Timestamp;
 import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
@@ -102,10 +103,13 @@ class AppointmentBookingFlowTest extends IntegrationTestBase {
 
 	private Map<String, Object> book(String tenantSlug, String professionalId, String serviceId, Instant startTime,
 			String clientHandle) {
+		// Test tenants stay on the default UTC timezone (nothing here calls PATCH /api/tenant/timezone),
+		// so deriving the wall-clock date/time fields via UTC matches what the server will resolve.
 		Map<String, Object> body = Map.of(
 				"professionalId", professionalId,
 				"serviceId", serviceId,
-				"startTime", startTime.toString(),
+				"date", LocalDate.ofInstant(startTime, ZoneOffset.UTC).toString(),
+				"startTime", LocalTime.ofInstant(startTime, ZoneOffset.UTC).toString(),
 				"clientName", "Client " + clientHandle,
 				"clientEmail", clientHandle + "@example.com",
 				"clientPhone", "+5411000000");

@@ -4,13 +4,15 @@ import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
+import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.notification.AppointmentNotificationEvent;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import dev.capibyte.bookingsaas.waitlist.WaitlistService;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +35,7 @@ public class AppointmentService {
 	private final ServiceOfferingService serviceOfferingService;
 	private final ProfessionalService professionalService;
 	private final WaitlistService waitlistService;
+	private final TenantService tenantService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
@@ -94,10 +97,16 @@ public class AppointmentService {
 		return cause.getMessage() != null && cause.getMessage().contains("no_double_booking");
 	}
 
+	/**
+	 * {@code zone} is the tenant's own IANA zone (TenantService.getZoneId), not a fixed offset —
+	 * "this day" has to mean the same thing here as it does to the weekly-availability hours this
+	 * result gets checked against in PublicAvailabilityService, or a booking near midnight could be
+	 * attributed to the wrong calendar day and fail to block the slot it actually occupies.
+	 */
 	@Transactional(readOnly = true)
-	public List<Appointment> findActiveByProfessionalAndDay(UUID professionalId, LocalDate date) {
-		Instant dayStart = date.atStartOfDay(ZoneOffset.UTC).toInstant();
-		Instant dayEnd = date.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant();
+	public List<Appointment> findActiveByProfessionalAndDay(UUID professionalId, LocalDate date, ZoneId zone) {
+		Instant dayStart = date.atStartOfDay(zone).toInstant();
+		Instant dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant();
 		return appointmentRepository
 				.findAllByProfessionalIdAndStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNotIn(professionalId,
 						dayStart, dayEnd, INACTIVE_STATUSES);
@@ -132,7 +141,8 @@ public class AppointmentService {
 		publishNotification(appointment, client, professional, service, newStatus);
 
 		if (newStatus == AppointmentStatus.CANCELLED) {
-			LocalDate freedDate = appointment.getStartTime().atZone(ZoneOffset.UTC).toLocalDate();
+			ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+			LocalDate freedDate = appointment.getStartTime().atZone(zone).toLocalDate();
 			waitlistService.notifyNextForFreedSlot(appointment.getProfessionalId(), appointment.getServiceId(), freedDate);
 		}
 
@@ -175,8 +185,9 @@ public class AppointmentService {
 
 	private void publishNotification(Appointment appointment, Client client, Professional professional,
 			ServiceOffering service, AppointmentStatus status) {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
 		eventPublisher.publishEvent(new AppointmentNotificationEvent(client.getEmail(), client.getName(),
-				professional.getDisplayName(), service.getName(), appointment.getStartTime(), status));
+				professional.getDisplayName(), service.getName(), appointment.getStartTime(), zone, status));
 	}
 
 	private void validateTransition(AppointmentStatus from, AppointmentStatus to) {

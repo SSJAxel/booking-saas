@@ -212,6 +212,33 @@ derived from the tenant's chosen color, so a very light `accentColor` could prod
 button text. Not built yet: logo file upload, since that needs a storage decision this project
 hasn't made.
 
+**Timezones.** `Tenant.timezone` (an IANA zone id, e.g. `America/Argentina/Buenos_Aires`; `UTC` at
+registration) is now what every wall-clock time for that tenant is interpreted in — weekly
+availability hours, the public availability search, and what "which day" an appointment counts
+toward. It used to just be a stored string nobody read: `PublicAvailabilityService` treated booked
+appointments' `Instant` values as if they were UTC wall-clock time, so a non-UTC tenant's bookings
+would silently land at the wrong hour (verified by the bug this replaced: 10:00 in Buenos Aires,
+UTC-3, used to get stored as 10:00 UTC — 7am local — instead of 13:00 UTC).
+
+The public booking API's contract changed as part of the fix: `POST .../appointments` now takes
+`date` + `startTime` (matching what `GET .../availability` already returns — both wall-clock, both
+already tenant-local) instead of a client-supplied `Instant`. The server does the
+`LocalDate`+`LocalTime`+`ZoneId` → `Instant` conversion (`PublicBookingController.book`), since only
+the server can be trusted to know the tenant's real zone — a browser has no reliable way to know it
+and a naive client-side conversion is exactly the class of bug this fixes. `TenantService.getZoneId`
+is the one place that turns the stored string into a `ZoneId`; `AppointmentService` and
+`PublicAvailabilityService` both call it rather than caching or assuming a zone.
+`PATCH /api/tenant/timezone` validates by attempting `ZoneId.of(...)` and rejecting on
+`DateTimeException`, not a regex — "looks like a zone id" and "is one `ZoneId` recognizes" aren't
+the same check. Verified end to end by `TimezoneAwareBookingFlowTest`, which sets a tenant to
+Buenos Aires and asserts the exact UTC instant a local-time booking resolves to.
+
+Not built: recurring-charge-webhook nuance aside, this doesn't yet handle DST transitions
+specially (Argentina doesn't observe DST, so the regression test can't exercise that edge), and
+there's still no UI for a client to see times in anything but the tenant's zone (the public site
+already only ever *works* in the tenant's zone — nothing shows the client's own local time
+alongside it).
+
 **Waitlist.** Date-level, not exact-time: a client waitlists for "this professional/service on
 this date" rather than one specific slot, since freeing up any appointment that day changes what's
 available. When `AppointmentService.transitionStatus()` cancels an appointment, it calls
@@ -287,9 +314,11 @@ de negocio detrás.
 6. **Selección de sucursal en la reserva pública.** El flujo público hoy no filtra por sucursal
    (`PublicBookingController`) — no importa con una sola sucursal, pero un negocio multi-local lo
    va a pedir.
-7. **Zona horaria real por tenant.** Hoy todo se trata como UTC de punta a punta (ver
-   `PublicAvailabilityService`) — funciona mientras el negocio y sus clientes estén en el mismo
-   huso horario, pero es una limitación real para escalar fuera de una sola región.
+7. ~~**Zona horaria real por tenant.**~~ Hecho — `PATCH /api/tenant/timezone` (owner o admin,
+   validado contra `ZoneId.of(...)`, no una regex), consumido en `AppointmentService` y
+   `PublicAvailabilityService` (ver "Design notes" → Timezones) en vez del supuesto "todo es UTC"
+   que había antes. El contrato de reserva pública cambió como parte de esto — ver esa sección
+   para por qué.
 8. **WhatsApp además de mail.** Evaluado y pospuesto durante el diseño con Luciana por costo/scope
    (necesita la API de Meta o un proveedor tipo Twilio) — en el mercado de LatAm en el que compite
    (AgendaPro, Booksy) es casi esperado, no un extra.

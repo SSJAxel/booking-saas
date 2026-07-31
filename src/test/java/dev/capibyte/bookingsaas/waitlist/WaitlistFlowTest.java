@@ -31,10 +31,9 @@ class WaitlistFlowTest extends IntegrationTestBase {
 				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
 
 		String date = "2026-08-17"; // a Monday
-		String startTime = date + "T10:00:00Z";
 
 		Map<String, Object> bookingBody = Map.of(
-				"professionalId", professionalId, "serviceId", serviceId, "startTime", startTime,
+				"professionalId", professionalId, "serviceId", serviceId, "date", date, "startTime", "10:00:00",
 				"clientName", "First Client", "clientEmail", "first@example.com", "clientPhone", "+541100000001");
 		ResponseEntity<Map> booking = restTemplate.postForEntity("/api/public/" + tenant.slug() + "/appointments",
 				bookingBody, Map.class);

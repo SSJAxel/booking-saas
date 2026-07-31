@@ -33,9 +33,9 @@ class ReportFlowTest extends IntegrationTestBase {
 		restTemplate.exchange("/api/services/" + depositServiceId + "/professionals", HttpMethod.POST,
 				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
 
-		String appt1 = bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T10:00:00Z", "a@example.com");
-		String appt2 = bookAppointment(tenant.slug(), professionalId, serviceId, "2026-08-17T11:00:00Z", "b@example.com");
-		bookAppointment(tenant.slug(), professionalId, depositServiceId, "2026-08-17T12:00:00Z", "c@example.com"); // stays PENDING, awaiting deposit
+		String appt1 = bookAppointment(tenant.slug(), professionalId, serviceId, "10:00:00", "a@example.com");
+		String appt2 = bookAppointment(tenant.slug(), professionalId, serviceId, "11:00:00", "b@example.com");
+		bookAppointment(tenant.slug(), professionalId, depositServiceId, "12:00:00", "c@example.com"); // stays PENDING, awaiting deposit
 
 		transition(appt1, "CONFIRMED", headers);
 		transition(appt1, "COMPLETED", headers);
@@ -59,7 +59,7 @@ class ReportFlowTest extends IntegrationTestBase {
 	private String bookAppointment(String tenantSlug, String professionalId, String serviceId, String startTime,
 			String clientEmail) {
 		Map<String, Object> body = Map.of(
-				"professionalId", professionalId, "serviceId", serviceId, "startTime", startTime,
+				"professionalId", professionalId, "serviceId", serviceId, "date", "2026-08-17", "startTime", startTime,
 				"clientName", "Client", "clientEmail", clientEmail, "clientPhone", "+541100000000");
 		ResponseEntity<Map> response = restTemplate.postForEntity("/api/public/" + tenantSlug + "/appointments", body,
 				Map.class);

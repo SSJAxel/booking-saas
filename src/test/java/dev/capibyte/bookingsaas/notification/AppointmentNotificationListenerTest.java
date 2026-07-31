@@ -9,6 +9,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 
 import dev.capibyte.bookingsaas.booking.AppointmentStatus;
 import java.time.Instant;
+import java.time.ZoneId;
 import org.junit.jupiter.api.Test;
 
 class AppointmentNotificationListenerTest {
@@ -47,6 +48,6 @@ class AppointmentNotificationListenerTest {
 
 	private AppointmentNotificationEvent event(AppointmentStatus status) {
 		return new AppointmentNotificationEvent("client@example.com", "Jane Doe", "Maria Tattoo", "Small Tattoo",
-				Instant.parse("2026-08-10T10:00:00Z"), status);
+				Instant.parse("2026-08-10T10:00:00Z"), ZoneId.of("America/Argentina/Buenos_Aires"), status);
 	}
 }
