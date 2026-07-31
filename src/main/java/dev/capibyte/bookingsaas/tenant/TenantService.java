@@ -40,6 +40,20 @@ public class TenantService {
 		return tenantRepository.findById(id).orElseThrow(() -> new NotFoundException("Tenant not found: " + id));
 	}
 
+	/**
+	 * Stands in for what should eventually be driven by a billing webhook, not a direct client
+	 * call — there's no payment integration behind plan changes yet. Downgrading below the new
+	 * tier's product limit isn't blocked here: existing products over the limit stay active
+	 * (grandfathered), ProductService.create() just refuses new ones until the tenant is back
+	 * under it.
+	 */
+	@Transactional
+	public Tenant changePlan(UUID tenantId, PlanTier newTier) {
+		Tenant tenant = findById(tenantId);
+		tenant.setPlanTier(newTier);
+		return tenant;
+	}
+
 	@Transactional
 	public void delete(UUID tenantId) {
 		tenantRepository.deleteById(tenantId);

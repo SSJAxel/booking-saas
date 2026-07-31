@@ -6,18 +6,13 @@ import dev.capibyte.bookingsaas.IntegrationTestBase;
 import java.math.BigDecimal;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.jdbc.core.JdbcTemplate;
 
 class ProductAndSaleFlowTest extends IntegrationTestBase {
-
-	@Autowired
-	private JdbcTemplate jdbcTemplate;
 
 	@Test
 	void sellingAProductDecrementsStockByTheSoldQuantity() {
@@ -68,8 +63,9 @@ class ProductAndSaleFlowTest extends IntegrationTestBase {
 	void proPlanHasNoProductLimit() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
-		// No endpoint to change plans yet (no billing integration) — this stands in for one.
-		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
+		ResponseEntity<Map> planChange = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("planTier", "PRO"), headers), Map.class);
+		assertThat(planChange.getStatusCode()).isEqualTo(HttpStatus.OK);
 
 		for (int i = 0; i < 6; i++) {
 			ResponseEntity<Map> response = restTemplate.exchange("/api/products", HttpMethod.POST,
