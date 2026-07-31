@@ -24,6 +24,7 @@ public class SecurityConfig {
 	private static final String[] PUBLIC_PATHS = {
 			"/api/auth/**",
 			"/api/public/**",
+			"/api/plans",
 			"/api/webhooks/**",
 			"/api/mercadopago/oauth/callback",
 			"/actuator/health",

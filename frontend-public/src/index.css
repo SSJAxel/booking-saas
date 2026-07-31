@@ -250,3 +250,56 @@ button {
 	background: var(--pending-bg);
 	color: var(--pending-text);
 }
+
+.plan-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 1.2rem;
+	margin-bottom: 2.5rem;
+}
+
+.plan-card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: 16px;
+	padding: 1.6rem 1.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.plan-card-highlight {
+	border-color: var(--accent);
+	box-shadow: 0 0 0 1px var(--accent);
+}
+
+.plan-price {
+	font-size: 1.6rem;
+	font-weight: 700;
+	color: var(--text-h);
+	margin: 0;
+}
+
+.plan-features {
+	list-style: none;
+	padding: 0;
+	margin: 0.8rem 0 1.2rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	font-size: 0.9rem;
+}
+
+.plan-features li::before {
+	content: "✓ ";
+	color: var(--accent);
+	font-weight: 700;
+}
+
+.footer-note {
+	text-align: center;
+}
+
+.footer-note a {
+	color: var(--accent);
+}

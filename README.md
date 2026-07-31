@@ -255,9 +255,12 @@ de negocio detrás.
    "Design notes"), ni el Checkout Pro de señas, ni el Preapproval de suscripciones, ni el OAuth
    Connect. Antes de cobrarle a un cliente de verdad hace falta un smoke test contra una cuenta
    sandbox real, no solo el mock casero y los tests de contrato.
-4. **Página pública de precios y alta.** Hoy registrarse es un `POST /api/auth/register` a mano.
-   Falta una landing en `frontend-public` (hoy `LandingPage` es un stub) que explique los planes y
-   deje crear la cuenta sin tocar la API directo.
+4. ~~**Página pública de precios y alta.**~~ Hecho — `frontend-public`'s `LandingPage` ahora
+   lista los planes desde `GET /api/plans` (nuevo, público, catálogo de precios — no tenant-scoped,
+   por eso vive fuera de `/api/public/{tenantSlug}/**`) y `/registrarse` crea la cuenta. La cuenta
+   siempre arranca en `BASIC` (el registro no admite elegir plan pago todavía) — si eligieron Pro
+   en la landing, se lo dice explícitamente y los manda a suscribirse desde el panel después de
+   loguearse.
 
 ### Para competir en serio con AgendaPro (prioridad media)
 

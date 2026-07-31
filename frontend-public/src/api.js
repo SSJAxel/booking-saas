@@ -14,6 +14,8 @@ async function request(path, { method = "GET", body } = {}) {
 }
 
 export const api = {
+	getPlans: () => request("/api/plans"),
+	register: (body) => request("/api/auth/register", { method: "POST", body }),
 	getTenant: (slug) => request(`/api/public/${slug}`),
 	getServices: (slug) => request(`/api/public/${slug}/services`),
 	getProfessionals: (slug, serviceId) =>
