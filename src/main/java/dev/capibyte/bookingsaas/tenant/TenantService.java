@@ -1,5 +1,6 @@
 package dev.capibyte.bookingsaas.tenant;
 
+import dev.capibyte.bookingsaas.common.NotFoundException;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,11 @@ public class TenantService {
 	@Transactional(readOnly = true)
 	public Optional<Tenant> findBySlug(String slug) {
 		return tenantRepository.findBySlug(slug);
+	}
+
+	@Transactional(readOnly = true)
+	public Tenant findById(UUID id) {
+		return tenantRepository.findById(id).orElseThrow(() -> new NotFoundException("Tenant not found: " + id));
 	}
 
 	@Transactional

@@ -36,6 +36,10 @@ public class Tenant extends BaseEntity {
 	@Column(nullable = false)
 	private TenantStatus status = TenantStatus.ACTIVE;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "plan_tier", nullable = false)
+	private PlanTier planTier = PlanTier.BASIC;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 
