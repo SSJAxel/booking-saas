@@ -40,6 +40,16 @@ public class Tenant extends BaseEntity {
 	@Column(name = "plan_tier", nullable = false)
 	private PlanTier planTier = PlanTier.BASIC;
 
+	/** All three optional — an unbranded tenant just gets frontend-public's default look. */
+	@Column(name = "logo_url")
+	private String logoUrl;
+
+	@Column(name = "accent_color")
+	private String accentColor;
+
+	@Column
+	private String tagline;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

@@ -5,6 +5,7 @@ import dev.capibyte.bookingsaas.payment.MercadoPagoAccountService;
 import dev.capibyte.bookingsaas.payment.SubscriptionService;
 import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
+import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
 import jakarta.validation.Valid;
@@ -33,6 +34,14 @@ public class TenantController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN','STAFF')")
 	public TenantResponse get() {
 		return TenantResponse.from(tenantService.findById(TenantContext.getTenantId()));
+	}
+
+	/** Owner/admin: logo, accent color, tagline shown on this tenant's public site (frontend-public). */
+	@PatchMapping("/branding")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateBranding(@Valid @RequestBody BrandingUpdateRequest request) {
+		return TenantResponse.from(tenantService.updateBranding(TenantContext.getTenantId(), request.logoUrl(),
+				request.accentColor(), request.tagline()));
 	}
 
 	/**

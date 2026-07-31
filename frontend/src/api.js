@@ -41,6 +41,7 @@ export const api = {
 		changePlan: (planTier) => request("/api/tenant/plan", { method: "PATCH", body: { planTier } }),
 		subscribe: (planTier) => request("/api/tenant/subscription", { method: "POST", body: { planTier } }),
 		connectMercadoPago: () => request("/api/tenant/mercadopago/connect"),
+		updateBranding: (body) => request("/api/tenant/branding", { method: "PATCH", body }),
 	},
 	branches: {
 		list: () => request("/api/branches"),

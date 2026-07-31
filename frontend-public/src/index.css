@@ -51,6 +51,29 @@ body {
 	padding: 3rem 1.5rem 4rem;
 }
 
+.tenant-topbar {
+	border-bottom: 1px solid var(--border);
+	padding: 0.9rem 1.5rem;
+}
+
+.tenant-topbar-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	max-width: 720px;
+	margin: 0 auto;
+	color: var(--text-h);
+	text-decoration: none;
+	font-weight: 600;
+}
+
+.tenant-logo {
+	height: 28px;
+	width: 28px;
+	object-fit: contain;
+	border-radius: 6px;
+}
+
 .status {
 	text-align: center;
 	padding-top: 4rem;

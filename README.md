@@ -197,6 +197,21 @@ MercadoPago's marketplace model is assumed to give the integrating application r
 transactions it created through a connected account's OAuth flow. That assumption is unverified
 against a live sandbox, same as the rest of this integration.
 
+**Per-tenant branding.** Three optional `Tenant` fields — `logoUrl`, `accentColor` (hex, validated
+`^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH /api/tenant/branding` (owner or admin; billing
+stays owner-only, branding doesn't need to). `logoUrl` is a link, not a file upload: this project
+has no file storage (S3/Cloudinary/etc.) yet, so a tenant hosts their own logo and links it — see
+the roadmap for the tradeoff. `frontend-public/src/layout/TenantLayout.jsx` fetches the tenant once
+per business, renders a small branded top bar, and overrides the CSS custom property `--accent`
+inline (`style={{ "--accent": tenant.accentColor }}`) so every page under that tenant — not just
+the home page — picks up their color through the same variable every button/chip/card already
+reads from. An unset field is `null` end to end (DTOs, entity columns) and just falls back to
+`frontend-public`'s default look; connecting branding, like connecting MercadoPago, is additive.
+Known gap: no automatic contrast handling — `--accent-contrast` (used for button text) isn't
+derived from the tenant's chosen color, so a very light `accentColor` could produce low-contrast
+button text. Not built yet: logo file upload, since that needs a storage decision this project
+hasn't made.
+
 **Waitlist.** Date-level, not exact-time: a client waitlists for "this professional/service on
 this date" rather than one specific slot, since freeing up any appointment that day changes what's
 available. When `AppointmentService.transitionStatus()` cancels an appointment, it calls
@@ -264,9 +279,11 @@ de negocio detrás.
 
 ### Para competir en serio con AgendaPro (prioridad media)
 
-5. **Branding por tenant en el sitio público.** Hoy `frontend-public` es 100% genérico — mismo
-   look para todos los negocios. Un competidor real necesita al menos logo y color propios por
-   tenant (sumar esos campos a `Tenant` y consumirlos ahí).
+5. ~~**Branding por tenant en el sitio público.**~~ Hecho — `Tenant.logoUrl/accentColor/tagline`,
+   editables desde el panel (`PATCH /api/tenant/branding`, owner o admin) y consumidos por
+   `frontend-public`'s `TenantLayout` (logo + color propio via `--accent`, en todas las páginas
+   del negocio, no solo el home). Logo es una URL, no un archivo subido — no hay almacenamiento de
+   archivos en el proyecto todavía (ver Design notes).
 6. **Selección de sucursal en la reserva pública.** El flujo público hoy no filtra por sucursal
    (`PublicBookingController`) — no importa con una sola sucursal, pero un negocio multi-local lo
    va a pedir.

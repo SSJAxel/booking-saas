@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useOutletContext, useParams } from "react-router-dom";
 import { api } from "../api.js";
 
 export default function TenantHomePage() {
 	const { tenantSlug } = useParams();
-	const [tenant, setTenant] = useState(null);
+	const { tenant } = useOutletContext();
 	const [services, setServices] = useState([]);
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -12,11 +12,9 @@ export default function TenantHomePage() {
 	useEffect(() => {
 		setLoading(true);
 		setError("");
-		Promise.all([api.getTenant(tenantSlug), api.getServices(tenantSlug)])
-			.then(([t, s]) => {
-				setTenant(t);
-				setServices(s);
-			})
+		api
+			.getServices(tenantSlug)
+			.then(setServices)
 			.catch((err) => setError(err.message))
 			.finally(() => setLoading(false));
 	}, [tenantSlug]);
@@ -28,7 +26,7 @@ export default function TenantHomePage() {
 		<div className="page">
 			<header className="hero">
 				<h1>{tenant.name}</h1>
-				<p className="muted">Elegí un servicio para reservar tu turno</p>
+				<p className="muted">{tenant.tagline || "Elegí un servicio para reservar tu turno"}</p>
 			</header>
 			<div className="service-grid">
 				{services.length === 0 && <p className="muted">Todavía no hay servicios cargados.</p>}

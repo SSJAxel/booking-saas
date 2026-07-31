@@ -64,4 +64,14 @@ public class TenantService {
 	public void delete(UUID tenantId) {
 		tenantRepository.deleteById(tenantId);
 	}
+
+	/** Any field left null clears that piece of branding — an unbranded tenant is a valid state. */
+	@Transactional
+	public Tenant updateBranding(UUID tenantId, String logoUrl, String accentColor, String tagline) {
+		Tenant tenant = findById(tenantId);
+		tenant.setLogoUrl(logoUrl);
+		tenant.setAccentColor(accentColor);
+		tenant.setTagline(tagline);
+		return tenant;
+	}
 }

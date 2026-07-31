@@ -5,7 +5,9 @@ import { useAuth } from "../auth/AuthContext.jsx";
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
 	const [error, setError] = useState("");
+	const [brandingNotice, setBrandingNotice] = useState("");
 	const { session } = useAuth();
+	const canManage = session.role === "OWNER" || session.role === "ADMIN";
 
 	async function refresh() {
 		try {
@@ -48,11 +50,30 @@ export default function TenantPage() {
 		}
 	}
 
+	async function handleSaveBranding(event) {
+		event.preventDefault();
+		setError("");
+		setBrandingNotice("");
+		const form = new FormData(event.target);
+		try {
+			setTenant(
+				await api.tenant.updateBranding({
+					logoUrl: form.get("logoUrl")?.trim() || null,
+					accentColor: form.get("accentColor")?.trim() || null,
+					tagline: form.get("tagline")?.trim() || null,
+				}),
+			);
+			setBrandingNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	if (!tenant) return <p>Cargando...</p>;
 
 	return (
 		<div>
-			<h1>Plan del negocio</h1>
+			<h1>Negocio</h1>
 			{error && <p className="error">{error}</p>}
 			<div className="card">
 				<p>
@@ -87,6 +108,31 @@ export default function TenantPage() {
 					</button>
 				) : (
 					<p className="muted">Solo el dueño puede conectar la cuenta.</p>
+				)}
+			</div>
+
+			<p className="label">Marca en tu sitio público</p>
+			<div className="card">
+				<p className="muted">
+					Se ve en tu página pública de reservas ({window.location.protocol}//localhost:5181/{tenant.slug}).
+					Dejar un campo vacío lo saca.
+				</p>
+				{canManage ? (
+					<form className="inline-form" onSubmit={handleSaveBranding}>
+						<input name="logoUrl" placeholder="URL del logo" defaultValue={tenant.logoUrl ?? ""} />
+						<input
+							name="accentColor"
+							placeholder="#RRGGBB"
+							defaultValue={tenant.accentColor ?? ""}
+							pattern="#[0-9a-fA-F]{6}"
+							title="Formato hexadecimal, ej: #FF5733"
+						/>
+						<input name="tagline" placeholder="Frase corta (opcional)" defaultValue={tenant.tagline ?? ""} />
+						<button type="submit">Guardar</button>
+						{brandingNotice && <span className="notice">{brandingNotice}</span>}
+					</form>
+				) : (
+					<p className="muted">Solo el dueño o un admin pueden editar la marca.</p>
 				)}
 			</div>
 		</div>
