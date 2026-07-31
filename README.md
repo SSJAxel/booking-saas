@@ -158,6 +158,66 @@ would push this into the database instead.
 conversion (times are currently treated as UTC wall-clock end to end — see the comment in
 `PublicAvailabilityService`), refund handling, recurring appointments, and a frontend.
 
+## Roadmap: de MVP a producto vendible
+
+Esto arrancó como pieza de portfolio, pero la idea es venderlo de verdad: un competidor de
+AgendaPro/Booksy para negocios de servicios (barberías, salones, estudios), con planes de pago
+mensuales de autoservicio. Lo que sigue es la hoja de ruta priorizada para llegar ahí, y el modelo
+de negocio detrás.
+
+### Modelo de negocio: dos productos, no uno
+
+- **Planes de autoservicio** (`PlanTier` — `BASIC`/`PRO`, ver `tenant/PlanTier.java`): cualquiera
+  se registra, elige un plan, paga una suscripción mensual, y usa el motor genérico tal cual —
+  turno directo o con seña, catálogo de servicios, stock de hasta N productos según el plan. Cero
+  intervención manual por cliente nuevo.
+- **Integraciones a medida** (el caso de Luciana — ver `../estudio-lu-tatuajes/README.md`): un
+  negocio que necesita reglas propias (aprobación de proyectos, número de reserva con
+  vencimiento, cotizador, lo que sea) no lo resuelve un toggle de plan — es trabajo de desarrollo
+  cobrado aparte, en USD, caso por caso. Si tienen el presupuesto, se adapta. El motor genérico ya
+  está pensado para soportar esto como configuración/extensión por tenant (flags como
+  `requiere_aprobacion`), no como un fork del código — así una integración a medida no ensucia el
+  producto base.
+
+### Para poder vender el plan de autoservicio (prioridad alta)
+
+1. **Cobro recurrente real.** Hoy `PlanTier` es un campo que cualquiera cambia desde
+   `PATCH /api/tenant/plan` sin pagar nada — es un stand-in, no un sistema de facturación (ver su
+   Javadoc). Falta integrar el producto de suscripciones de Mercado Pago (Preapproval API,
+   distinto del Checkout Pro que ya se usa para señas) y manejar su webhook de ciclo de vida
+   (cobro exitoso, cobro fallido, cancelación) para que el plan suba o baje solo según si se pagó.
+2. **Cuenta de Mercado Pago por tenant, no compartida.** Hoy todos los depósitos van a una sola
+   cuenta sandbox (ver "Design notes" → Payments). Un producto real necesita que cada negocio
+   cobre a su propia cuenta — requiere el flujo OAuth Connect de Mercado Pago por tenant.
+3. **Verificación contra Mercado Pago real.** Nunca se probó contra credenciales reales (ver
+   "Design notes"). Antes de cobrarle a un cliente de verdad hace falta un smoke test contra una
+   cuenta sandbox real, no solo el mock casero.
+4. **Página pública de precios y alta.** Hoy registrarse es un `POST /api/auth/register` a mano.
+   Falta una landing en `frontend-public` (hoy `LandingPage` es un stub) que explique los planes y
+   deje crear la cuenta sin tocar la API directo.
+
+### Para competir en serio con AgendaPro (prioridad media)
+
+5. **Branding por tenant en el sitio público.** Hoy `frontend-public` es 100% genérico — mismo
+   look para todos los negocios. Un competidor real necesita al menos logo y color propios por
+   tenant (sumar esos campos a `Tenant` y consumirlos ahí).
+6. **Selección de sucursal en la reserva pública.** El flujo público hoy no filtra por sucursal
+   (`PublicBookingController`) — no importa con una sola sucursal, pero un negocio multi-local lo
+   va a pedir.
+7. **Zona horaria real por tenant.** Hoy todo se trata como UTC de punta a punta (ver
+   `PublicAvailabilityService`) — funciona mientras el negocio y sus clientes estén en el mismo
+   huso horario, pero es una limitación real para escalar fuera de una sola región.
+8. **WhatsApp además de mail.** Evaluado y pospuesto durante el diseño con Luciana por costo/scope
+   (necesita la API de Meta o un proveedor tipo Twilio) — en el mercado de LatAm en el que compite
+   (AgendaPro, Booksy) es casi esperado, no un extra.
+
+### Deuda técnica conocida (prioridad según qué tan rápido haga falta)
+
+9. **Política de cancelación/reembolso y no-show** — no definida todavía (mismo punto que quedó
+   abierto en el spec de Luciana, pero aplica a cualquier tenant).
+10. Reembolsos de depósitos y turnos recurrentes — ya listados como fuera de alcance del MVP (ver
+    "Design notes"), sin cambios.
+
 ## Bitácora de desarrollo
 
 Este proyecto lo construí con **Claude como par de programación** (dirigí el alcance y las
