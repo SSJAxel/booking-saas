@@ -597,3 +597,126 @@ tr:last-child td {
 	color: var(--text-dim);
 	font-weight: 600;
 }
+
+button.secondary {
+	background: var(--surface-2);
+	color: var(--text);
+	box-shadow: none;
+}
+
+button.secondary:hover:not(:disabled) {
+	background: var(--border);
+	box-shadow: none;
+}
+
+.sidebar-footer .button-row {
+	gap: 0.4rem;
+}
+
+.sidebar-footer .button-row button {
+	flex: 1;
+	font-size: 0.82rem;
+	padding: 0.5rem 0.6rem;
+}
+
+/* Help manual modal */
+.modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(10, 20, 10, 0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	padding: 2rem;
+	z-index: 100;
+}
+
+.modal-panel {
+	width: min(720px, 100%);
+	max-height: min(720px, 100%);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-xl);
+	box-shadow: var(--shadow-hover);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.modal-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 1.1rem 1.4rem;
+	border-bottom: 1px solid var(--border);
+	flex: none;
+}
+
+.modal-header h2 {
+	font-family: var(--font-display);
+	font-weight: 800;
+	font-size: 1.2rem;
+	color: var(--text-h);
+	margin: 0;
+}
+
+.modal-close {
+	background: none;
+	color: var(--text-dim);
+	font-size: 1.4rem;
+	line-height: 1;
+	padding: 0.2rem 0.5rem;
+	box-shadow: none;
+}
+
+.modal-close:hover {
+	background: var(--surface-2);
+	box-shadow: none;
+	color: var(--text-h);
+}
+
+.modal-body {
+	overflow-y: auto;
+	padding: 1.2rem 1.4rem 1.6rem;
+}
+
+.manual-section {
+	border: 1px solid var(--border);
+	border-radius: var(--r-md);
+	margin-bottom: 0.7rem;
+	padding: 0.2rem 0.9rem;
+	background: var(--surface);
+}
+
+.manual-section summary {
+	cursor: pointer;
+	padding: 0.7rem 0;
+	font-family: var(--font-display);
+	font-weight: 800;
+	color: var(--text-h);
+}
+
+.manual-section[open] summary {
+	border-bottom: 1px solid var(--border);
+	margin-bottom: 0.7rem;
+}
+
+.manual-item {
+	padding: 0.6rem 0;
+	border-top: 1px solid var(--border);
+	font-size: 0.88rem;
+}
+
+.manual-item:first-of-type {
+	border-top: none;
+}
+
+.manual-item p {
+	margin: 0.15rem 0;
+}
+
+.manual-item-title {
+	font-weight: 700;
+	color: var(--text-h);
+	margin-bottom: 0.3rem !important;
+}

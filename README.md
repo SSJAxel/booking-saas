@@ -6,9 +6,36 @@ weekly availability, and clients who book time slots through a public API.
 
 REST API + OpenAPI/Swagger docs, plus two minimal React/Vite frontends (`frontend/` — the
 owner/staff admin panel, `frontend-public/` — the client-facing multi-tenant booking site).
-Built as a "serious" portfolio project: the two hardest correctness properties of this domain
-(never double-booking a professional, never leaking one tenant's data to another) are enforced
-structurally rather than just in application code — see [Design notes](#design-notes) below.
+The two hardest correctness properties of this domain (never double-booking a professional, never
+leaking one tenant's data to another) are enforced structurally rather than just in application
+code — see [Design notes](#design-notes) below.
+
+## ¿Qué es un sistema de "booking"?
+
+Un "booking" (reserva de turnos) es lo que le permite al cliente final de un negocio elegir un día
+y horario disponible **por su cuenta**, sin llamar ni escribirle a nadie para coordinar — algo
+parecido a reservar una mesa en la web de un restaurante, sacar turno médico online, o agendar un
+corte de pelo desde el celular. El negocio carga de antemano quién atiende, qué servicios ofrece y
+en qué horarios está disponible cada quien; el sistema se encarga de mostrarle al cliente solo los
+horarios realmente libres y de que dos personas nunca terminen con el mismo turno.
+
+Ejemplos conocidos de la categoría: Calendly (reuniones 1 a 1), OpenTable (mesas de restaurante),
+y los competidores directos de este proyecto — **AgendaPro** y **Booksy** — que resuelven esto
+mismo para peluquerías, salones de belleza, estudios de tatuajes y negocios de servicios similares
+en LatAm.
+
+Quién es quién en este sistema:
+- **Tenant**: un negocio cliente de la plataforma (ej. una peluquería puntual). Cada tenant tiene
+  sus propios datos, completamente aislados de los demás — ver "Tenant isolation" más abajo.
+- **Profesional**: quien atiende (un peluquero, un tatuador). Tiene un horario semanal cargado.
+- **Servicio**: lo que se ofrece (un corte, una sesión) — dura X minutos, cuesta $Y, y puede pedir
+  una seña para confirmar.
+- **Cliente**: quien reserva, desde la página pública del negocio — no necesita cuenta ni login.
+- **Turno (appointment)**: la reserva en sí — un profesional + un servicio + un horario puntual.
+
+Dos superficies en este repo: el **panel de administración** (`frontend/`) donde el dueño/staff del
+negocio configura todo lo de arriba, y el **sitio público** (`frontend-public/`) donde el cliente
+final reserva — cada negocio tiene el suyo, en `tusitio.com/{slug-del-negocio}`.
 
 ## Stack
 
@@ -304,16 +331,16 @@ memory over `AppointmentService.search()`'s result rather than a SQL `GROUP BY` 
 how `search()` itself already works, and fine at this project's scale; a high-volume deployment
 would push this into the database instead.
 
-**Not built (out of scope for this MVP):** SMS notifications, a real per-tenant IANA timezone
-conversion (times are currently treated as UTC wall-clock end to end — see the comment in
-`PublicAvailabilityService`), refund handling, recurring appointments, and a frontend.
+**Not built (out of scope for this MVP):** refund handling and recurring appointments. Per-tenant
+timezone conversion and a frontend (in fact two — the admin panel and the public booking site) are
+both built and covered above; this line used to list them as missing and was never updated once
+they shipped — kept as a reminder to re-check this list periodically instead of trusting it blindly.
 
 ## Roadmap: de MVP a producto vendible
 
-Esto arrancó como pieza de portfolio, pero la idea es venderlo de verdad: un competidor de
-AgendaPro/Booksy para negocios de servicios (barberías, salones, estudios), con planes de pago
-mensuales de autoservicio. Lo que sigue es la hoja de ruta priorizada para llegar ahí, y el modelo
-de negocio detrás.
+La meta es un producto real: un competidor de AgendaPro/Booksy para negocios de servicios
+(barberías, salones, estudios), con planes de pago mensuales de autoservicio. Lo que sigue es la
+hoja de ruta priorizada para llegar ahí, y el modelo de negocio detrás.
 
 ### Modelo de negocio: dos productos, no uno
 
@@ -321,41 +348,76 @@ de negocio detrás.
   se registra, elige un plan, paga una suscripción mensual, y usa el motor genérico tal cual —
   turno directo o con seña, catálogo de servicios, stock de hasta N productos según el plan. Cero
   intervención manual por cliente nuevo.
-- **Integraciones a medida** (el caso de Luciana — ver `../estudio-lu-tatuajes/README.md`): un
-  negocio que necesita reglas propias (aprobación de proyectos, número de reserva con
-  vencimiento, cotizador, lo que sea) no lo resuelve un toggle de plan — es trabajo de desarrollo
-  cobrado aparte, en USD, caso por caso. Si tienen el presupuesto, se adapta. El motor genérico ya
-  está pensado para soportar esto como configuración/extensión por tenant (flags como
-  `requiere_aprobacion`), no como un fork del código — así una integración a medida no ensucia el
-  producto base.
+- **Integraciones a medida**: un negocio que necesita reglas propias (aprobación manual de
+  pedidos antes de que ocupen agenda, número de reserva con vencimiento, cotizador, lo que sea) no
+  lo resuelve un toggle de plan — es trabajo de desarrollo cobrado aparte, en USD, caso por caso. El
+  motor genérico ya está pensado para soportar esto como configuración/extensión por tenant (flags
+  como `requiere_aprobacion`), no como un fork del código — así una integración a medida no ensucia
+  el producto base. (Este patrón salió de un caso real usado como piloto de diseño; el spec
+  específico de ese negocio vive fuera de este repo, no es parte del producto genérico.)
 
-### Decisión: comercialización y hosting (2026-08-01)
+### Decisión (provisoria): comercialización y hosting (2026-08-01)
 
-**Hosting: Render.** Web Service tier Standard (2GB RAM — el tier Starter de $7/mes con 512MB es
-riesgoso para una app Java con Hibernate) para el backend, Postgres administrado (tier chico) para
-la base, y los dos frontends React como Static Sites (gratis, sin límite de banda relevante a esta
-escala). Costo total estimado: **~USD 35/mes**, fijo y predecible independientemente del tráfico —
-se priorizó esto sobre una alternativa más barata pero de facturación variable (Railway) porque lo
-que se buscaba era no tener que operar servidores (parches, backups, TLS a mano), no el costo
-mínimo absoluto. Se descartó AWS Lightsail / VPS propio (Hostinger, DigitalOcean) por la misma
-razón: más barato, pero implica hacerse cargo del ops uno mismo.
+Esto se resolvió en una sesión puntual, en base a los datos que había a mano en ese momento — no es
+un veredicto final, es el mejor call posible con lo que sabíamos ese día. Documentado acá con el
+razonamiento completo (no solo la conclusión) para que el equipo lo pueda revisar, cuestionar, y
+mejorar con más cabezas pensando — humanas o de una IA que retome este archivo después.
 
-**Precio de `PRO`: ARS 23.000/mes** (antes un placeholder de $15.000). Calculado como ~USD 15/mes
-al dólar blue de referencia del día de la decisión (~$1.560) — por debajo del piso de AgendaPro
-Argentina (USD 19/mes) y de Booksy (~USD 30/mes), y con margen sano una vez cubierto el hosting: no
-alcanza con 1 tenant pago, pero sí desde ~3, y queda margen real en el rango de 5-10 tenants que se
-espera para los primeros meses.
+**La pregunta original:** ¿cómo se cobra esto y dónde se hostea? No tiene sentido afinar el precio
+de plan sin saber qué cuesta sostener la infraestructura por tenant, ni elegir hosting sin saber
+cuántos tenants/tráfico hay que soportar.
 
-Dos cosas que quedan abiertas a propósito, no resueltas silenciosamente:
-- **El precio queda fijo en pesos, no indexado al dólar.** Con inflación/devaluación en Argentina,
-  ese número en ARS va a perder valor real con el tiempo y hay que revisarlo a mano de tanto en
-  tanto — no se construyó ningún mecanismo de auto-ajuste cambiario, sería una feature aparte. Cobrar
-  directamente en USD (como hace AgendaPro) quedó anotado como una posibilidad a futuro, no algo
-  resuelto ahora.
-- El costo de soporte (responder cuando algo se rompe, ayudar a un negocio nuevo a configurarse)
-  sigue sin estar metido en la cuenta — el margen de arriba es solo hosting vs. ingreso, no cubre
-  tiempo de soporte todavía. Y si `BASIC` se sostiene gratis para siempre o hace falta un tercer
-  nivel intermedio sigue sin decidirse.
+**Hosting — se eligió Render.** Opciones comparadas: VPS propio (Hostinger/DigitalOcean, ~$8-12
+USD/mes pero vos operás todo — parches, backups, TLS a mano), AWS Lightsail (similar, con la
+complejidad extra de ser AWS), Railway (facturación variable según uso, potencialmente más barato
+en tráfico bajo pero menos predecible para armar la cuenta de margen), y Render (Web Service +
+Postgres administrado + Static Sites gratis para los dos frontends, ~USD 35/mes fijo). Se priorizó
+Render porque el criterio fue "cero tiempo operando servidores", no "el costo mínimo absoluto" — con
+otro criterio, otra opción de esta misma lista puede ser mejor. Vale la pena repreguntarse esto
+cuando haya más claridad de tráfico/escala real.
+
+**Precio de `PRO` — se fijó en ARS 23.000/mes** (antes un placeholder de $15.000), calculado como
+~USD 15/mes al dólar blue de referencia de ese día (~$1.560) — por debajo del piso de AgendaPro
+Argentina (USD 19/mes) y de Booksy (~USD 30/mes), y con margen positivo desde ~3 tenants pagando
+(cubriendo los ~USD 35/mes de hosting). Ver "Preguntas abiertas" abajo — este número tiene supuestos
+frágiles que el equipo debería revisar antes de comprometerse a él en serio.
+
+### Preguntas abiertas para el equipo
+
+Estas son preguntas reales, sin cerrar — la idea es que el equipo (con o sin una IA en la
+conversación) las discuta y, si hay una mejor respuesta que la que tenemos hoy, se actualice esta
+sección y la decisión de arriba. No son deuda técnica silenciosa, son decisiones de negocio
+pendientes:
+
+**Precio y modelo comercial**
+- ¿Cobrar en pesos (como está ahora) o directo en dólares (como AgendaPro)? Pesos es más simple
+  para un cliente argentino pagar, pero el precio se licua con la inflación y hay que estar
+  revisándolo a mano. Dólares protege el margen pero puede espantar a un negocio chico que no
+  quiere pensar en tipo de cambio.
+- El costo de soporte (responder cuando algo se rompe, ayudar a un negocio nuevo a configurarse la
+  primera vez) todavía no está metido en la cuenta de margen — hoy el cálculo es solo
+  hosting vs. ingreso. ¿Cuánto tiempo por tenant es razonable presupuestar?
+- ¿`BASIC` se sostiene gratis para siempre (como gancho de adquisición) o hace falta un tercer
+  nivel intermedio? ¿Cuál sería el límite/gancho de cada nivel?
+- Las integraciones a medida se plantean como "cobrado aparte, en USD, caso por caso" — pero no hay
+  un proceso definido de cómo se cotiza eso en la práctica (¿por hora, por alcance fijo, un piso
+  mínimo?). Vale la pena definirlo antes de que aparezca el primer cliente real que lo pida.
+
+**Infraestructura**
+- La elección de Render priorizó "cero ops" — ¿sigue siendo la prioridad correcta ahora que hay un
+  equipo (quizás alguien sí puede/quiere ocuparse de un VPS más barato)?
+- No hay plan de qué pasa si esto crece más allá de un puñado de tenants — a qué tamaño conviene
+  reconsiderar el hosting, y con qué señal (¿facturación? ¿cantidad de tenants activos? ¿carga del
+  servidor?).
+
+**Producto**
+- Política de cancelación/reembolso y no-show — no está definida para ningún tenant todavía.
+- El caso de "el pago llega después de que el turno ya expiró y se canceló solo" (ver "Deuda
+  técnica" abajo) necesita una decisión de producto, no solo una de código: ¿reembolso automático?
+  ¿aviso al dueño para que decida a mano?
+- OAuth Connect (cuenta de Mercado Pago propia por tenant) sigue sin poder probarse en vivo porque
+  la app de sandbox usada no es de tipo "Marketplace" — hay que crear una nueva y repetir la
+  verificación.
 
 ### Para poder vender el plan de autoservicio (prioridad alta)
 
@@ -427,8 +489,8 @@ Dos cosas que quedan abiertas a propósito, no resueltas silenciosamente:
 
 ### Deuda técnica conocida (prioridad según qué tan rápido haga falta)
 
-9. **Política de cancelación/reembolso y no-show** — no definida todavía (mismo punto que quedó
-   abierto en el spec de Luciana, pero aplica a cualquier tenant).
+9. **Política de cancelación/reembolso y no-show** — no definida todavía para ningún tenant (ver
+   también "Preguntas abiertas para el equipo" arriba).
 10. Reembolsos de depósitos y turnos recurrentes — ya listados como fuera de alcance del MVP (ver
     "Design notes"), sin cambios.
 11. **Pago cobrado en un turno ya cancelado por expiración.** Confirmado en vivo el 2026-08-01 (ver
@@ -437,119 +499,3 @@ Dos cosas que quedan abiertas a propósito, no resueltas silenciosamente:
     `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real
     (cliente paga en minutos, no en más de media hora) es un caso raro, pero hay que resolverlo
     antes de manejar plata de verdad.
-
-## Bitácora de desarrollo
-
-Este proyecto lo construí con **Claude como par de programación** (dirigí el alcance y las
-decisiones, Claude escribió el código y yo lo revisé), no lo tipeé línea por línea a mano — lo digo
-de entrada porque me parece más útil (y más honesto) que fingir lo contrario. Lo que sí es 100%
-real es todo lo que sigue: los problemas, no son inventados para quedar bien — son los que
-efectivamente aparecieron construyendo esto, y cómo se resolvieron.
-
-### Etapa 0 — Definir qué construir
-
-Quería algo más serio que "otro CRUD de tareas". Después de pensarlo, elegí un sistema de turnos
-multi-negocio (tipo AgendaPro/Booksy) porque combina un dominio con reglas de negocio reales
-(no solo guardar y leer datos) con al menos dos problemas técnicos genuinamente difíciles de
-resolver bien: que nunca se pisen dos turnos, y que los datos de un negocio nunca se mezclen con
-los de otro.
-
-**Decisión clave:** multi-tenencia con una sola base de datos compartida (una columna `tenant_id`
-en cada tabla) en vez de una base de datos separada por negocio. Es el enfoque estándar en SaaS
-reales y evita complejizar la arquitectura desde el primer día.
-
-### Etapa 1 — El MVP (auth, turnos, disponibilidad)
-
-- **Problema:** arranqué con Spring Boot recién salido (4.1.0), publicado después de que se
-  entrenara el modelo de IA que uso. Casi toda la documentación y los tutoriales que existen están
-  escritos para la versión anterior (3.x), así que varias clases que "debían" estar en un paquete
-  ya no estaban ahí. Tuvimos que abrir directamente los archivos `.jar` descargados para encontrar
-  dónde se habían movido.
-- **Aprendizaje:** Spring Boot 4 modularizó mucho más las dependencias (paquetes de
-  autoconfiguración separados, y hasta pasó a usar una versión nueva de la librería Jackson, con
-  otro nombre de paquete). Cuando un framework está recién salido, a veces hay que investigar en el
-  código fuente en vez de confiar en la documentación.
-- **El bug más sutil de todo el proyecto:** al implementar el aislamiento entre negocios
-  (multi-tenencia), el registro de un usuario nuevo fallaba de una forma rarísima — insertaba el
-  usuario con un identificador de negocio que no existía. Después de investigar, entendimos que
-  Hibernate (la librería que traduce objetos Java a filas de base de datos) decide a qué negocio
-  pertenece una operación **una sola vez, al abrir la conexión** — no en cada consulta. Si cambiás
-  esa información a mitad de camino, ya es tarde. La solución fue separar esa operación en dos
-  pasos independientes en vez de uno solo.
-- **Decisión de diseño que quedé contento con:** en vez de evitar turnos duplicados con lógica en
-  el código (que se puede saltear u olvidar), lo resolvimos con una restricción a nivel de base de
-  datos (PostgreSQL) que hace **imposible** insertar dos turnos que se pisen para el mismo
-  profesional, sin importar qué parte del código intente hacerlo.
-- **Cómo lo probé de verdad:** no me conformé con "debería andar" — armamos un test que dispara
-  10 reservas al mismo horario **al mismo tiempo, de verdad** (no simulado) y confirma que solo una
-  se queda con el turno. Ahí también aprendimos que, bajo muchísima concurrencia, la base de datos
-  a veces devuelve un "interbloqueo" en vez de un rechazo prolijo — hubo que contemplar los dos
-  casos.
-
-### Etapa 2 — Notificaciones por mail
-
-- Cada vez que se crea o cambia el estado de un turno, se dispara un mail (confirmación,
-  cancelación, etc.).
-- **Problema:** no tenía ganas de mandar mails reales solo para probar. Solución: un servidor de
-  mail "de mentira" que corre en tu propia máquina (MailHog) — los mails nunca salen a internet,
-  pero los podés ver en una pantallita web como si fuera una bandeja de entrada real.
-- **Bug encontrado (y gracioso):** un mail en inglés mostraba la fecha en español ("lunes 10
-  agosto") porque el código para dar formato a la fecha usaba el idioma configurado en la
-  computadora, no uno fijo. Quedó corregido explícitamente para que siempre sea en inglés,
-  sin importar en qué máquina corra.
-- **Aprendizaje:** si algo puede fallar (un servidor de mail caído), que falle en silencio y quede
-  registrado, pero que nunca tire abajo la operación principal (reservar un turno) por su culpa.
-
-### Etapa 3 — Límite de pedidos (anti-abuso)
-
-- Cualquiera puede llamar a la parte pública de la API sin iniciar sesión, así que había que
-  evitar que alguien la sature a propósito.
-- **Problema:** al conectar el filtro de límite de pedidos, Spring Security (la librería de
-  seguridad) tiró un error porque no se puede "enganchar" un filtro propio tomando como referencia
-  a *otro* filtro propio — solo a los que ya conoce el framework. Hubo que reordenar cómo se
-  registran.
-- **Bug de codificación de caracteres:** un guion largo (—) en un mensaje de error aparecía roto
-  en la respuesta. Faltaba indicar explícitamente que el texto de esa respuesta iba en UTF-8 (el
-  estándar que soporta tildes, eñes y símbolos raros).
-
-### Etapa 4 — Pagos con MercadoPago (la parte más ambiciosa)
-
-- No tenía credenciales de prueba reales de MercadoPago a mano. En vez de dejarlo sin probar,
-  armamos un servidor simulado propio que responde exactamente como respondería MercadoPago, y
-  con eso corrimos el flujo completo de punta a punta: reservar, generar el link de pago, simular
-  el aviso de "pago aprobado" (con firma de seguridad calculada a mano, no truchada), y confirmar
-  que el turno se confirma solo y se manda el mail correspondiente.
-- **Aprendizaje importante sobre seguridad:** nunca hay que confiar en el aviso que manda una
-  pasarela de pago tal cual llega — siempre hay que volver a preguntarle a la pasarela "¿este pago
-  realmente se aprobó?" usando nuestras propias credenciales, para que nadie pueda falsificar un
-  aviso de pago aprobado.
-- **Otro bug de concurrencia de Spring:** un método que se suponía debía ejecutarse "de forma
-  segura" (dentro de una transacción) en realidad no lo hacía, porque se estaba llamando a sí
-  mismo desde dentro de la misma clase — un detalle interno de cómo funciona Spring que hace que la
-  anotación se ignore en silencio en ese caso puntual. Fácil de no notar, fácil de dejar pasar sin
-  un chequeo cuidadoso.
-- **Honestidad ante todo:** dejo explícito en este README que esta parte nunca se probó contra la
-  cuenta real de MercadoPago, solo contra el simulador. Está hecha siguiendo su documentación
-  oficial al pie de la letra, pero un "andá y probalo con una cuenta de verdad" sigue pendiente
-  antes de confiar en esto para cobrar plata de verdad.
-
-### Etapa 5 — Lista de espera y reportes
-
-- Más simples que lo anterior, aplicando patrones ya aprendidos en las etapas de arriba (mismo
-  esquema de "avisar por mail cuando pasa algo", misma forma de sumar una tabla nueva sin romper
-  nada de lo que ya funcionaba).
-- La lista de espera avisa a **una sola persona por vez** (a la que se anotó primero), no a todos
-  los anotados juntos — para que sea una fila de verdad y no una lista de difusión.
-
-### Lo que me llevo de todo esto
-
-- Cuando la corrección de algo importa de verdad, conviene apoyarse en garantías de la base de
-  datos en vez de solo en lógica de la aplicación — el código se puede saltear por error, una
-  restricción de la base de datos no.
-- "Debería funcionar" no alcanza: la mayor parte del tiempo se fue en probar cosas de verdad
-  (mandando pedidos reales, mirando la bandeja de entrada real, disparando reservas simultáneas de
-  verdad) en vez de asumir que andaban.
-- Trabajar con una versión de un framework recién salida significa que hay que estar dispuesto a
-  investigar en el código fuente cuando la documentación todavía no lo explica.
-- Ser honesto sobre lo que no se probó (MercadoPago real) vale más que aparentar que todo está
-  100% verificado cuando no es así.

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { getStoredTheme, setTheme, systemPrefersDark } from "../theme.js";
+import HelpManual from "../components/HelpManual.jsx";
 
 const LINKS = [
 	{ to: "appointments", label: "Turnos" },
@@ -15,6 +16,7 @@ const LINKS = [
 export default function DashboardLayout() {
 	const { session, logout } = useAuth();
 	const [theme, setThemeState] = useState(() => getStoredTheme() ?? (systemPrefersDark() ? "dark" : "light"));
+	const [manualOpen, setManualOpen] = useState(false);
 
 	function chooseTheme(next) {
 		setTheme(next);
@@ -49,14 +51,20 @@ export default function DashboardLayout() {
 					<div className="role">
 						{session.email} · {session.role}
 					</div>
-					<button type="button" onClick={logout}>
-						Salir
-					</button>
+					<div className="button-row">
+						<button type="button" className="secondary" onClick={() => setManualOpen(true)}>
+							? Manual
+						</button>
+						<button type="button" onClick={logout}>
+							Salir
+						</button>
+					</div>
 				</div>
 			</aside>
 			<main className="content">
 				<Outlet />
 			</main>
+			<HelpManual open={manualOpen} onClose={() => setManualOpen(false)} />
 		</div>
 	);
 }
