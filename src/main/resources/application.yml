@@ -53,6 +53,9 @@ app:
     expiration-minutes: 60
   mail:
     from: ${MAIL_FROM:no-reply@booking-saas.local}
+    # Where the emailed "confirm your email" link points — the admin panel's own verification
+    # page, not a backend URL, since it needs to call the API and then redirect into the app.
+    verification-base-url: ${MAIL_VERIFICATION_BASE_URL:http://localhost:5180/verificar-email}
   rate-limit:
     # Applies to the whole unauthenticated /api/public/** surface, keyed by client IP.
     capacity: ${RATE_LIMIT_CAPACITY:30}

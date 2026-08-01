@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext.jsx";
 import DashboardLayout from "./layout/DashboardLayout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import BranchesPage from "./pages/BranchesPage.jsx";
 import ProfessionalsPage from "./pages/ProfessionalsPage.jsx";
@@ -19,6 +20,7 @@ export default function App() {
 	return (
 		<Routes>
 			<Route path="/login" element={<LoginPage />} />
+			<Route path="/verificar-email" element={<VerifyEmailPage />} />
 			<Route
 				path="/"
 				element={

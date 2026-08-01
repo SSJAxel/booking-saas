@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { useAuth } from "../auth/AuthContext.jsx";
+import WelcomeBanner from "../components/WelcomeBanner.jsx";
 
 const STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"];
 const NEXT_STATUS = {
@@ -11,10 +13,22 @@ const NEXT_STATUS = {
 };
 
 export default function AppointmentsPage() {
+	const { session } = useAuth();
 	const [appointments, setAppointments] = useState([]);
 	const [statusFilter, setStatusFilter] = useState("");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(true);
+	const [showWelcome, setShowWelcome] = useState(false);
+
+	useEffect(() => {
+		const dismissed = localStorage.getItem(`onboarding-dismissed-${session.tenantSlug}`) === "true";
+		if (dismissed) return;
+		api.branches
+			.list()
+			.then((branches) => setShowWelcome(branches.length === 0))
+			.catch(() => {});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
 
 	async function refresh() {
 		setLoading(true);
@@ -45,6 +59,7 @@ export default function AppointmentsPage() {
 	return (
 		<div>
 			<h1>Turnos</h1>
+			{showWelcome && <WelcomeBanner onDismiss={() => setShowWelcome(false)} />}
 			{error && <p className="error">{error}</p>}
 			<div className="filters">
 				<label>

@@ -35,6 +35,8 @@ function toQuery(params = {}) {
 export const api = {
 	register: (body) => request("/api/auth/register", { method: "POST", body, auth: false }),
 	login: (body) => request("/api/auth/login", { method: "POST", body, auth: false }),
+	verifyEmail: (body) => request("/api/auth/verify-email", { method: "POST", body, auth: false }),
+	resendVerification: (body) => request("/api/auth/resend-verification", { method: "POST", body, auth: false }),
 	me: () => request("/api/me"),
 	tenant: {
 		get: () => request("/api/tenant"),

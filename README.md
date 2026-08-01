@@ -73,12 +73,19 @@ final reserva — cada negocio tiene el suyo, en `tusitio.com/{slug-del-negocio}
 ## Trying it out
 
 ```bash
-# Register a business — creates the tenant + its OWNER user, returns a JWT
+# Register a business — creates the tenant + its OWNER user. No token yet: the account can't log
+# in until the owner clicks the verification link mailed to them (see MailHog at :8025 locally).
 curl -X POST http://localhost:8080/api/auth/register \
   -H "Content-Type: application/json" \
   -d '{"tenantName":"Tattoo Ink Studio","tenantSlug":"tattoo-ink","ownerEmail":"owner@tattooink.com","ownerPassword":"supersecret123"}'
 
-# Use the returned token for everything under /api/**
+# Grab the token from the email in MailHog's UI (http://localhost:8025), then confirm it:
+curl -X POST http://localhost:8080/api/auth/verify-email \
+  -H "Content-Type: application/json" \
+  -d '{"tenantSlug":"tattoo-ink","token":"<paste token from the email>"}'
+# -> returns a real JWT, same shape as /api/auth/login from here on
+
+# Use that token for everything under /api/**
 TOKEN="<paste token here>"
 curl http://localhost:8080/api/branches -H "Authorization: Bearer $TOKEN"
 
@@ -132,6 +139,34 @@ Hibernate session resolves its tenant once, when opened — so a request handler
 `TenantContext` partway through its own `@Transactional` method and expect that same method's
 queries to see it (see the Javadoc on `TenantService`/`AppUserService`, which is why
 `AuthService.register()`/`login()` are deliberately *not* `@Transactional` themselves).
+
+**Email verification (registration).** `POST /api/auth/register` used to return a usable JWT
+immediately — meaning anyone could spin up an unlimited number of working accounts with a fake
+email, with nothing to stop it. It now creates the tenant/owner but returns no token
+(`RegisterResponse`, not `AuthResponse`), and `AuthService.login` rejects the account until
+`AppUser.emailVerified` is true. `AppUserService.createOwner` issues a random token (two
+concatenated UUIDs, stripped of dashes — well past brute-forceable) with a 24-hour expiry, mailed
+as a link via the existing `MailService`. `POST /api/auth/verify-email` takes `{tenantSlug, token}`
+— the slug is what lets this resolve `TenantContext` before the `@TenantId`-scoped lookup by token
+runs, same "embed the id we'll need on the way back" convention used for MercadoPago's
+`external_reference`/OAuth `state` elsewhere in this file — and auto-logs the owner in on success,
+returning a real `AuthResponse`. `POST /api/auth/resend-verification` always responds `204`
+whether or not the email/tenant combination exists, so it can't be used to probe which emails are
+registered. Verified end to end with a real mail: `AuthFlowTest` covers register-returns-no-token,
+login-rejected-until-verified, verify-with-a-valid-token, invalid/expired tokens, and resend
+issuing a fresh token — and a live smoke test round-tripped a real email through MailHog. Existing
+integration tests didn't need touching individually: `IntegrationTestBase.registerTenant()` marks
+the new owner verified directly in the database (the same "bypass the external dependency, not the
+behavior under test" shortcut already used elsewhere for MercadoPago-gated plan changes), so the
+~90 tests that already called it kept working unchanged.
+
+**First-run onboarding (admin panel).** A new owner used to land on an empty "Turnos" table with
+zero context. `WelcomeBanner` now shows on that same page whenever the tenant has zero branches —
+a reliable "this account was just created and never configured" signal, not a one-time flag that
+could go stale — explaining what the panel is (config for the business, not where clients book)
+and linking the three steps needed before the public booking site can work at all: a branch, a
+professional, a service. Dismissible on top of that, tracked per tenant in `localStorage`, for a
+business that deliberately never adds a second branch and doesn't want to see it again.
 
 **Notifications.** `AppointmentService` publishes an `AppointmentNotificationEvent` (with
 display-ready data already loaded — client/professional/service names — so the listener needs zero
@@ -486,14 +521,22 @@ pendientes:
    verificado contra una cuenta Twilio real (sin credenciales de prueba disponibles al construirlo)
    — mismo caveat que MercadoPago: falta un smoke test en vivo antes de confiar en esto con un
    cliente real.
+9. ~~**Verificación de mail en el registro.**~~ Hecho — `POST /api/auth/register` ya no devuelve
+   un token usable; hacía falta, porque antes cualquiera podía crearse cuentas ilimitadas con un
+   mail falso y quedar con acceso completo al instante. Ver "Design notes" → Email verification
+   (registration) para el flujo completo (verificado en vivo con un mail real vía MailHog).
+10. ~~**Pantalla de bienvenida/onboarding en el panel.**~~ Hecho — `WelcomeBanner`, ver "Design
+    notes" → First-run onboarding. Apunta al otro problema que se planteó junto con el de
+    verificación: alguien que se registra no tiene forma de entender para qué es el panel ni por
+    dónde arrancar.
 
 ### Deuda técnica conocida (prioridad según qué tan rápido haga falta)
 
-9. **Política de cancelación/reembolso y no-show** — no definida todavía para ningún tenant (ver
-   también "Preguntas abiertas para el equipo" arriba).
-10. Reembolsos de depósitos y turnos recurrentes — ya listados como fuera de alcance del MVP (ver
+11. **Política de cancelación/reembolso y no-show** — no definida todavía para ningún tenant (ver
+    también "Preguntas abiertas para el equipo" arriba).
+12. Reembolsos de depósitos y turnos recurrentes — ya listados como fuera de alcance del MVP (ver
     "Design notes"), sin cambios.
-11. **Pago cobrado en un turno ya cancelado por expiración.** Confirmado en vivo el 2026-08-01 (ver
+13. **Pago cobrado en un turno ya cancelado por expiración.** Confirmado en vivo el 2026-08-01 (ver
     "Design notes" → Payments/deposits): si el depósito se paga después de que
     `PendingDepositExpirationScheduler` ya canceló el turno por falta de pago, el pago queda
     `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real

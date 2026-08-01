@@ -20,7 +20,12 @@ export function AuthProvider({ children }) {
 	}, []);
 
 	const register = useCallback(async (body) => {
-		persist(await api.register(body));
+		// No token comes back — the account needs email verification before it can log in.
+		return api.register(body);
+	}, []);
+
+	const verifyEmail = useCallback(async (body) => {
+		persist(await api.verifyEmail(body));
 	}, []);
 
 	const logout = useCallback(() => {
@@ -29,7 +34,9 @@ export function AuthProvider({ children }) {
 		setSession(null);
 	}, []);
 
-	return <AuthContext.Provider value={{ session, login, register, logout }}>{children}</AuthContext.Provider>;
+	return (
+		<AuthContext.Provider value={{ session, login, register, verifyEmail, logout }}>{children}</AuthContext.Provider>
+	);
 }
 
 export function useAuth() {

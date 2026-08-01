@@ -1,6 +1,10 @@
 package dev.capibyte.bookingsaas.identity;
 
+import dev.capibyte.bookingsaas.common.BadRequestException;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -16,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AppUserService {
 
+	private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofHours(24);
+
 	private final AppUserRepository appUserRepository;
 	private final PasswordEncoder passwordEncoder;
 
@@ -25,11 +31,51 @@ public class AppUserService {
 		user.setEmail(email);
 		user.setPasswordHash(passwordEncoder.encode(rawPassword));
 		user.setRole(Role.OWNER);
+		issueVerificationToken(user);
 		return appUserRepository.save(user);
 	}
 
 	@Transactional(readOnly = true)
 	public Optional<AppUser> findActiveByEmail(String email) {
 		return appUserRepository.findByEmail(email).filter(AppUser::isActive);
+	}
+
+	/**
+	 * Called with {@link dev.capibyte.bookingsaas.common.TenantContext} already set to the tenant
+	 * resolved from the verification link's {@code tenantSlug} — the token column is globally
+	 * unique, but the lookup still goes through the normal @TenantId-filtered repository like
+	 * every other tenant-scoped query, so a token can only ever verify a user in its own tenant.
+	 */
+	@Transactional
+	public AppUser verifyEmail(String token) {
+		AppUser user = appUserRepository.findByVerificationToken(token)
+				.orElseThrow(() -> new BadRequestException("Invalid or already-used verification link"));
+		if (user.getVerificationTokenExpiresAt() == null || user.getVerificationTokenExpiresAt().isBefore(Instant.now())) {
+			throw new BadRequestException("This verification link expired — request a new one");
+		}
+		user.setEmailVerified(true);
+		user.setVerificationToken(null);
+		user.setVerificationTokenExpiresAt(null);
+		return user;
+	}
+
+	/**
+	 * Empty result covers both "no such user" and "already verified" — the caller (see
+	 * AuthService.resendVerification) responds identically either way, so a prospective attacker
+	 * can't use this to probe which emails are registered.
+	 */
+	@Transactional
+	public Optional<AppUser> regenerateVerificationToken(String email) {
+		return appUserRepository.findByEmail(email)
+				.filter(user -> !user.isEmailVerified())
+				.map(user -> {
+					issueVerificationToken(user);
+					return user;
+				});
+	}
+
+	private void issueVerificationToken(AppUser user) {
+		user.setVerificationToken(UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", ""));
+		user.setVerificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
 	}
 }

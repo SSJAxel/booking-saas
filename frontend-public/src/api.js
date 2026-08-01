@@ -16,6 +16,7 @@ async function request(path, { method = "GET", body } = {}) {
 export const api = {
 	getPlans: () => request("/api/plans"),
 	register: (body) => request("/api/auth/register", { method: "POST", body }),
+	resendVerification: (body) => request("/api/auth/resend-verification", { method: "POST", body }),
 	getTenant: (slug) => request(`/api/public/${slug}`),
 	getBranches: (slug) => request(`/api/public/${slug}/branches`),
 	getServices: (slug, branchId) =>

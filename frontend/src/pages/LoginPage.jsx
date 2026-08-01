@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 export default function LoginPage() {
 	const [mode, setMode] = useState("login");
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
+	const [registered, setRegistered] = useState(null);
+	const [resendNotice, setResendNotice] = useState("");
 	const { login, register } = useAuth();
 	const navigate = useNavigate();
 
@@ -34,18 +37,47 @@ export default function LoginPage() {
 		setLoading(true);
 		const form = new FormData(event.target);
 		try {
-			await register({
+			const response = await register({
 				tenantName: form.get("tenantName"),
 				tenantSlug: form.get("tenantSlug"),
 				ownerEmail: form.get("ownerEmail"),
 				ownerPassword: form.get("ownerPassword"),
 			});
-			navigate("/");
+			setRegistered(response);
 		} catch (err) {
 			setError(err.message);
 		} finally {
 			setLoading(false);
 		}
+	}
+
+	async function handleResend() {
+		setResendNotice("");
+		try {
+			await api.resendVerification({ tenantSlug: registered.tenantSlug, email: registered.email });
+			setResendNotice("Te reenviamos el mail.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	if (registered) {
+		return (
+			<div className="auth-page">
+				<div className="auth-card">
+					<h1>Revisá tu mail</h1>
+					<p className="muted">
+						Te mandamos un link de confirmación a <strong>{registered.email}</strong>. Confirmalo para poder
+						entrar — el negocio ya está creado, solo falta ese paso.
+					</p>
+					{resendNotice && <p className="notice">{resendNotice}</p>}
+					{error && <p className="error">{error}</p>}
+					<button type="button" onClick={handleResend}>
+						Reenviar mail
+					</button>
+				</div>
+			</div>
+		);
 	}
 
 	return (

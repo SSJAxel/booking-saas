@@ -10,6 +10,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * Full-stack HTTP tests against a real embedded server + real Postgres (Testcontainers) — needed
@@ -25,18 +26,34 @@ public abstract class IntegrationTestBase {
 	@Autowired
 	protected TestRestTemplate restTemplate;
 
+	@Autowired
+	protected JdbcTemplate jdbcTemplate;
+
 	protected record RegisteredTenant(String slug, String token) {
 	}
 
+	/**
+	 * Registering no longer returns a usable token (see AuthService — email verification gates
+	 * login now). Tests can't click an emailed link, so this marks the owner verified directly in
+	 * the database — the same "bypass the external dependency, not the behavior under test"
+	 * pattern already used elsewhere for MercadoPago-gated plan changes — then logs in for real.
+	 */
 	protected RegisteredTenant registerTenant() {
 		String slug = "t-" + UUID.randomUUID().toString().substring(0, 8);
+		String email = slug + "@example.com";
+		String password = "supersecret123";
 		Map<String, Object> request = Map.of(
 				"tenantName", "Test Tenant " + slug,
 				"tenantSlug", slug,
-				"ownerEmail", slug + "@example.com",
-				"ownerPassword", "supersecret123");
-		ResponseEntity<Map> response = restTemplate.postForEntity("/api/auth/register", request, Map.class);
-		String token = (String) response.getBody().get("token");
+				"ownerEmail", email,
+				"ownerPassword", password);
+		restTemplate.postForEntity("/api/auth/register", request, Map.class);
+
+		jdbcTemplate.update("UPDATE app_users SET email_verified = true WHERE email = ?", email);
+
+		Map<String, Object> loginRequest = Map.of("tenantSlug", slug, "email", email, "password", password);
+		ResponseEntity<Map> loginResponse = restTemplate.postForEntity("/api/auth/login", loginRequest, Map.class);
+		String token = (String) loginResponse.getBody().get("token");
 		return new RegisteredTenant(slug, token);
 	}
 

@@ -720,3 +720,33 @@ button.secondary:hover:not(:disabled) {
 	color: var(--text-h);
 	margin-bottom: 0.3rem !important;
 }
+
+/* Welcome / onboarding banner */
+.welcome-banner {
+	border-color: var(--accent);
+	margin-bottom: 1.4rem;
+}
+
+.welcome-banner h3 {
+	font-size: 1.1rem;
+}
+
+.welcome-steps {
+	margin: 0 0 1rem;
+	padding-left: 1.2rem;
+	font-size: 0.9rem;
+}
+
+.welcome-steps li {
+	margin-bottom: 0.3rem;
+}
+
+.welcome-steps a {
+	color: var(--accent-hover);
+	font-weight: 700;
+	text-decoration: none;
+}
+
+.welcome-steps a:hover {
+	text-decoration: underline;
+}

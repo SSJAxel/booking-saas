@@ -8,6 +8,7 @@ export default function SignupPage() {
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(false);
 	const [created, setCreated] = useState(null);
+	const [resendNotice, setResendNotice] = useState("");
 
 	async function handleSubmit(event) {
 		event.preventDefault();
@@ -29,20 +30,31 @@ export default function SignupPage() {
 		}
 	}
 
+	async function handleResend() {
+		setResendNotice("");
+		try {
+			await api.resendVerification({ tenantSlug: created.tenantSlug, email: created.email });
+			setResendNotice("Te reenviamos el mail.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	if (created) {
 		return (
 			<div className="page">
 				<div className="confirmation">
-					<h1>¡Listo, {created.tenantSlug} ya existe!</h1>
+					<h1>¡Ya casi, {created.tenantSlug}!</h1>
 					<p>
-						Tu cuenta arranca en el plan Básico. {wantsPro && "Para pasar a Pro, "}
-						{wantsPro
-							? "entrá al panel y suscribite desde ahí."
-							: "Podés cambiar de plan cuando quieras desde el panel."}
+						Te mandamos un mail a <strong>{created.email}</strong> para confirmar tu cuenta — confirmalo para
+						poder entrar al panel. Arranca en el plan Básico
+						{wantsPro ? "; para pasar a Pro, entrá al panel y suscribite desde ahí." : "."}
 					</p>
-					<a className="button-link" href="http://localhost:5180/login">
-						Ir al panel de administración
-					</a>
+					{resendNotice && <p className="notice">{resendNotice}</p>}
+					{error && <p className="error">{error}</p>}
+					<button type="button" className="button-link" onClick={handleResend}>
+						Reenviar mail
+					</button>
 				</div>
 			</div>
 		);
