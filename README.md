@@ -152,16 +152,26 @@ is never trusted directly; `PaymentService` always re-fetches the payment from M
 with our own access token before acting on it. A paid deposit auto-confirms a `PENDING`
 appointment (`AppointmentService.markDepositPaid`).
 
-Two simplifications worth knowing:
-- **One platform-level MercadoPago account for every tenant**, not per-tenant OAuth Connect — so
-  in this MVP all deposits flow to a single sandbox account rather than each business's own. A
-  real multi-tenant deployment would need MercadoPago's OAuth flow per tenant instead.
-- **Not verified against a live MercadoPago sandbox** (no test credentials were available while
-  building this) — `MercadoPagoClient` and `WebhookSignatureVerifier` are implemented strictly
-  from MercadoPago's published API/webhook docs and covered by tests that mock the HTTP boundary
-  (`MockRestServiceServer` for the client, a hand-rolled mock server for a full local
-  checkout→webhook run). Treat as needing one live smoke test against a real sandbox account
-  before depending on it.
+One simplification worth knowing: **one platform-level MercadoPago account for every tenant**, not
+per-tenant OAuth Connect — so in this MVP all deposits flow to a single sandbox account rather than
+each business's own. A real multi-tenant deployment would need MercadoPago's OAuth flow per tenant
+instead.
+
+**Verified live against a real MercadoPago sandbox (2026-08-01).** Full loop exercised end to end
+against MercadoPago's actual API, not mocks: created a real Checkout Pro preference, paid it in a
+browser with a MercadoPago test card, re-fetched the resulting payment from MercadoPago's API with
+`getPayment` (confirmed `status: approved`, `external_reference` matching `{tenantId}:{paymentId}`
+exactly), then hand-triggered `POST /api/webhooks/mercadopago` with a correctly-computed
+`x-signature` to prove `WebhookSignatureVerifier` and `PaymentService.handleWebhook` process a real
+payment id correctly — `Payment.status` flipped to `PAID`.
+
+One genuine gap this surfaced, not a bug: the live test took over 30 minutes end to end (manual
+sandbox setup, browser checkout), so `PendingDepositExpirationScheduler` auto-cancelled the
+appointment before the payment webhook arrived. `AppointmentService.markDepositPaid` correctly
+refused to un-cancel it (see its Javadoc — never resurrect a slot that may have been re-booked by
+someone else), so the appointment ended up `CANCELLED` with `paymentStatus: PAID` — money captured
+for a slot that's no longer held. Nothing currently surfaces this mismatch to the tenant owner (no
+refund flow, no alert); worth fixing before this handles real money, tracked in the roadmap.
 
 The webhook resolves which tenant a notification belongs to from the payment's
 `external_reference` (`"{tenantId}:{paymentId}"`, set when the preference is created) — the same
@@ -189,9 +199,21 @@ longer have.
 Known gap, same honesty policy as the Checkout Pro section above: this only reacts to the
 preapproval's own status webhook, not MercadoPago's separate `authorized_payment` topic (fired for
 each individual recurring charge) — so a single missed/retried monthly charge that MercadoPago is
-still retrying isn't reflected here yet, only an eventual pause/cancellation is. Also unverified
-against a live sandbox, for the same reason as Checkout Pro (see below) — covered instead by
-`MercadoPagoClientTest` (request/response contract) and `SubscriptionServiceTest` (business logic).
+still retrying isn't reflected here yet, only an eventual pause/cancellation is.
+
+**Partially verified live (2026-08-01).** `createPreapproval` was exercised against MercadoPago's
+real API and confirmed to work — but only after discovering a real, previously-undocumented
+requirement: `payer_email` must belong to an actual MercadoPago account (real or sandbox test
+user), or the API rejects the call with `400 Both payer and collector must be real or test users`.
+A tenant's real owner email always satisfies this in production, so it's not a code change, just a
+gap in what was previously assumed. Could not complete the interactive authorization step or
+exercise the webhook path against a real `authorized` preapproval: MercadoPago's checkout emails a
+one-time verification code to `payer_email` before letting a sandbox test user authorize a
+recurring charge, and a sandbox test account's `@testuser.com` address isn't a real inbox — a
+sandbox-environment dead end, not something in this codebase. `SubscriptionService.handleWebhook`
+and the `authorized`/`paused`/`cancelled` state transitions remain unverified against a live
+authorized subscription — covered instead by `MercadoPagoClientTest` (request/response contract)
+and `SubscriptionServiceTest` (business logic).
 
 **Per-tenant MercadoPago accounts (OAuth Connect).** `MercadoPagoClient` takes an
 `accessToken` on every call that moves money or reads a payment/subscription — it has no
@@ -219,6 +241,11 @@ known until after that re-fetch succeeds (that's the whole reason for re-fetchin
 MercadoPago's marketplace model is assumed to give the integrating application read access to
 transactions it created through a connected account's OAuth flow. That assumption is unverified
 against a live sandbox, same as the rest of this integration.
+
+**Not attempted live yet:** the sandbox account used for the 2026-08-01 verification pass was
+created as a plain Checkout Pro application — `client_id`/`client_secret` (needed for OAuth
+Connect) only exist on a MercadoPago application configured as "Marketplace". Deferred rather than
+solved by creating a second application, to keep that session focused; see the roadmap.
 
 **Per-tenant branding.** Three optional `Tenant` fields — `logoUrl`, `accentColor` (hex, validated
 `^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH /api/tenant/branding` (owner or admin; billing
@@ -338,10 +365,17 @@ un tercer nivel).
    usando la cuenta compartida exactamente como antes). Quedó afuera a propósito: el `state` del
    OAuth es el `tenantId` directo, no un nonce opaco — más simple, pero menos duro contra un
    `state` forjado; anotado en el Javadoc de `buildAuthorizationUrl`.
-3. **Verificación contra Mercado Pago real.** Nunca se probó contra credenciales reales (ver
-   "Design notes"), ni el Checkout Pro de señas, ni el Preapproval de suscripciones, ni el OAuth
-   Connect. Antes de cobrarle a un cliente de verdad hace falta un smoke test contra una cuenta
-   sandbox real, no solo el mock casero y los tests de contrato.
+3. ~~**Verificación contra Mercado Pago real.**~~ Hecho parcialmente — Checkout Pro (señas)
+   verificado 100% en vivo: preferencia real, pago real con tarjeta de prueba, re-fetch real del
+   pago, firma de webhook validada, turno actualizado (ver "Design notes" → Payments/deposits). De
+   paso encontramos un gap real: si el pago tarda más que la ventana de expiración, el turno se
+   cancela solo y el pago queda huérfano sin aviso — sin arreglar todavía. Preapproval
+   (suscripciones) quedó a mitad de camino: confirmamos en vivo que `createPreapproval` funciona y
+   que `payer_email` tiene que ser una cuenta real/de prueba de MercadoPago (dato nuevo, no
+   documentado antes), pero no se pudo completar la autorización interactiva — MercadoPago manda un
+   código de verificación por mail a `payer_email`, y una cuenta de prueba no tiene una casilla real
+   para leerlo. OAuth Connect sigue sin probarse: la cuenta de sandbox usada es de tipo Checkout Pro
+   simple, no "Marketplace" (que es el tipo de aplicación que expone `client_id`/`client_secret`).
 4. ~~**Página pública de precios y alta.**~~ Hecho — `frontend-public`'s `LandingPage` ahora
    lista los planes desde `GET /api/plans` (nuevo, público, catálogo de precios — no tenant-scoped,
    por eso vive fuera de `/api/public/{tenantSlug}/**`) y `/registrarse` crea la cuenta. La cuenta
@@ -391,6 +425,12 @@ un tercer nivel).
    abierto en el spec de Luciana, pero aplica a cualquier tenant).
 10. Reembolsos de depósitos y turnos recurrentes — ya listados como fuera de alcance del MVP (ver
     "Design notes"), sin cambios.
+11. **Pago cobrado en un turno ya cancelado por expiración.** Confirmado en vivo el 2026-08-01 (ver
+    "Design notes" → Payments/deposits): si el depósito se paga después de que
+    `PendingDepositExpirationScheduler` ya canceló el turno por falta de pago, el pago queda
+    `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real
+    (cliente paga en minutos, no en más de media hora) es un caso raro, pero hay que resolverlo
+    antes de manejar plata de verdad.
 
 ## Bitácora de desarrollo
 
