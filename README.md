@@ -329,27 +329,33 @@ de negocio detrás.
   `requiere_aprobacion`), no como un fork del código — así una integración a medida no ensucia el
   producto base.
 
-### Pendiente sin resolver: comercialización y hosting
+### Decisión: comercialización y hosting (2026-08-01)
 
-Todavía no está decidido **cómo se cobra esto ni dónde se hostea**, y es una decisión que
-condiciona a las demás — no tiene sentido terminar de afinar precios de plan sin saber qué cuesta
-sostener la infraestructura por tenant, ni elegir hosting sin saber cuántos tenants/tráfico hay que
-soportar. Puntos concretos sin cerrar:
+**Hosting: Render.** Web Service tier Standard (2GB RAM — el tier Starter de $7/mes con 512MB es
+riesgoso para una app Java con Hibernate) para el backend, Postgres administrado (tier chico) para
+la base, y los dos frontends React como Static Sites (gratis, sin límite de banda relevante a esta
+escala). Costo total estimado: **~USD 35/mes**, fijo y predecible independientemente del tráfico —
+se priorizó esto sobre una alternativa más barata pero de facturación variable (Railway) porque lo
+que se buscaba era no tener que operar servidores (parches, backups, TLS a mano), no el costo
+mínimo absoluto. Se descartó AWS Lightsail / VPS propio (Hostinger, DigitalOcean) por la misma
+razón: más barato, pero implica hacerse cargo del ops uno mismo.
 
-- El precio de `PRO` en `PlanTier.java` (`$15.000/mes`) es un placeholder puesto para poder
-  programar el flujo de suscripción — nunca se calculó contra un costo real de infraestructura por
-  tenant, ni contra lo que cobra la competencia (AgendaPro, Booksy) en Argentina.
-- No hay hosting elegido todavía (se habló de Hostinger VPS vs AWS Lightsail en algún momento, sin
-  resolución) — falta estimar qué sale sostener Postgres + backend + los dos frontends para una
-  cantidad realista de tenants activos, y con qué margen queda el plan `PRO` una vez restado eso.
-- El costo de soporte (alguien tiene que responder cuando algo se rompe, ayudar a un negocio nuevo
-  a configurarse la primera vez, etc.) no está contemplado en el precio todavía — hoy el número de
-  `PRO` es arbitrario, no el resultado de una cuenta real que incluya soporte + hosting + margen.
+**Precio de `PRO`: ARS 23.000/mes** (antes un placeholder de $15.000). Calculado como ~USD 15/mes
+al dólar blue de referencia del día de la decisión (~$1.560) — por debajo del piso de AgendaPro
+Argentina (USD 19/mes) y de Booksy (~USD 30/mes), y con margen sano una vez cubierto el hosting: no
+alcanza con 1 tenant pago, pero sí desde ~3, y queda margen real en el rango de 5-10 tenants que se
+espera para los primeros meses.
 
-En criollo: antes de vender el plan de autoservicio en serio, hay que armar esa cuenta — cuánto
-sale por tenant, cuánto hay que cobrar para que sobre algo después de hosting y soporte, y recién
-ahí fijar el precio real de `PRO` (y decidir si `BASIC` se sostiene siendo gratis o si hace falta
-un tercer nivel).
+Dos cosas que quedan abiertas a propósito, no resueltas silenciosamente:
+- **El precio queda fijo en pesos, no indexado al dólar.** Con inflación/devaluación en Argentina,
+  ese número en ARS va a perder valor real con el tiempo y hay que revisarlo a mano de tanto en
+  tanto — no se construyó ningún mecanismo de auto-ajuste cambiario, sería una feature aparte. Cobrar
+  directamente en USD (como hace AgendaPro) quedó anotado como una posibilidad a futuro, no algo
+  resuelto ahora.
+- El costo de soporte (responder cuando algo se rompe, ayudar a un negocio nuevo a configurarse)
+  sigue sin estar metido en la cuenta — el margen de arriba es solo hosting vs. ingreso, no cubre
+  tiempo de soporte todavía. Y si `BASIC` se sostiene gratis para siempre o hace falta un tercer
+  nivel intermedio sigue sin decidirse.
 
 ### Para poder vender el plan de autoservicio (prioridad alta)
 

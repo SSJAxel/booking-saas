@@ -10,8 +10,11 @@ import java.math.BigDecimal;
 public enum PlanTier {
 
 	BASIC(5, BigDecimal.ZERO),
-	// Placeholder price — pick a real number (and currency strategy) before actually selling this.
-	PRO(null, new BigDecimal("15000.00"));
+	// ARS 23.000 ≈ USD 15/mes al dólar blue de referencia (2026-08-01, ~$1.560) — calculado contra
+	// el costo real de hosting (~USD 35/mes en Render) y el piso de precios de AgendaPro (USD 19),
+	// ver README → "Comercialización y hosting". Fijo en pesos por ahora; revisar a mano si el tipo
+	// de cambio se mueve mucho, no hay indexación automática construida.
+	PRO(null, new BigDecimal("23000.00"));
 
 	private final Integer maxProducts;
 	private final BigDecimal monthlyPrice;
