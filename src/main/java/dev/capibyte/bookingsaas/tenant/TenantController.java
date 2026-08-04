@@ -38,12 +38,15 @@ public class TenantController {
 		return TenantResponse.from(tenantService.findById(TenantContext.getTenantId()));
 	}
 
-	/** Owner/admin: logo, accent color, tagline shown on this tenant's public site (frontend-public). */
+	/**
+	 * Owner/admin: logo, accent color, tagline shown on this tenant's public booking page, plus the
+	 * contact email/WhatsApp number behind the owner panel's quick-access buttons.
+	 */
 	@PatchMapping("/branding")
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public TenantResponse updateBranding(@Valid @RequestBody BrandingUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateBranding(TenantContext.getTenantId(), request.logoUrl(),
-				request.accentColor(), request.tagline()));
+				request.accentColor(), request.tagline(), request.contactEmail(), request.whatsappNumber()));
 	}
 
 	/**

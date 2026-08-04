@@ -357,6 +357,26 @@ derived from the tenant's chosen color, so a very light `accentColor` could prod
 button text. Not built yet: logo file upload, since that needs a storage decision this project
 hasn't made.
 
+**Owner-panel quick-access buttons (contact email/WhatsApp).** Two more optional `Tenant` fields —
+`contactEmail` (validated `@Email`) and `whatsappNumber` (validated `^[+0-9 ()-]{6,30}$`) — added
+alongside branding on the same `PATCH /api/tenant/branding` request/response (`V16` migration).
+`frontend/src/pages/TenantPage.jsx` shows an "Accesos rápidos" card at the top of the Negocio page
+with three buttons: one to the tenant's own public booking page (`/reservar/{slug}`, always
+enabled), one that opens a `mailto:` to `contactEmail`, and one that opens `https://wa.me/<digits>`
+for `whatsappNumber` (non-digits stripped before building the link) — the latter two `disabled`
+until their field is set, with a hint telling the owner to fill them in below. This was the fix for
+"no veo dónde llegar a mi propio sitio/contacto desde el panel" — the owner previously had no
+in-panel shortcut to their own public page or contact channels.
+
+**One-click local dev launcher.** `start-dev.bat` (repo root) runs `docker compose up -d`, starts
+the backend and frontend each in their own `cmd` window, waits for the frontend to respond, and
+opens it in the browser — one double-click instead of the four manual steps in "Running locally"
+below. It also pins `JAVA_HOME` to a JDK 21+ install for the backend window, since a system-wide
+`JAVA_HOME` pointed at an older JDK (e.g. 17) fails with `UnsupportedClassVersionError` against
+this project's `class file version 65` (Java 21) bytecode — edit the `JAVA_HOME` line at the top of
+the script if your own JDK 21+ install lives somewhere else. A Desktop shortcut ("Booking SaaS -
+Levantar proyecto") pointing at this script is the intended everyday entry point locally.
+
 **Timezones.** `Tenant.timezone` (an IANA zone id, e.g. `America/Argentina/Buenos_Aires`; `UTC` at
 registration) is now what every wall-clock time for that tenant is interpreted in — weekly
 availability hours, the public availability search, and what "which day" an appointment counts

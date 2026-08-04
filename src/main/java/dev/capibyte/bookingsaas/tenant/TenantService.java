@@ -69,11 +69,14 @@ public class TenantService {
 
 	/** Any field left null clears that piece of branding — an unbranded tenant is a valid state. */
 	@Transactional
-	public Tenant updateBranding(UUID tenantId, String logoUrl, String accentColor, String tagline) {
+	public Tenant updateBranding(UUID tenantId, String logoUrl, String accentColor, String tagline,
+			String contactEmail, String whatsappNumber) {
 		Tenant tenant = findById(tenantId);
 		tenant.setLogoUrl(logoUrl);
 		tenant.setAccentColor(accentColor);
 		tenant.setTagline(tagline);
+		tenant.setContactEmail(contactEmail);
+		tenant.setWhatsappNumber(whatsappNumber);
 		return tenant;
 	}
 

@@ -54,6 +54,13 @@ public class Tenant extends BaseEntity {
 	@Column(name = "whatsapp_enabled", nullable = false)
 	private boolean whatsappEnabled = false;
 
+	/** Business contact channels behind the owner's quick-access buttons — both optional. */
+	@Column(name = "contact_email")
+	private String contactEmail;
+
+	@Column(name = "whatsapp_number")
+	private String whatsappNumber;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

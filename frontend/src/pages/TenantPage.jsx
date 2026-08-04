@@ -66,6 +66,8 @@ export default function TenantPage() {
 					logoUrl: form.get("logoUrl")?.trim() || null,
 					accentColor: form.get("accentColor")?.trim() || null,
 					tagline: form.get("tagline")?.trim() || null,
+					contactEmail: form.get("contactEmail")?.trim() || null,
+					whatsappNumber: form.get("whatsappNumber")?.trim() || null,
 				}),
 			);
 			setBrandingNotice("Guardado.");
@@ -102,10 +104,40 @@ export default function TenantPage() {
 
 	if (!tenant) return <p>Cargando...</p>;
 
+	const bookingUrl = `${window.location.protocol}//${window.location.host}/reservar/${tenant.slug}`;
+	const whatsappHref = tenant.whatsappNumber
+		? `https://wa.me/${tenant.whatsappNumber.replace(/[^0-9]/g, "")}`
+		: null;
+
 	return (
 		<div>
 			<h1>Negocio</h1>
 			{error && <p className="error">{error}</p>}
+
+			<p className="label">Accesos rápidos</p>
+			<div className="card button-row">
+				<button type="button" onClick={() => window.open(bookingUrl, "_blank", "noreferrer")}>
+					Ir al sitio de agendamiento
+				</button>
+				<button
+					type="button"
+					disabled={!tenant.contactEmail}
+					onClick={() => window.location.assign(`mailto:${tenant.contactEmail}`)}
+				>
+					Escribir por mail
+				</button>
+				<button
+					type="button"
+					disabled={!whatsappHref}
+					onClick={() => window.open(whatsappHref, "_blank", "noreferrer")}
+				>
+					Abrir WhatsApp
+				</button>
+				{!tenant.contactEmail || !tenant.whatsappNumber ? (
+					<span className="muted">Completá el email y/o el WhatsApp más abajo para habilitar esos botones.</span>
+				) : null}
+			</div>
+
 			<div className="card">
 				<p>
 					<strong>{tenant.name}</strong> ({tenant.slug})
@@ -223,6 +255,17 @@ export default function TenantPage() {
 							title="Formato hexadecimal, ej: #FF5733"
 						/>
 						<input name="tagline" placeholder="Frase corta (opcional)" defaultValue={tenant.tagline ?? ""} />
+						<input
+							name="contactEmail"
+							type="email"
+							placeholder="Email de contacto"
+							defaultValue={tenant.contactEmail ?? ""}
+						/>
+						<input
+							name="whatsappNumber"
+							placeholder="WhatsApp (ej: +54 9 11 1234-5678)"
+							defaultValue={tenant.whatsappNumber ?? ""}
+						/>
 						<button type="submit">Guardar</button>
 						{brandingNotice && <span className="notice">{brandingNotice}</span>}
 					</form>
