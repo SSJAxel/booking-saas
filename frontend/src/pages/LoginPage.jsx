@@ -96,7 +96,7 @@ export default function LoginPage() {
 				{mode === "login" ? (
 					<form onSubmit={handleLogin}>
 						<label>
-							Slug del negocio
+							Identificador del negocio
 							<input name="tenantSlug" required />
 						</label>
 						<label>
@@ -118,7 +118,7 @@ export default function LoginPage() {
 							<input name="tenantName" required />
 						</label>
 						<label>
-							Slug (minúsculas, sin espacios)
+							Identificador del negocio (minúsculas, sin espacios)
 							<input name="tenantSlug" required pattern="[a-z0-9](-?[a-z0-9])*" />
 						</label>
 						<label>

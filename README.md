@@ -70,6 +70,19 @@ final reserva — cada negocio tiene el suyo, en `tusitio.com/{slug-del-negocio}
 4. **API docs**: Swagger UI at `http://localhost:8080/swagger-ui/index.html`, OpenAPI JSON at
    `/v3/api-docs`.
 
+## Cuenta de prueba
+
+Para probar el panel de administración (`frontend/`, `http://localhost:5180`) o el flujo público de
+reserva (`http://localhost:5180/reservar/lusi-tattoo`) sin tener que registrar un negocio nuevo, ya
+existe un tenant de prueba cargado en la base local:
+
+- **Identificador del negocio**: `lusi-tattoo`
+- **Email**: `lusi@example.com`
+- **Contraseña**: `lZk2at6zL7Pxlk`
+- **Rol**: OWNER
+
+Solo dev/local — no son credenciales de producción.
+
 ## Trying it out
 
 ```bash
