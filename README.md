@@ -4,8 +4,9 @@ A multi-tenant appointment-booking backend for service businesses (tattoo studio
 salons) — think a small AgendaPro. Each tenant has branches, professionals, a service catalog,
 weekly availability, and clients who book time slots through a public API.
 
-REST API + OpenAPI/Swagger docs, plus two minimal React/Vite frontends (`frontend/` — the
-owner/staff admin panel, `frontend-public/` — the client-facing multi-tenant booking site).
+REST API + OpenAPI/Swagger docs, plus a single React/Vite frontend (`frontend/`) that covers both
+the owner/staff admin panel and the client-facing public booking flow (`/reservar/:tenantSlug`,
+no login needed) — one frontend, not two; see "One frontend, not two" in Design notes for why.
 The two hardest correctness properties of this domain (never double-booking a professional, never
 leaking one tenant's data to another) are enforced structurally rather than just in application
 code — see [Design notes](#design-notes) below.
@@ -33,9 +34,9 @@ Quién es quién en este sistema:
 - **Cliente**: quien reserva, desde la página pública del negocio — no necesita cuenta ni login.
 - **Turno (appointment)**: la reserva en sí — un profesional + un servicio + un horario puntual.
 
-Dos superficies en este repo: el **panel de administración** (`frontend/`) donde el dueño/staff del
-negocio configura todo lo de arriba, y el **sitio público** (`frontend-public/`) donde el cliente
-final reserva — cada negocio tiene el suyo, en `tusitio.com/{slug-del-negocio}`.
+Una sola superficie web en este repo (`frontend/`): el **panel de administración**, donde el
+dueño/staff del negocio configura todo lo de arriba, y dentro del mismo proyecto, la **página
+pública de reserva** (`/reservar/{slug-del-negocio}`, sin login) donde el cliente final reserva.
 
 ## Stack
 
@@ -53,8 +54,7 @@ final reserva — cada negocio tiene el suyo, en `tusitio.com/{slug-del-negocio}
 - A small inventory/stock module (products + sales), capped by plan tier
 - JUnit 5, Testcontainers (integration tests run against real Postgres, not H2)
 - Docker Compose (local Postgres + MailHog)
-- React + Vite (`frontend/`, `frontend-public/`) — no TypeScript, no UI kit, plain `fetch` against
-  the REST API
+- React + Vite (`frontend/`) — no TypeScript, no UI kit, plain `fetch` against the REST API
 
 ## Running locally
 
@@ -326,12 +326,12 @@ solved by creating a second application, to keep that session focused; see the r
 `^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH /api/tenant/branding` (owner or admin; billing
 stays owner-only, branding doesn't need to). `logoUrl` is a link, not a file upload: this project
 has no file storage (S3/Cloudinary/etc.) yet, so a tenant hosts their own logo and links it — see
-the roadmap for the tradeoff. `frontend-public/src/layout/TenantLayout.jsx` fetches the tenant once
-per business, renders a small branded top bar, and overrides the CSS custom property `--accent`
-inline (`style={{ "--accent": tenant.accentColor }}`) so every page under that tenant — not just
-the home page — picks up their color through the same variable every button/chip/card already
-reads from. An unset field is `null` end to end (DTOs, entity columns) and just falls back to
-`frontend-public`'s default look; connecting branding, like connecting MercadoPago, is additive.
+the roadmap for the tradeoff. `frontend/src/pages/BookingPage.jsx` (the public booking flow, see
+"One frontend, not two" below) fetches the tenant once and overrides the CSS custom property
+`--accent` inline (`style={{ "--accent": tenant.accentColor }}`) on its root element, so every
+button/chip/card on that page picks up the tenant's color through the same variable they already
+read from. An unset field is `null` end to end (DTOs, entity columns) and just falls back to the
+panel's own default look; connecting branding, like connecting MercadoPago, is additive.
 Known gap: no automatic contrast handling — `--accent-contrast` (used for button text) isn't
 derived from the tenant's chosen color, so a very light `accentColor` could produce low-contrast
 button text. Not built yet: logo file upload, since that needs a storage decision this project
@@ -425,11 +425,12 @@ zero, since real per-tier pricing/limits aren't decided yet and blocking on that
 worth it. `MAX`'s `monthlyPrice` is `null`, not zero — deliberately distinct from "free," meaning
 "no price set." `isFree()` is null-safe now (`monthlyPrice != null && signum() == 0`) and
 `SubscriptionService.subscribe` explicitly rejects a `null`-priced tier with a clear message, so
-`MAX` can't reach MercadoPago with a null amount. The frontend (`TenantPage`, and
-`frontend-public`'s `LandingPage`) render a `null` price as "Próximamente" with the signup/upgrade
-button disabled, rather than treating it as free — worth calling out because `Number(null) === 0`
-in JS, so the naive `formatPrice` check (`=== 0` → "Gratis") silently mis-rendered `MAX` as a free,
-selectable plan until this was fixed.
+`MAX` can't reach MercadoPago with a null amount. `frontend/src/pages/TenantPage.jsx` renders a
+`null` price as "Próximamente" with the upgrade button disabled, rather than treating it as free —
+worth calling out because `Number(null) === 0` in JS, so a naive `formatPrice` check (`=== 0` →
+"Gratis") silently mis-renders `MAX` as a free, selectable plan if that null case isn't checked
+first. (A short-lived second frontend also had this exact bug on its own pricing page — see "One
+frontend, not two" below for why that frontend doesn't exist anymore.)
 
 **Personal account profile ("Mi cuenta").** `AppUser` had no name at all before this — just email,
 password, role. Added optional `displayName`/`avatarUrl` (`V15` migration; a link, not a file
@@ -440,17 +441,21 @@ The fetched profile lives in `AuthContext` (not local state inside the account p
 separately), specifically so that saving a new name/photo updates the sidebar immediately instead
 of only after the next full navigation.
 
-**Frontend consolidation: one public booking site, not two.** A duplicate, simpler calendar booking
-flow was built directly inside `frontend/` (the *admin* panel) at `/reservar/:tenantSlug` in an
-earlier session — its author didn't look at the repo root and missed that `frontend-public/`
-already existed as a separate, more complete public site (branch selection, per-tenant branding,
-a pricing/signup landing page — see "Per-tenant branding" and the Roadmap section below). Resolved
-by porting the one genuinely better piece — `Calendar.jsx`, a real month-grid date picker — from
-the duplicate into `frontend-public/src/pages/BookingPage.jsx` (which only had a native
-`<input type="date">`), then deleting the duplicate (`frontend/src/pages/BookingPage.jsx`,
-`frontend/src/components/Calendar.jsx`, its route, and the now-unused `api.public.*` client
-namespace) entirely. `frontend-public/` is the one real public booking site going forward — see
-the top of this README.
+**One frontend, not two.** This repo briefly had two: `frontend/` (the admin panel, which already
+had its own `/reservar/:tenantSlug` public booking page — branch picker, per-tenant branding, a
+real month-grid `Calendar.jsx`) and a separate `frontend-public/` built in an earlier session
+without noticing `frontend/`'s version existed — `frontend-public/` additionally had a
+pricing/landing page and self-serve tenant signup that `frontend/` never had. First attempt at
+resolving the duplication merged the two — ported `Calendar.jsx` into `frontend-public/`, deleted
+`frontend/`'s copy — on the theory that `frontend-public/` was the more feature-complete one and
+just needed the better date picker. That made things visually worse, not better:
+`frontend-public/` had never gotten the Apple-HIG retheme `frontend/` had, so the merged result
+had more features but a duller, less polished look overall. Reverted that merge, then went
+further: deleted `frontend-public/` entirely rather than leave two frontends around to
+accidentally duplicate work in again. `frontend/` is now the only frontend, admin panel and public
+booking flow both — nothing was actually lost on the booking page itself (branch selection and
+branding were already there), but the pricing/landing page and self-serve signup `frontend-public/`
+had are gone and not rebuilt anywhere; see the Roadmap.
 
 ## Roadmap: de MVP a producto vendible
 
@@ -560,25 +565,24 @@ pendientes:
    código de verificación por mail a `payer_email`, y una cuenta de prueba no tiene una casilla real
    para leerlo. OAuth Connect sigue sin probarse: la cuenta de sandbox usada es de tipo Checkout Pro
    simple, no "Marketplace" (que es el tipo de aplicación que expone `client_id`/`client_secret`).
-4. ~~**Página pública de precios y alta.**~~ Hecho — `frontend-public`'s `LandingPage` ahora
-   lista los planes desde `GET /api/plans` (nuevo, público, catálogo de precios — no tenant-scoped,
-   por eso vive fuera de `/api/public/{tenantSlug}/**`) y `/registrarse` crea la cuenta. La cuenta
-   siempre arranca en `BASIC` (el registro no admite elegir plan pago todavía) — si eligieron Pro
-   en la landing, se lo dice explícitamente y los manda a suscribirse desde el panel después de
-   loguearse.
+4. **Página pública de precios y alta.** Se había hecho — una landing (`GET /api/plans`, catálogo
+   público de precios, no tenant-scoped, por eso vive fuera de `/api/public/{tenantSlug}/**`) y
+   `/registrarse` para crear la cuenta — pero vivía en `frontend-public/`, que se eliminó entero
+   (ver "One frontend, not two" en Design notes). El endpoint `GET /api/plans` sigue existiendo y
+   funciona; lo que falta es la pantalla. Sigue en el roadmap, ahora para reconstruir dentro de
+   `frontend/`.
 
 ### Para competir en serio con AgendaPro (prioridad media)
 
 5. ~~**Branding por tenant en el sitio público.**~~ Hecho — `Tenant.logoUrl/accentColor/tagline`,
    editables desde el panel (`PATCH /api/tenant/branding`, owner o admin) y consumidos por
-   `frontend-public`'s `TenantLayout` (logo + color propio via `--accent`, en todas las páginas
-   del negocio, no solo el home). Logo es una URL, no un archivo subido — no hay almacenamiento de
-   archivos en el proyecto todavía (ver Design notes).
+   `frontend/src/pages/BookingPage.jsx` (logo + color propio via `--accent`). Logo es una URL, no
+   un archivo subido — no hay almacenamiento de archivos en el proyecto todavía (ver Design notes).
 6. ~~**Selección de sucursal en la reserva pública.**~~ Hecho — `GET /api/public/{tenantSlug}/branches`
    nuevo, y `.../services`/`.../professionals` ahora aceptan un `branchId` opcional
    (`ServiceOfferingService.isOfferedAtBranch` filtra el catálogo, que no es branch-scoped en sí
    mismo, por si algún profesional activo de esa sucursal lo ofrece). Un tenant de una sola
-   sucursal no ve ningún selector — `frontend-public`'s `TenantHomePage` solo lo muestra si
+   sucursal no ve ningún selector — `frontend/src/pages/BookingPage.jsx` solo lo muestra si
    `GET .../branches` devuelve más de una, así que la experiencia no cambió para el caso común.
    La sucursal del turno se sigue derivando del profesional elegido (`Professional.branchId`), no
    de un campo nuevo — eso ya era correcto de antes.

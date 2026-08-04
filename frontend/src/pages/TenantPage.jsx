@@ -209,8 +209,8 @@ export default function TenantPage() {
 			<p className="label">Marca en tu sitio público</p>
 			<div className="card">
 				<p className="muted">
-					Se ve en tu página pública de reservas ({window.location.protocol}//localhost:5181/{tenant.slug}).
-					Dejar un campo vacío lo saca.
+					Se ve en tu página pública de reservas ({window.location.protocol}//{window.location.host}/reservar/
+					{tenant.slug}). Dejar un campo vacío lo saca.
 				</p>
 				{canManage ? (
 					<form className="inline-form" onSubmit={handleSaveBranding}>
