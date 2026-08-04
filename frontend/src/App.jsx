@@ -9,6 +9,7 @@ import ProfessionalsPage from "./pages/ProfessionalsPage.jsx";
 import ServicesPage from "./pages/ServicesPage.jsx";
 import ProductsPage from "./pages/ProductsPage.jsx";
 import TenantPage from "./pages/TenantPage.jsx";
+import BookingPage from "./pages/BookingPage.jsx";
 
 function RequireAuth({ children }) {
 	const { session } = useAuth();
@@ -21,6 +22,7 @@ export default function App() {
 		<Routes>
 			<Route path="/login" element={<LoginPage />} />
 			<Route path="/verificar-email" element={<VerifyEmailPage />} />
+			<Route path="/reservar/:tenantSlug" element={<BookingPage />} />
 			<Route
 				path="/"
 				element={

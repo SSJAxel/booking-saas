@@ -750,3 +750,225 @@ button.secondary:hover:not(:disabled) {
 .welcome-steps a:hover {
 	text-decoration: underline;
 }
+
+/* Public booking page (customer-facing, no auth) */
+.booking-page {
+	min-height: 100vh;
+	display: flex;
+	justify-content: center;
+	padding: 2.5rem 1.2rem;
+	background: var(--bg);
+}
+
+.booking-card {
+	width: min(560px, 100%);
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-xl);
+	padding: 2rem;
+	box-shadow: var(--shadow-hover);
+	height: fit-content;
+}
+
+.booking-header {
+	text-align: center;
+	margin-bottom: 1.4rem;
+}
+
+.booking-logo {
+	width: 48px;
+	height: 48px;
+	border-radius: var(--r-sm);
+	object-fit: cover;
+	margin-bottom: 0.6rem;
+}
+
+.stepper {
+	display: flex;
+	list-style: none;
+	gap: 0.4rem;
+	padding: 0;
+	margin: 0 0 1.4rem;
+	font-size: 0.75rem;
+	font-weight: 700;
+	color: var(--text-dim);
+}
+
+.stepper li {
+	flex: 1;
+	text-align: center;
+	padding-bottom: 0.5rem;
+	border-bottom: 2px solid var(--border);
+}
+
+.stepper li.stepper-active {
+	color: var(--accent-hover);
+	border-bottom-color: var(--accent);
+}
+
+.booking-options {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.booking-option {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.15rem;
+	text-align: left;
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: var(--r-md);
+	padding: 0.8rem 1rem;
+	box-shadow: none;
+	font-weight: 500;
+}
+
+.booking-option:hover:not(:disabled) {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	box-shadow: none;
+	transform: none;
+}
+
+.booking-option strong {
+	font-family: var(--font-display);
+	color: var(--text-h);
+}
+
+.booking-datetime {
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.calendar {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: var(--r-md);
+	padding: 0.9rem;
+}
+
+.calendar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.6rem;
+}
+
+.calendar-header button {
+	padding: 0.3rem 0.7rem;
+}
+
+.calendar-title {
+	font-family: var(--font-display);
+	font-weight: 800;
+	color: var(--text-h);
+}
+
+.calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 0.3rem;
+}
+
+.calendar-weekdays {
+	margin-bottom: 0.3rem;
+	font-size: 0.72rem;
+	font-weight: 700;
+	color: var(--text-dim);
+	text-align: center;
+}
+
+.calendar-day {
+	aspect-ratio: 1;
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid transparent;
+	border-radius: var(--r-sm);
+	font-weight: 600;
+	box-shadow: none;
+	padding: 0;
+}
+
+.calendar-day:hover:not(:disabled) {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	box-shadow: none;
+	transform: none;
+}
+
+.calendar-day:disabled {
+	background: transparent;
+	color: var(--text-dim);
+	opacity: 0.35;
+}
+
+.calendar-day-selected {
+	background: var(--accent);
+	color: var(--accent-contrast);
+}
+
+.slot-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 0.6rem;
+}
+
+.slot-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+	gap: 0.5rem;
+}
+
+.slot-button {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	box-shadow: none;
+}
+
+.slot-button:hover:not(:disabled) {
+	border-color: var(--accent);
+	background: var(--accent-soft);
+	box-shadow: none;
+	transform: none;
+}
+
+.slot-button-selected {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-contrast);
+}
+
+.booking-details {
+	display: flex;
+	flex-direction: column;
+	gap: 0.85rem;
+}
+
+.booking-details label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	font-size: 0.85rem;
+	color: var(--text-dim);
+	font-weight: 600;
+}
+
+.booking-summary {
+	box-shadow: none;
+}
+
+.booking-summary p {
+	margin: 0.2rem 0;
+}
+
+.booking-done {
+	text-align: center;
+}
