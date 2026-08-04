@@ -37,8 +37,10 @@ public class ProfessionalService {
 	}
 
 	@Transactional
-	public Professional update(UUID id, String displayName, String bio, boolean active) {
+	public Professional update(UUID id, UUID branchId, String displayName, String bio, boolean active) {
+		branchService.findById(branchId); // 404s (not FK violation) if missing or belongs to another tenant
 		Professional professional = findById(id);
+		professional.setBranchId(branchId);
 		professional.setDisplayName(displayName);
 		professional.setBio(bio);
 		professional.setActive(active);

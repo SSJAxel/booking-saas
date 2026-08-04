@@ -27,7 +27,9 @@ function startOfDay(date) {
 }
 
 /** Plain month-grid date picker — no date library, just Date arithmetic. Selection is a
- * "yyyy-MM-dd" string (matches what the availability/book API expects as LocalDate). */
+ * "yyyy-MM-dd" string (matches what the availability/book API expects as LocalDate). Ported from
+ * booking-saas-admin's frontend/ (same component, same contract) rather than kept as a second,
+ * simpler date input — see README for why. */
 export default function Calendar({ selected, onSelect }) {
 	const today = startOfDay(new Date());
 	const [viewDate, setViewDate] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -49,7 +51,7 @@ export default function Calendar({ selected, onSelect }) {
 			<div className="calendar-header">
 				<button
 					type="button"
-					className="secondary"
+					className="calendar-nav"
 					onClick={() => setViewDate(new Date(year, month - 1, 1))}
 					disabled={!canGoBack}
 					aria-label="Mes anterior"
@@ -61,7 +63,7 @@ export default function Calendar({ selected, onSelect }) {
 				</span>
 				<button
 					type="button"
-					className="secondary"
+					className="calendar-nav"
 					onClick={() => setViewDate(new Date(year, month + 1, 1))}
 					aria-label="Mes siguiente"
 				>

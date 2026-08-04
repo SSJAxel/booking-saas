@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext.jsx";
 
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
+	const [plans, setPlans] = useState([]);
 	const [error, setError] = useState("");
 	const [brandingNotice, setBrandingNotice] = useState("");
 	const [timezoneNotice, setTimezoneNotice] = useState("");
@@ -13,7 +14,9 @@ export default function TenantPage() {
 
 	async function refresh() {
 		try {
-			setTenant(await api.tenant.get());
+			const [t, p] = await Promise.all([api.tenant.get(), api.tenant.plans()]);
+			setTenant(t);
+			setPlans(p);
 		} catch (err) {
 			setError(err.message);
 		}
@@ -23,19 +26,19 @@ export default function TenantPage() {
 		refresh();
 	}, []);
 
-	async function handleDowngrade() {
+	async function handleChangePlan(tier) {
 		setError("");
 		try {
-			setTenant(await api.tenant.changePlan("BASIC"));
+			setTenant(await api.tenant.changePlan(tier));
 		} catch (err) {
 			setError(err.message);
 		}
 	}
 
-	async function handleSubscribe() {
+	async function handleSubscribe(tier) {
 		setError("");
 		try {
-			const { checkoutUrl } = await api.tenant.subscribe("PRO");
+			const { checkoutUrl } = await api.tenant.subscribe(tier);
 			window.location.href = checkoutUrl;
 		} catch (err) {
 			setError(err.message);
@@ -110,18 +113,48 @@ export default function TenantPage() {
 				<p>
 					Plan actual: <span className={`badge badge-${tenant.planTier.toLowerCase()}`}>{tenant.planTier}</span>
 				</p>
-				{session.role === "OWNER" ? (
-					<div className="button-row">
-						<button type="button" disabled={tenant.planTier === "BASIC"} onClick={handleDowngrade}>
-							Pasar a BASIC
-						</button>
-						<button type="button" disabled={tenant.planTier === "PRO"} onClick={handleSubscribe}>
-							Suscribirme a PRO
-						</button>
-					</div>
-				) : (
-					<p className="muted">Solo el dueño puede cambiar el plan.</p>
-				)}
+				<div className="cards">
+					{plans.map((plan) => {
+						const isCurrent = plan.tier === tenant.planTier;
+						const priceLabel =
+							plan.monthlyPrice === null
+								? "Próximamente"
+								: Number(plan.monthlyPrice) === 0
+									? "Gratis"
+									: `$${Number(plan.monthlyPrice).toLocaleString("es-AR")}/mes`;
+						return (
+							<div className="card" key={plan.tier}>
+								<h3>
+									{plan.tier}
+									{isCurrent && " (actual)"}
+								</h3>
+								<p className="muted">{priceLabel}</p>
+								<p className="muted">
+									{plan.maxProducts ? `Hasta ${plan.maxProducts} productos` : "Productos ilimitados"}
+								</p>
+								{session.role === "OWNER" ? (
+									<button
+										type="button"
+										disabled={isCurrent || plan.monthlyPrice === null}
+										onClick={() =>
+											Number(plan.monthlyPrice) === 0
+												? handleChangePlan(plan.tier)
+												: handleSubscribe(plan.tier)
+										}
+									>
+										{plan.monthlyPrice === null
+											? "Próximamente"
+											: Number(plan.monthlyPrice) === 0
+												? `Pasar a ${plan.tier}`
+												: `Suscribirme a ${plan.tier}`}
+									</button>
+								) : (
+									<p className="muted">Solo el dueño puede cambiar el plan.</p>
+								)}
+							</div>
+						);
+					})}
+				</div>
 			</div>
 
 			<p className="label">Zona horaria</p>

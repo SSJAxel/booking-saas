@@ -37,9 +37,13 @@ export const api = {
 	login: (body) => request("/api/auth/login", { method: "POST", body, auth: false }),
 	verifyEmail: (body) => request("/api/auth/verify-email", { method: "POST", body, auth: false }),
 	resendVerification: (body) => request("/api/auth/resend-verification", { method: "POST", body, auth: false }),
-	me: () => request("/api/me"),
+	me: {
+		get: () => request("/api/me"),
+		update: (body) => request("/api/me", { method: "PATCH", body }),
+	},
 	tenant: {
 		get: () => request("/api/tenant"),
+		plans: () => request("/api/plans", { auth: false }),
 		changePlan: (planTier) => request("/api/tenant/plan", { method: "PATCH", body: { planTier } }),
 		subscribe: (planTier) => request("/api/tenant/subscription", { method: "POST", body: { planTier } }),
 		connectMercadoPago: () => request("/api/tenant/mercadopago/connect"),
@@ -51,16 +55,30 @@ export const api = {
 	branches: {
 		list: () => request("/api/branches"),
 		create: (body) => request("/api/branches", { method: "POST", body }),
+		update: (id, body) => request(`/api/branches/${id}`, { method: "PUT", body }),
+		delete: (id) => request(`/api/branches/${id}`, { method: "DELETE" }),
+		listHours: (id) => request(`/api/branches/${id}/hours`),
+		addHours: (id, body) => request(`/api/branches/${id}/hours`, { method: "POST", body }),
+		deleteHours: (id, hoursId) => request(`/api/branches/${id}/hours/${hoursId}`, { method: "DELETE" }),
 	},
 	professionals: {
 		list: () => request("/api/professionals"),
 		create: (body) => request("/api/professionals", { method: "POST", body }),
+		update: (id, body) => request(`/api/professionals/${id}`, { method: "PUT", body }),
+		delete: (id) => request(`/api/professionals/${id}`, { method: "DELETE" }),
 		listAvailability: (id) => request(`/api/professionals/${id}/availability`),
 		addAvailability: (id, body) => request(`/api/professionals/${id}/availability`, { method: "POST", body }),
+		deleteAvailability: (id, availabilityId) =>
+			request(`/api/professionals/${id}/availability/${availabilityId}`, { method: "DELETE" }),
+		listTimeOff: (id) => request(`/api/professionals/${id}/time-off`),
+		addTimeOff: (id, body) => request(`/api/professionals/${id}/time-off`, { method: "POST", body }),
+		deleteTimeOff: (id, timeOffId) => request(`/api/professionals/${id}/time-off/${timeOffId}`, { method: "DELETE" }),
 	},
 	services: {
 		list: () => request("/api/services"),
 		create: (body) => request("/api/services", { method: "POST", body }),
+		update: (id, body) => request(`/api/services/${id}`, { method: "PUT", body }),
+		delete: (id) => request(`/api/services/${id}`, { method: "DELETE" }),
 		listProfessionals: (id) => request(`/api/services/${id}/professionals`),
 		assignProfessional: (id, professionalId) =>
 			request(`/api/services/${id}/professionals`, { method: "POST", body: { professionalId } }),
@@ -70,6 +88,8 @@ export const api = {
 	products: {
 		list: () => request("/api/products"),
 		create: (body) => request("/api/products", { method: "POST", body }),
+		update: (id, body) => request(`/api/products/${id}`, { method: "PUT", body }),
+		delete: (id) => request(`/api/products/${id}`, { method: "DELETE" }),
 	},
 	sales: {
 		create: (body) => request("/api/sales", { method: "POST", body }),
@@ -77,18 +97,5 @@ export const api = {
 	appointments: {
 		list: (params) => request(`/api/appointments${toQuery(params)}`),
 		transition: (id, status) => request(`/api/appointments/${id}/status`, { method: "PATCH", body: { status } }),
-	},
-	public: {
-		tenant: (tenantSlug) => request(`/api/public/${tenantSlug}`, { auth: false }),
-		branches: (tenantSlug) => request(`/api/public/${tenantSlug}/branches`, { auth: false }),
-		services: (tenantSlug, branchId) =>
-			request(`/api/public/${tenantSlug}/services${toQuery({ branchId })}`, { auth: false }),
-		professionals: (tenantSlug, serviceId, branchId) =>
-			request(`/api/public/${tenantSlug}/professionals${toQuery({ serviceId, branchId })}`, { auth: false }),
-		availability: (tenantSlug, professionalId, serviceId, date) =>
-			request(`/api/public/${tenantSlug}/availability${toQuery({ professionalId, serviceId, date })}`, {
-				auth: false,
-			}),
-		book: (tenantSlug, body) => request(`/api/public/${tenantSlug}/appointments`, { method: "POST", body, auth: false }),
 	},
 };

@@ -1,5 +1,7 @@
 package dev.capibyte.bookingsaas.tenant;
 
+import dev.capibyte.bookingsaas.tenant.dto.BranchHoursRequest;
+import dev.capibyte.bookingsaas.tenant.dto.BranchHoursResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BranchRequest;
 import dev.capibyte.bookingsaas.tenant.dto.BranchResponse;
 import jakarta.validation.Valid;
@@ -25,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class BranchController {
 
 	private final BranchService branchService;
+	private final BranchHoursService branchHoursService;
 
 	@GetMapping
 	public List<BranchResponse> list() {
@@ -51,5 +54,23 @@ public class BranchController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void delete(@PathVariable UUID id) {
 		branchService.delete(id);
+	}
+
+	@GetMapping("/{branchId}/hours")
+	public List<BranchHoursResponse> listHours(@PathVariable UUID branchId) {
+		return branchHoursService.findByBranch(branchId).stream().map(BranchHoursResponse::from).toList();
+	}
+
+	@PostMapping("/{branchId}/hours")
+	@ResponseStatus(HttpStatus.CREATED)
+	public BranchHoursResponse addHours(@PathVariable UUID branchId, @Valid @RequestBody BranchHoursRequest request) {
+		return BranchHoursResponse
+				.from(branchHoursService.create(branchId, request.dayOfWeek(), request.startTime(), request.endTime()));
+	}
+
+	@DeleteMapping("/{branchId}/hours/{hoursId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteHours(@PathVariable UUID branchId, @PathVariable UUID hoursId) {
+		branchHoursService.delete(hoursId);
 	}
 }

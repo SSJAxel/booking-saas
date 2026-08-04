@@ -52,6 +52,9 @@ class ProductAndSaleFlowTest extends IntegrationTestBase {
 	void basicPlanRejectsTheSixthActiveProduct() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
+		// Tenants now start on TRIAL (unlimited products) — this test cares about BASIC's cap
+		// specifically, so it sets the tier directly, same shortcut as proPlanHasNoProductLimit below.
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'BASIC' WHERE slug = ?", tenant.slug());
 
 		for (int i = 0; i < 5; i++) {
 			ResponseEntity<Map> response = restTemplate.exchange("/api/products", HttpMethod.POST,

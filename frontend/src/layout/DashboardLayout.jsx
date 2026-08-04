@@ -4,6 +4,8 @@ import { useAuth } from "../auth/AuthContext.jsx";
 import { getStoredTheme, setTheme, systemPrefersDark } from "../theme.js";
 import HelpManual from "../components/HelpManual.jsx";
 
+const ROLE_LABELS = { OWNER: "Dueño/a", ADMIN: "Administrador/a", STAFF: "Staff" };
+
 const LINKS = [
 	{ to: "appointments", label: "Turnos" },
 	{ to: "branches", label: "Sucursales" },
@@ -11,10 +13,11 @@ const LINKS = [
 	{ to: "services", label: "Servicios" },
 	{ to: "products", label: "Productos" },
 	{ to: "tenant", label: "Plan" },
+	{ to: "account", label: "Mi cuenta" },
 ];
 
 export default function DashboardLayout() {
-	const { session, logout } = useAuth();
+	const { session, me, logout } = useAuth();
 	const [theme, setThemeState] = useState(() => getStoredTheme() ?? (systemPrefersDark() ? "dark" : "light"));
 	const [manualOpen, setManualOpen] = useState(false);
 
@@ -49,7 +52,11 @@ export default function DashboardLayout() {
 				</div>
 				<div className="sidebar-footer">
 					<div className="role">
-						{session.email} · {session.role}
+						<div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.4rem" }}>
+							{me?.avatarUrl && <img src={me.avatarUrl} alt="" className="sidebar-avatar" />}
+							<span>{me?.displayName || session.email}</span>
+						</div>
+						{ROLE_LABELS[session.role] ?? session.role}
 					</div>
 					<div className="button-row">
 						<button type="button" className="secondary" onClick={() => setManualOpen(true)}>

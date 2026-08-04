@@ -41,4 +41,12 @@ public class AppUser extends BaseTenantEntity {
 
 	@Column(name = "verification_token_expires_at")
 	private Instant verificationTokenExpiresAt;
+
+	/** Personal profile, shown in "Mi cuenta" — separate from the tenant's own branding. Both
+	 * optional; an unset displayName falls back to showing the email in the UI. */
+	@Column(name = "display_name")
+	private String displayName;
+
+	@Column(name = "avatar_url")
+	private String avatarUrl;
 }

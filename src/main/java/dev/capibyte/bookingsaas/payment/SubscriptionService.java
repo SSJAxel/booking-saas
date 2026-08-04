@@ -56,6 +56,9 @@ public class SubscriptionService {
 		if (requestedTier.isFree()) {
 			throw new BadRequestException(requestedTier + " is free — use PATCH /api/tenant/plan instead");
 		}
+		if (requestedTier.getMonthlyPrice() == null) {
+			throw new BadRequestException(requestedTier + " doesn't have a price set yet — not available to subscribe to");
+		}
 		Tenant tenant = tenantService.findById(tenantId);
 		AppUser owner = appUserRepository.findFirstByRole(Role.OWNER)
 				.orElseThrow(() -> new NotFoundException("No owner found for tenant: " + tenantId));

@@ -1,10 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
-
-function todayIso() {
-	return new Date().toISOString().slice(0, 10);
-}
+import Calendar from "../components/Calendar.jsx";
 
 export default function BookingPage() {
 	const { tenantSlug, serviceId } = useParams();
@@ -14,7 +11,7 @@ export default function BookingPage() {
 	const [service, setService] = useState(null);
 	const [professionals, setProfessionals] = useState([]);
 	const [professionalId, setProfessionalId] = useState("");
-	const [date, setDate] = useState(todayIso());
+	const [date, setDate] = useState(null);
 	const [slots, setSlots] = useState([]);
 	const [slot, setSlot] = useState(null);
 	const [client, setClient] = useState({ name: "", email: "", phone: "" });
@@ -140,25 +137,28 @@ export default function BookingPage() {
 				{professionalId && (
 					<div>
 						<p className="label">2. Elegí día y horario</p>
-						<input type="date" value={date} min={todayIso()} onChange={(event) => setDate(event.target.value)} />
-						{slotsLoading ? (
-							<p className="muted">Buscando horarios...</p>
-						) : slots.length === 0 ? (
-							<p className="muted">No hay horarios libres ese día.</p>
-						) : (
-							<div className="chip-row">
-								{slots.map((s) => (
-									<button
-										key={s.start}
-										type="button"
-										className={`chip ${slot?.start === s.start ? "chip-on" : ""}`}
-										onClick={() => setSlot(s)}
-									>
-										{s.start.slice(0, 5)}
-									</button>
-								))}
-							</div>
-						)}
+						<Calendar selected={date} onSelect={setDate} />
+						<div className="slot-panel">
+							{!date && <p className="muted">Elegí un día en el calendario.</p>}
+							{date && slotsLoading && <p className="muted">Buscando horarios...</p>}
+							{date && !slotsLoading && slots.length === 0 && (
+								<p className="muted">No hay horarios libres ese día.</p>
+							)}
+							{date && !slotsLoading && slots.length > 0 && (
+								<div className="slot-grid">
+									{slots.map((s) => (
+										<button
+											key={s.start}
+											type="button"
+											className={`slot-button${slot?.start === s.start ? " slot-button-selected" : ""}`}
+											onClick={() => setSlot(s)}
+										>
+											{s.start.slice(0, 5)}
+										</button>
+									))}
+								</div>
+							)}
+						</div>
 					</div>
 				)}
 

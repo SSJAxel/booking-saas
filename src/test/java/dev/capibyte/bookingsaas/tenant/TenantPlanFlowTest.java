@@ -21,13 +21,13 @@ import org.springframework.http.ResponseEntity;
 class TenantPlanFlowTest extends IntegrationTestBase {
 
 	@Test
-	void newTenantStartsOnBasicPlan() {
+	void newTenantStartsOnTrialPlan() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
 
 		ResponseEntity<Map> response = restTemplate.exchange("/api/tenant", HttpMethod.GET, new HttpEntity<>(headers),
 				Map.class);
-		assertThat(response.getBody().get("planTier")).isEqualTo("BASIC");
+		assertThat(response.getBody().get("planTier")).isEqualTo("TRIAL");
 	}
 
 	@Test
@@ -46,10 +46,14 @@ class TenantPlanFlowTest extends IntegrationTestBase {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
 
-		ResponseEntity<Map> response = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
+		ResponseEntity<Map> firstPatch = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
 				new HttpEntity<>(Map.of("planTier", "BASIC"), headers), Map.class);
+		assertThat(firstPatch.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(firstPatch.getBody().get("planTier")).isEqualTo("BASIC");
 
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(response.getBody().get("planTier")).isEqualTo("BASIC");
+		ResponseEntity<Map> secondPatch = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("planTier", "BASIC"), headers), Map.class);
+		assertThat(secondPatch.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(secondPatch.getBody().get("planTier")).isEqualTo("BASIC");
 	}
 }

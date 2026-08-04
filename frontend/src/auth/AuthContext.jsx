@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api } from "../api.js";
 
 const AuthContext = createContext(null);
@@ -8,12 +8,29 @@ export function AuthProvider({ children }) {
 		const raw = localStorage.getItem("session");
 		return raw ? JSON.parse(raw) : null;
 	});
+	const [me, setMe] = useState(null);
 
 	function persist(res) {
 		localStorage.setItem("token", res.token);
 		localStorage.setItem("session", JSON.stringify(res));
 		setSession(res);
 	}
+
+	const refreshMe = useCallback(async () => {
+		try {
+			setMe(await api.me.get());
+		} catch {
+			setMe(null);
+		}
+	}, []);
+
+	// Personal profile (display name, avatar) shown in the sidebar — kept here, not in
+	// DashboardLayout's own state, so AccountPage's refreshMe() after a save updates the sidebar
+	// too instead of only refreshing on the next full navigation.
+	useEffect(() => {
+		if (session) refreshMe();
+		else setMe(null);
+	}, [session, refreshMe]);
 
 	const login = useCallback(async (body) => {
 		persist(await api.login(body));
@@ -35,7 +52,9 @@ export function AuthProvider({ children }) {
 	}, []);
 
 	return (
-		<AuthContext.Provider value={{ session, login, register, verifyEmail, logout }}>{children}</AuthContext.Provider>
+		<AuthContext.Provider value={{ session, me, refreshMe, login, register, verifyEmail, logout }}>
+			{children}
+		</AuthContext.Provider>
 	);
 }
 

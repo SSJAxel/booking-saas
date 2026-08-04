@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
+const EMPTY_DRAFT = { name: "", description: "", durationMinutes: "", price: "", depositAmount: "", active: true };
+
 export default function ServicesPage() {
 	const [services, setServices] = useState([]);
 	const [professionals, setProfessionals] = useState([]);
 	const [assignments, setAssignments] = useState({});
 	const [error, setError] = useState("");
+	const [notice, setNotice] = useState("");
 	const [loading, setLoading] = useState(true);
+	const [saving, setSaving] = useState(false);
+	const [editingId, setEditingId] = useState(null);
+	const [editDraft, setEditDraft] = useState(EMPTY_DRAFT);
+
+	function flashNotice(message) {
+		setNotice(message);
+		setTimeout(() => setNotice(""), 3000);
+	}
 
 	async function refresh() {
 		setLoading(true);
@@ -61,12 +72,58 @@ export default function ServicesPage() {
 		}
 	}
 
+	function startEdit(s) {
+		setEditingId(s.id);
+		setEditDraft({
+			name: s.name,
+			description: s.description ?? "",
+			durationMinutes: s.durationMinutes,
+			price: s.price,
+			depositAmount: s.depositAmount ?? "",
+			active: s.active,
+		});
+	}
+
+	async function handleSaveEdit(id) {
+		setError("");
+		setSaving(true);
+		try {
+			await api.services.update(id, {
+				name: editDraft.name,
+				description: editDraft.description || null,
+				durationMinutes: Number(editDraft.durationMinutes),
+				price: Number(editDraft.price),
+				depositAmount: editDraft.depositAmount ? Number(editDraft.depositAmount) : null,
+				active: editDraft.active,
+			});
+			setEditingId(null);
+			await refresh();
+			flashNotice("Servicio actualizado.");
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setSaving(false);
+		}
+	}
+
+	async function handleDelete(id) {
+		if (!window.confirm("¿Eliminar este servicio?")) return;
+		setError("");
+		try {
+			await api.services.delete(id);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	if (loading) return <p>Cargando...</p>;
 
 	return (
 		<div>
 			<h1>Servicios</h1>
 			{error && <p className="error">{error}</p>}
+			{notice && <p className="notice">{notice}</p>}
 			<form className="inline-form" onSubmit={handleCreate}>
 				<input name="name" placeholder="Nombre" required />
 				<input name="description" placeholder="Descripción" />
@@ -77,32 +134,113 @@ export default function ServicesPage() {
 			</form>
 
 			<div className="cards">
-				{services.map((s) => (
-					<div className="card" key={s.id}>
-						<h3>{s.name}</h3>
-						<p className="muted">
-							{s.durationMinutes} min · ${s.price}
-							{s.depositAmount ? ` · seña $${s.depositAmount}` : " · sin seña (confirma solo)"}
-						</p>
-						<p className="label">Profesionales que lo ofrecen</p>
-						<div className="chip-row">
-							{professionals.length === 0 && <span className="muted">Cargá un profesional primero.</span>}
-							{professionals.map((p) => {
-								const assigned = (assignments[s.id] ?? []).includes(p.id);
-								return (
-									<button
-										key={p.id}
-										type="button"
-										className={`chip ${assigned ? "chip-on" : ""}`}
-										onClick={() => toggleAssignment(s.id, p.id, assigned)}
-									>
-										{p.displayName}
+				{services.map((s) =>
+					editingId === s.id ? (
+						<div className="card card-span-full" key={s.id}>
+							<div className="field-grid">
+								<label>
+									Nombre
+									<input
+										value={editDraft.name}
+										onChange={(e) => setEditDraft({ ...editDraft, name: e.target.value })}
+									/>
+								</label>
+								<label>
+									Duración (min)
+									<input
+										type="number"
+										min="1"
+										value={editDraft.durationMinutes}
+										onChange={(e) => setEditDraft({ ...editDraft, durationMinutes: e.target.value })}
+									/>
+								</label>
+								<label>
+									Precio
+									<input
+										type="number"
+										step="0.01"
+										min="0"
+										value={editDraft.price}
+										onChange={(e) => setEditDraft({ ...editDraft, price: e.target.value })}
+									/>
+								</label>
+								<label>
+									Seña (opcional)
+									<input
+										type="number"
+										step="0.01"
+										min="0"
+										value={editDraft.depositAmount}
+										onChange={(e) => setEditDraft({ ...editDraft, depositAmount: e.target.value })}
+									/>
+								</label>
+								<label className="span-2">
+									Descripción
+									<input
+										value={editDraft.description}
+										onChange={(e) => setEditDraft({ ...editDraft, description: e.target.value })}
+									/>
+								</label>
+							</div>
+							<div className="card-header" style={{ marginTop: "0.8rem" }}>
+								<label className="form-check">
+									<input
+										type="checkbox"
+										checked={editDraft.active}
+										onChange={(e) => setEditDraft({ ...editDraft, active: e.target.checked })}
+									/>
+									Activo
+								</label>
+								<div className="button-row">
+									<button type="button" disabled={saving} onClick={() => handleSaveEdit(s.id)}>
+										{saving ? "Guardando..." : "Guardar"}
 									</button>
-								);
-							})}
+									<button type="button" className="secondary" disabled={saving} onClick={() => setEditingId(null)}>
+										Cancelar
+									</button>
+								</div>
+							</div>
 						</div>
-					</div>
-				))}
+					) : (
+						<div className="card" key={s.id}>
+							<h3>
+								{s.name}
+								{!s.active && " (inactivo)"}
+							</h3>
+							<p className="muted">
+								{s.durationMinutes} min · ${s.price}
+								{s.depositAmount ? ` · seña $${s.depositAmount}` : " · sin seña (confirma solo)"}
+							</p>
+							<div className="button-row">
+								<button type="button" className="secondary" onClick={() => startEdit(s)}>
+									Editar
+								</button>
+								<button type="button" className="danger" onClick={() => handleDelete(s.id)}>
+									Eliminar
+								</button>
+							</div>
+							<div className="card-section">
+								<p className="label">Profesionales que lo ofrecen</p>
+								<div className="chip-row">
+									{professionals.length === 0 && <span className="muted">Cargá un profesional primero.</span>}
+									{professionals.map((p) => {
+										const assigned = (assignments[s.id] ?? []).includes(p.id);
+										return (
+											<button
+												key={p.id}
+												type="button"
+												className={`chip ${assigned ? "chip-on" : ""}`}
+												onClick={() => toggleAssignment(s.id, p.id, assigned)}
+											>
+												{p.displayName}
+											</button>
+										);
+									})}
+								</div>
+							</div>
+						</div>
+					),
+				)}
 			</div>
 		</div>
 	);

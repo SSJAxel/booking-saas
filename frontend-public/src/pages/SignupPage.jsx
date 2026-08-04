@@ -47,7 +47,7 @@ export default function SignupPage() {
 					<h1>¡Ya casi, {created.tenantSlug}!</h1>
 					<p>
 						Te mandamos un mail a <strong>{created.email}</strong> para confirmar tu cuenta — confirmalo para
-						poder entrar al panel. Arranca en el plan Básico
+						poder entrar al panel. Arranca en el plan Prueba, con todo activado
 						{wantsPro ? "; para pasar a Pro, entrá al panel y suscribite desde ahí." : "."}
 					</p>
 					{resendNotice && <p className="notice">{resendNotice}</p>}
@@ -68,8 +68,8 @@ export default function SignupPage() {
 			<h1>Creá tu negocio</h1>
 			<p className="muted">
 				{wantsPro
-					? "Arrancás en el plan Básico y pasás a Pro apenas entrás al panel."
-					: "Es gratis empezar — podés pasar a Pro cuando quieras."}
+					? "Arrancás en el plan Prueba y pasás a Pro apenas entrás al panel."
+					: "Es gratis empezar — podés cambiar de plan cuando quieras."}
 			</p>
 			{error && <p className="error">{error}</p>}
 			<form className="details-form" onSubmit={handleSubmit}>

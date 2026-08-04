@@ -204,14 +204,114 @@ h1 {
 	color: var(--accent-contrast);
 }
 
-input[type="date"] {
+/* Calendar (Calendar.jsx) — plain month-grid date picker, replaces a raw <input type="date">. */
+.calendar {
+	background: var(--bg);
+	border: 1px solid var(--border);
+	border-radius: 14px;
+	padding: 0.9rem;
+	max-width: 340px;
+}
+
+.calendar-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-bottom: 0.6rem;
+}
+
+.calendar-nav {
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid var(--border);
+	padding: 0.3rem 0.7rem;
+	border-radius: 999px;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.calendar-nav:disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.calendar-title {
+	font-weight: 700;
+	color: var(--text-h);
+}
+
+.calendar-grid {
+	display: grid;
+	grid-template-columns: repeat(7, 1fr);
+	gap: 0.3rem;
+}
+
+.calendar-weekdays {
+	margin-bottom: 0.3rem;
+	font-size: 0.72rem;
+	font-weight: 700;
+	opacity: 0.6;
+	text-align: center;
+}
+
+.calendar-day {
+	aspect-ratio: 1;
+	background: var(--surface);
+	color: var(--text);
+	border: 1px solid transparent;
+	border-radius: 8px;
 	font: inherit;
-	padding: 0.5rem 0.6rem;
+	font-weight: 600;
+	padding: 0;
+	cursor: pointer;
+}
+
+.calendar-day:hover:not(:disabled) {
+	border-color: var(--accent);
+}
+
+.calendar-day:disabled {
+	background: transparent;
+	opacity: 0.35;
+	cursor: not-allowed;
+}
+
+.calendar-day-selected {
+	background: var(--accent);
+	color: var(--accent-contrast);
+}
+
+.slot-panel {
+	margin-top: 1rem;
+}
+
+.slot-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+	gap: 0.5rem;
+	max-width: 340px;
+}
+
+.slot-button {
+	background: var(--surface);
+	color: var(--text);
 	border: 1px solid var(--border);
 	border-radius: 8px;
-	background: var(--surface);
-	color: var(--text-h);
-	margin-bottom: 0.9rem;
+	padding: 0.5rem;
+	font: inherit;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	cursor: pointer;
+}
+
+.slot-button:hover {
+	border-color: var(--accent);
+}
+
+.slot-button-selected {
+	background: var(--accent);
+	border-color: var(--accent);
+	color: var(--accent-contrast);
 }
 
 .details-form {
@@ -249,6 +349,13 @@ button {
 }
 
 .details-form button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.button-link-disabled {
+	background: var(--border);
+	color: var(--text);
 	opacity: 0.6;
 	cursor: not-allowed;
 }

@@ -1,6 +1,7 @@
 package dev.capibyte.bookingsaas.identity;
 
 import dev.capibyte.bookingsaas.common.BadRequestException;
+import dev.capibyte.bookingsaas.common.NotFoundException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Optional;
@@ -72,6 +73,19 @@ public class AppUserService {
 					issueVerificationToken(user);
 					return user;
 				});
+	}
+
+	@Transactional(readOnly = true)
+	public AppUser findById(UUID id) {
+		return appUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found: " + id));
+	}
+
+	@Transactional
+	public AppUser updateProfile(UUID id, String displayName, String avatarUrl) {
+		AppUser user = findById(id);
+		user.setDisplayName(displayName);
+		user.setAvatarUrl(avatarUrl);
+		return user;
 	}
 
 	private void issueVerificationToken(AppUser user) {

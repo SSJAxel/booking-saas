@@ -12,12 +12,16 @@ import org.springframework.http.ResponseEntity;
 class PlanCatalogFlowTest extends IntegrationTestBase {
 
 	@Test
-	void listsBothTiersWithNoAuthenticationRequired() {
+	void listsAllFourTiersWithNoAuthenticationRequired() {
 		ResponseEntity<List> response = restTemplate.getForEntity("/api/plans", List.class);
 
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
 		List<Map<String, Object>> plans = response.getBody();
-		assertThat(plans).extracting(p -> p.get("tier")).containsExactlyInAnyOrder("BASIC", "PRO");
+		assertThat(plans).extracting(p -> p.get("tier")).containsExactlyInAnyOrder("TRIAL", "BASIC", "PRO", "MAX");
+
+		Map<String, Object> trial = plans.stream().filter(p -> "TRIAL".equals(p.get("tier"))).findFirst().orElseThrow();
+		assertThat(((Number) trial.get("monthlyPrice")).doubleValue()).isZero();
+		assertThat(trial.get("maxProducts")).isNull();
 
 		Map<String, Object> basic = plans.stream().filter(p -> "BASIC".equals(p.get("tier"))).findFirst().orElseThrow();
 		assertThat(((Number) basic.get("monthlyPrice")).doubleValue()).isZero();
@@ -26,5 +30,9 @@ class PlanCatalogFlowTest extends IntegrationTestBase {
 		Map<String, Object> pro = plans.stream().filter(p -> "PRO".equals(p.get("tier"))).findFirst().orElseThrow();
 		assertThat(((Number) pro.get("monthlyPrice")).doubleValue()).isGreaterThan(0);
 		assertThat(pro.get("maxProducts")).isNull();
+
+		Map<String, Object> max = plans.stream().filter(p -> "MAX".equals(p.get("tier"))).findFirst().orElseThrow();
+		assertThat(max.get("monthlyPrice")).isNull();
+		assertThat(max.get("maxProducts")).isNull();
 	}
 }

@@ -38,7 +38,7 @@ public class Tenant extends BaseEntity {
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "plan_tier", nullable = false)
-	private PlanTier planTier = PlanTier.BASIC;
+	private PlanTier planTier = PlanTier.TRIAL;
 
 	/** All three optional — an unbranded tenant just gets frontend-public's default look. */
 	@Column(name = "logo_url")

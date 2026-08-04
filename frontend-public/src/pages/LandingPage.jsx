@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 
 const PLAN_COPY = {
+	TRIAL: {
+		label: "Prueba",
+		tagline: "Todo el negocio arranca acá, gratis",
+		features: ["Todas las funciones activas", "Sin límite de productos"],
+	},
 	BASIC: {
 		label: "Básico",
 		tagline: "Para arrancar sin vueltas",
@@ -13,9 +18,17 @@ const PLAN_COPY = {
 		tagline: "Para cuando el negocio crece",
 		features: ["Todo lo del plan Básico", "Productos sin límite", "Soporte prioritario"],
 	},
+	MAX: {
+		label: "Max",
+		tagline: "Para negocios grandes — precio a definir",
+		features: [],
+	},
 };
 
+/** null means "no price set yet" (see PlanTier.MAX) — distinct from 0 (genuinely free). Number(null)
+ * is 0 in JS, so this has to be checked before the free case, not folded into it. */
 function formatPrice(amount) {
+	if (amount === null) return "Próximamente";
 	if (Number(amount) === 0) return "Gratis";
 	return `$${Number(amount).toLocaleString("es-AR")}/mes`;
 }
@@ -55,9 +68,13 @@ export default function LandingPage() {
 									<li key={f}>{f}</li>
 								))}
 							</ul>
-							<Link to={`/registrarse?plan=${plan.tier}`} className="button-link">
-								Crear mi negocio
-							</Link>
+							{plan.monthlyPrice === null ? (
+								<span className="button-link button-link-disabled">Próximamente</span>
+							) : (
+								<Link to={`/registrarse?plan=${plan.tier}`} className="button-link">
+									Crear mi negocio
+								</Link>
+							)}
 						</div>
 					);
 				})}

@@ -384,6 +384,74 @@ timezone conversion and a frontend (in fact two — the admin panel and the publ
 both built and covered above; this line used to list them as missing and was never updated once
 they shipped — kept as a reminder to re-check this list periodically instead of trusting it blindly.
 
+**Owner-panel CRUD completeness.** Branches, professionals, services, and products were
+create-and-list only in `frontend/` for a while — the backend already had working `PUT`/`DELETE`
+for all four, just never wired into the UI. Now fully editable/deletable from the panel, with a
+`window.confirm()` before every delete (no custom dialog component; this project deliberately
+stays "no UI kit, plain fetch") and inline "Guardando..."/"Producto actualizado." feedback on save
+instead of a silent refresh.
+
+**Weekly schedule editor (`WeeklySchedule.jsx`), shared by branch hours and professional
+availability.** Both resources are the same shape server-side (`dayOfWeek` + `startTime` +
+`endTime` rows, multiple allowed per day) — this is one React component used from both
+`BranchesPage` and `ProfessionalsPage`, not two copies. Originally each day was add-one-at-a-time
+with the result shown as a list of removable chips; replaced with a 7-row table (all weekdays
+always visible, toggle a day on/off, edit its hours inline, optional midday "Descanso" split, and
+a "Copiar en todos" to fan the first row's hours out to every other day) after the owner pointed at
+a competitor's ("AgendaPro") equivalent screen as the bar to match. No backend/schema change was
+needed for any of this: a day with a break is just **two** `WeeklyAvailability`/`BranchHours` rows
+instead of one, a shape the tables already supported. `WeeklySchedule` never calls an update
+endpoint (neither resource has one) — on save it diffs each day's desired ranges against what was
+loaded, and for any day that changed, deletes that day's existing rows and creates the new ones;
+unchanged days aren't touched. Branch hours are **stored only** so far — `PublicAvailabilityService`
+still computes free slots from the professional's own `WeeklyAvailability` alone, not the branch's;
+teaching the booking engine to intersect the two is a deliberately separate follow-up.
+
+**Time-off (day/hour blocking) UI.** `TimeOff` (create/list/delete, null start/end = full day off)
+already existed server-side and was already fully wired into `PublicAvailabilityService.findFreeSlots`
+— nothing to fix there. The gap was purely that the admin panel had no screen for it; professionals
+now have a "Bloqueos" section (date + optional start/end + optional reason) alongside their weekly
+schedule.
+
+**Professional branch reassignment.** `ProfessionalUpdateRequest` didn't carry `branchId`, so a
+professional's branch could only ever be set at creation. Added to the update DTO/service/UI —
+"cambio de modalidad de trabajo" (a professional moving between branches) is a normal event, not
+an edge case.
+
+**Plan tiers: `TRIAL` (new default) and `MAX` (price genuinely undecided).** `PlanTier` now has
+four values, not two. Every tenant — new registrations and every existing one (`V13` migration
+backfills them) — starts on `TRIAL`: `maxProducts=null` (unlimited, same as `PRO`), `monthlyPrice`
+zero, since real per-tier pricing/limits aren't decided yet and blocking on that decision wasn't
+worth it. `MAX`'s `monthlyPrice` is `null`, not zero — deliberately distinct from "free," meaning
+"no price set." `isFree()` is null-safe now (`monthlyPrice != null && signum() == 0`) and
+`SubscriptionService.subscribe` explicitly rejects a `null`-priced tier with a clear message, so
+`MAX` can't reach MercadoPago with a null amount. The frontend (`TenantPage`, and
+`frontend-public`'s `LandingPage`) render a `null` price as "Próximamente" with the signup/upgrade
+button disabled, rather than treating it as free — worth calling out because `Number(null) === 0`
+in JS, so the naive `formatPrice` check (`=== 0` → "Gratis") silently mis-rendered `MAX` as a free,
+selectable plan until this was fixed.
+
+**Personal account profile ("Mi cuenta").** `AppUser` had no name at all before this — just email,
+password, role. Added optional `displayName`/`avatarUrl` (`V15` migration; a link, not a file
+upload, same "no file storage in this project yet" tradeoff as tenant branding), a `PATCH /api/me`
+next to the existing `GET`, and an "Mi cuenta" screen in the panel. Password changes are explicitly
+**not** self-service yet — the screen says so — that's a deliberate scope cut, not an oversight.
+The fetched profile lives in `AuthContext` (not local state inside the account page or the sidebar
+separately), specifically so that saving a new name/photo updates the sidebar immediately instead
+of only after the next full navigation.
+
+**Frontend consolidation: one public booking site, not two.** A duplicate, simpler calendar booking
+flow was built directly inside `frontend/` (the *admin* panel) at `/reservar/:tenantSlug` in an
+earlier session — its author didn't look at the repo root and missed that `frontend-public/`
+already existed as a separate, more complete public site (branch selection, per-tenant branding,
+a pricing/signup landing page — see "Per-tenant branding" and the Roadmap section below). Resolved
+by porting the one genuinely better piece — `Calendar.jsx`, a real month-grid date picker — from
+the duplicate into `frontend-public/src/pages/BookingPage.jsx` (which only had a native
+`<input type="date">`), then deleting the duplicate (`frontend/src/pages/BookingPage.jsx`,
+`frontend/src/components/Calendar.jsx`, its route, and the now-unused `api.public.*` client
+namespace) entirely. `frontend-public/` is the one real public booking site going forward — see
+the top of this README.
+
 ## Roadmap: de MVP a producto vendible
 
 La meta es un producto real: un competidor de AgendaPro/Booksy para negocios de servicios

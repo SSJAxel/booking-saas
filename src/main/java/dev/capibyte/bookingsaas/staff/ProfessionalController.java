@@ -46,8 +46,8 @@ public class ProfessionalController {
 
 	@PutMapping("/{id}")
 	public ProfessionalResponse update(@PathVariable UUID id, @Valid @RequestBody ProfessionalUpdateRequest request) {
-		return ProfessionalResponse
-				.from(professionalService.update(id, request.displayName(), request.bio(), request.active()));
+		return ProfessionalResponse.from(professionalService.update(id, request.branchId(), request.displayName(),
+				request.bio(), request.active()));
 	}
 
 	@DeleteMapping("/{id}")
