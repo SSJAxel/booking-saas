@@ -98,4 +98,17 @@ export const api = {
 		list: (params) => request(`/api/appointments${toQuery(params)}`),
 		transition: (id, status) => request(`/api/appointments/${id}/status`, { method: "PATCH", body: { status } }),
 	},
+	public: {
+		tenant: (tenantSlug) => request(`/api/public/${tenantSlug}`, { auth: false }),
+		branches: (tenantSlug) => request(`/api/public/${tenantSlug}/branches`, { auth: false }),
+		services: (tenantSlug, branchId) =>
+			request(`/api/public/${tenantSlug}/services${toQuery({ branchId })}`, { auth: false }),
+		professionals: (tenantSlug, serviceId, branchId) =>
+			request(`/api/public/${tenantSlug}/professionals${toQuery({ serviceId, branchId })}`, { auth: false }),
+		availability: (tenantSlug, professionalId, serviceId, date) =>
+			request(`/api/public/${tenantSlug}/availability${toQuery({ professionalId, serviceId, date })}`, {
+				auth: false,
+			}),
+		book: (tenantSlug, body) => request(`/api/public/${tenantSlug}/appointments`, { method: "POST", body, auth: false }),
+	},
 };
