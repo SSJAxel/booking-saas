@@ -69,6 +69,26 @@ pública de reserva** (`/reservar/{slug-del-negocio}`, sin login) donde el clien
 3. App boots on `http://localhost:8080`. Check `http://localhost:8080/actuator/health`.
 4. **API docs**: Swagger UI at `http://localhost:8080/swagger-ui/index.html`, OpenAPI JSON at
    `/v3/api-docs`.
+5. **Frontend**: `cd frontend && npm install && npm run dev` — opens on `http://localhost:5180`
+   (owner panel; the public booking flow lives in the same app, see "Puertos" below).
+
+## Puertos
+
+This project only ever uses five ports, all fixed (`strictPort: true` on the Vite side, explicit
+`ports:` mappings in `docker-compose.yml`) so a collision fails loudly instead of silently moving
+to a different port — worth having this table on hand on a machine that runs several projects at
+once, so a stray port doesn't get mistaken for a different one of your own projects.
+
+| Puerto | Qué es | Cómo se levanta |
+|---|---|---|
+| `8080` | Backend (Spring Boot) — toda la API REST | `./mvnw spring-boot:run` |
+| `5180` | `frontend/` — panel de dueño **y** flujo público de reserva (`/reservar/:tenantSlug`); es el único frontend del proyecto | `cd frontend && npm run dev` |
+| `5432` | PostgreSQL | `docker compose up -d` |
+| `1025` | MailHog — SMTP falso, donde el backend manda los mails en desarrollo | `docker compose up -d` |
+| `8025` | MailHog — interfaz web para leer esos mails ([`localhost:8025`](http://localhost:8025)) | `docker compose up -d` |
+
+No hay más servicios que estos cinco — si algo más aparece corriendo en un puerto parecido en esta
+máquina, es de otro proyecto, no de este.
 
 ## Cuenta de prueba
 
