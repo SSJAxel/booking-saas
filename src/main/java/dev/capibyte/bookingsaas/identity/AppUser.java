@@ -49,4 +49,10 @@ public class AppUser extends BaseTenantEntity {
 
 	@Column(name = "avatar_url")
 	private String avatarUrl;
+
+	/** Platform-wide super-admin flag — a separate axis from {@link #role}, which is always
+	 * tenant-scoped. Set by hand in the DB for the founder's own account; grants access to the
+	 * cross-tenant admin endpoints (see PlatformAdminController). */
+	@Column(name = "platform_admin", nullable = false)
+	private boolean platformAdmin = false;
 }

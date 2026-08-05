@@ -18,26 +18,27 @@ class JwtServiceTest {
 		UUID userId = UUID.randomUUID();
 		UUID tenantId = UUID.randomUUID();
 
-		String token = jwtService.generateToken(userId, tenantId, "owner@example.com", Role.OWNER);
+		String token = jwtService.generateToken(userId, tenantId, "owner@example.com", Role.OWNER, true);
 		Claims claims = jwtService.parseClaims(token);
 
 		assertThat(claims.getSubject()).isEqualTo(userId.toString());
 		assertThat(claims.get("tenantId", String.class)).isEqualTo(tenantId.toString());
 		assertThat(claims.get("email", String.class)).isEqualTo("owner@example.com");
 		assertThat(claims.get("role", String.class)).isEqualTo("OWNER");
+		assertThat(claims.get("platformAdmin", Boolean.class)).isTrue();
 	}
 
 	@Test
 	void rejectsATokenSignedWithADifferentKey() {
 		JwtService otherIssuer = new JwtService("a-completely-different-secret-key-of-32-bytes+", 60);
-		String token = otherIssuer.generateToken(UUID.randomUUID(), UUID.randomUUID(), "x@example.com", Role.STAFF);
+		String token = otherIssuer.generateToken(UUID.randomUUID(), UUID.randomUUID(), "x@example.com", Role.STAFF, false);
 
 		assertThatThrownBy(() -> jwtService.parseClaims(token)).isInstanceOf(JwtException.class);
 	}
 
 	@Test
 	void rejectsATamperedToken() {
-		String token = jwtService.generateToken(UUID.randomUUID(), UUID.randomUUID(), "x@example.com", Role.STAFF);
+		String token = jwtService.generateToken(UUID.randomUUID(), UUID.randomUUID(), "x@example.com", Role.STAFF, false);
 		String tampered = token.substring(0, token.length() - 4) + "abcd";
 
 		assertThatThrownBy(() -> jwtService.parseClaims(tampered)).isInstanceOf(JwtException.class);

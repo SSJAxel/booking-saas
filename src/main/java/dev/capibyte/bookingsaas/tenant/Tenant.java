@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -63,6 +64,11 @@ public class Tenant extends BaseEntity {
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
+
+	/** Manually maintained by the founder when a payment is collected — NOT computed from
+	 * MercadoPago webhooks (see PlatformAdminService). Null means no due date has been set yet. */
+	@Column(name = "next_payment_due_at")
+	private LocalDate nextPaymentDueAt;
 
 	@PrePersist
 	void onCreate() {

@@ -18,12 +18,12 @@ export default function LoginPage() {
 		setLoading(true);
 		const form = new FormData(event.target);
 		try {
-			await login({
+			const res = await login({
 				tenantSlug: form.get("tenantSlug"),
 				email: form.get("email"),
 				password: form.get("password"),
 			});
-			navigate("/");
+			navigate(res.platformAdmin ? "/admin" : "/");
 		} catch (err) {
 			setError(err.message);
 		} finally {

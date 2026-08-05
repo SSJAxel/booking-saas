@@ -6,14 +6,22 @@ import dev.capibyte.bookingsaas.booking.AppointmentStatus;
 import dev.capibyte.bookingsaas.booking.PaymentStatus;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
+import dev.capibyte.bookingsaas.common.TenantContext;
+import dev.capibyte.bookingsaas.inventory.Sale;
+import dev.capibyte.bookingsaas.inventory.SaleRepository;
 import dev.capibyte.bookingsaas.payment.Payment;
 import dev.capibyte.bookingsaas.payment.PaymentRepository;
+import dev.capibyte.bookingsaas.report.dto.DailyCountResponse;
+import dev.capibyte.bookingsaas.report.dto.DailySalesResponse;
 import dev.capibyte.bookingsaas.report.dto.ProfessionalCount;
 import dev.capibyte.bookingsaas.report.dto.ReportSummaryResponse;
 import dev.capibyte.bookingsaas.report.dto.ServiceCount;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -38,6 +46,8 @@ public class ReportService {
 	private final ServiceOfferingService serviceOfferingService;
 	private final ProfessionalService professionalService;
 	private final PaymentRepository paymentRepository;
+	private final TenantService tenantService;
+	private final SaleRepository saleRepository;
 
 	@Transactional(readOnly = true)
 	public ReportSummaryResponse summarize(UUID branchId, UUID professionalId, Instant from, Instant to) {
@@ -83,5 +93,51 @@ public class ReportService {
 
 		return new ReportSummaryResponse(appointments.size(), byStatus, revenue, depositsCollected, noShowRate,
 				topServices, topProfessionals);
+	}
+
+	/** Delegates straight to {@link #summarize} with today's bounds in the tenant's own zone —
+	 * same reasoning as AppointmentService.findActiveByProfessionalAndDay: "today" has to mean
+	 * the tenant's calendar day, not the server's, or a booking near midnight gets miscounted. */
+	@Transactional(readOnly = true)
+	public ReportSummaryResponse summarizeToday() {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		LocalDate today = LocalDate.now(zone);
+		Instant from = today.atStartOfDay(zone).toInstant();
+		Instant to = today.plusDays(1).atStartOfDay(zone).toInstant();
+		return summarize(null, null, from, to);
+	}
+
+	@Transactional(readOnly = true)
+	public List<DailyCountResponse> dailyAppointmentCounts(int days) {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		LocalDate today = LocalDate.now(zone);
+		LocalDate startDate = today.minusDays(days - 1L);
+		Instant from = startDate.atStartOfDay(zone).toInstant();
+		Instant to = today.plusDays(1).atStartOfDay(zone).toInstant();
+
+		Map<LocalDate, Long> countsByDay = appointmentService.search(null, null, from, to, null).stream()
+				.collect(Collectors.groupingBy(a -> a.getStartTime().atZone(zone).toLocalDate(), Collectors.counting()));
+
+		return startDate.datesUntil(today.plusDays(1))
+				.map(date -> new DailyCountResponse(date, countsByDay.getOrDefault(date, 0L)))
+				.toList();
+	}
+
+	@Transactional(readOnly = true)
+	public List<DailySalesResponse> dailySales(int days) {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		LocalDate today = LocalDate.now(zone);
+		LocalDate startDate = today.minusDays(days - 1L);
+		Instant from = startDate.atStartOfDay(zone).toInstant();
+		Instant to = today.plusDays(1).atStartOfDay(zone).toInstant();
+
+		Map<LocalDate, BigDecimal> amountByDay = saleRepository.findAll().stream()
+				.filter(s -> !s.getCreatedAt().isBefore(from) && s.getCreatedAt().isBefore(to))
+				.collect(Collectors.groupingBy(s -> s.getCreatedAt().atZone(zone).toLocalDate(),
+						Collectors.reducing(BigDecimal.ZERO, Sale::getAmount, BigDecimal::add)));
+
+		return startDate.datesUntil(today.plusDays(1))
+				.map(date -> new DailySalesResponse(date, amountByDay.getOrDefault(date, BigDecimal.ZERO)))
+				.toList();
 	}
 }

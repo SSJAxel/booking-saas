@@ -42,10 +42,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 				UUID tenantId = UUID.fromString(claims.get("tenantId", String.class));
 				UUID userId = UUID.fromString(claims.getSubject());
 				String role = claims.get("role", String.class);
+				boolean platformAdmin = Boolean.TRUE.equals(claims.get("platformAdmin", Boolean.class));
 
 				TenantContext.setTenantId(tenantId);
 
-				var authorities = List.of(new SimpleGrantedAuthority("ROLE_" + role));
+				// ROLE_<role> must stay first: MeController#roleOf reads it via authorities.iterator().next().
+				var authorities = platformAdmin
+						? List.of(new SimpleGrantedAuthority("ROLE_" + role), new SimpleGrantedAuthority("PLATFORM_ADMIN"))
+						: List.of(new SimpleGrantedAuthority("ROLE_" + role));
 				var authentication = new UsernamePasswordAuthenticationToken(userId, null, authorities);
 				SecurityContextHolder.getContext().setAuthentication(authentication);
 			} catch (JwtException | IllegalArgumentException e) {

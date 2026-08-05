@@ -2,11 +2,17 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 
+// Placeholder avatar set — see README "Avatares de perfil" for the designer handoff. Replacing
+// these files under frontend/public/avatars/ with real artwork (same filenames) is enough, no
+// code change needed here unless the count/filenames change.
+const AVATAR_OPTIONS = Array.from({ length: 8 }, (_, i) => `/avatars/avatar-${i + 1}.svg`);
+
 export default function AccountPage() {
 	const { me, refreshMe } = useAuth();
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [saving, setSaving] = useState(false);
+	const [avatarUrl, setAvatarUrl] = useState(me?.avatarUrl ?? null);
 
 	async function handleSave(event) {
 		event.preventDefault();
@@ -16,7 +22,7 @@ export default function AccountPage() {
 		try {
 			await api.me.update({
 				displayName: form.get("displayName")?.trim() || null,
-				avatarUrl: form.get("avatarUrl")?.trim() || null,
+				avatarUrl,
 			});
 			await refreshMe();
 			setNotice("Guardado.");
@@ -38,8 +44,8 @@ export default function AccountPage() {
 
 			<div className="card">
 				<div className="profile-header">
-					{me.avatarUrl ? (
-						<img src={me.avatarUrl} alt="" className="account-avatar" />
+					{avatarUrl ? (
+						<img src={avatarUrl} alt="" className="account-avatar" />
 					) : (
 						<span className="brand-mark account-avatar-fallback" aria-hidden="true">
 							{(me.displayName || me.email).charAt(0).toUpperCase()}
@@ -58,10 +64,31 @@ export default function AccountPage() {
 						Nombre
 						<input name="displayName" defaultValue={me.displayName ?? ""} placeholder="¿Cómo te llamás?" />
 					</label>
-					<label>
-						URL de foto de perfil
-						<input name="avatarUrl" defaultValue={me.avatarUrl ?? ""} placeholder="https://..." />
-					</label>
+					<div className="span-2">
+						<label style={{ marginBottom: "0.5rem" }}>Foto de perfil</label>
+						<div className="avatar-grid">
+							<button
+								type="button"
+								className={`avatar-option${avatarUrl === null ? " selected" : ""}`}
+								onClick={() => setAvatarUrl(null)}
+								title="Sin avatar (usa tu inicial)"
+							>
+								<span className="brand-mark account-avatar-fallback" aria-hidden="true">
+									{(me.displayName || me.email).charAt(0).toUpperCase()}
+								</span>
+							</button>
+							{AVATAR_OPTIONS.map((url) => (
+								<button
+									key={url}
+									type="button"
+									className={`avatar-option${avatarUrl === url ? " selected" : ""}`}
+									onClick={() => setAvatarUrl(url)}
+								>
+									<img src={url} alt="" />
+								</button>
+							))}
+						</div>
+					</div>
 					<div className="span-2 button-row">
 						<button type="submit" disabled={saving}>
 							{saving ? "Guardando..." : "Guardar"}

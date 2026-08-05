@@ -2,5 +2,6 @@ package dev.capibyte.bookingsaas.identity.dto;
 
 import java.util.UUID;
 
-public record MeResponse(UUID userId, UUID tenantId, String role, String email, String displayName, String avatarUrl) {
+public record MeResponse(UUID userId, UUID tenantId, String role, String email, String displayName, String avatarUrl,
+		boolean platformAdmin) {
 }

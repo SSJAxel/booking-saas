@@ -1,7 +1,10 @@
 package dev.capibyte.bookingsaas.report;
 
+import dev.capibyte.bookingsaas.report.dto.DailyCountResponse;
+import dev.capibyte.bookingsaas.report.dto.DailySalesResponse;
 import dev.capibyte.bookingsaas.report.dto.ReportSummaryResponse;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -26,5 +29,20 @@ public class ReportController {
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
 			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
 		return reportService.summarize(branchId, professionalId, from, to);
+	}
+
+	@GetMapping("/today")
+	public ReportSummaryResponse today() {
+		return reportService.summarizeToday();
+	}
+
+	@GetMapping("/traffic")
+	public List<DailyCountResponse> traffic(@RequestParam(defaultValue = "7") int days) {
+		return reportService.dailyAppointmentCounts(days);
+	}
+
+	@GetMapping("/product-sales")
+	public List<DailySalesResponse> productSales(@RequestParam(defaultValue = "7") int days) {
+		return reportService.dailySales(days);
 	}
 }

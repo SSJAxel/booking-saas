@@ -33,7 +33,9 @@ export function AuthProvider({ children }) {
 	}, [session, refreshMe]);
 
 	const login = useCallback(async (body) => {
-		persist(await api.login(body));
+		const res = await api.login(body);
+		persist(res);
+		return res;
 	}, []);
 
 	const register = useCallback(async (body) => {

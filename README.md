@@ -90,6 +90,19 @@ once, so a stray port doesn't get mistaken for a different one of your own proje
 No hay más servicios que estos cinco — si algo más aparece corriendo en un puerto parecido en esta
 máquina, es de otro proyecto, no de este.
 
+## ⚠️ Pendiente para la diseñadora: avatares de perfil
+
+En "Mi cuenta" (`frontend/src/pages/AccountPage.jsx`), en vez de dejar que el usuario pegue
+cualquier URL como foto de perfil, ahora elige entre un set fijo de avatares (misma idea que
+Slack/Discord). Los 8 archivos que están hoy en `frontend/public/avatars/avatar-1.svg` a
+`avatar-8.svg` son **placeholders funcionales** (círculos de color lisos), no diseño final.
+
+Para reemplazarlos: subir los archivos finales con esos mismos nombres (`avatar-1.svg` ...
+`avatar-8.svg`, o el mismo patrón en `.png`/`.webp` — si cambia la extensión avisar para actualizar
+`AVATAR_OPTIONS` en `AccountPage.jsx`) a esa misma carpeta. Tamaño recomendado: cuadrado, al menos
+128×128px, fondo no transparente (se recortan en círculo en la UI). Si se quiere sumar o sacar
+opciones, también hay que ajustar `AVATAR_OPTIONS` (hoy es `avatar-1` a `avatar-8`, fijo).
+
 ## Cuenta de prueba
 
 Para probar el panel de administración (`frontend/`, `http://localhost:5180`) o el flujo público de

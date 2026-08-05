@@ -8,5 +8,6 @@ public record AuthResponse(
 		String tenantSlug,
 		UUID userId,
 		String email,
-		String role) {
+		String role,
+		boolean platformAdmin) {
 }

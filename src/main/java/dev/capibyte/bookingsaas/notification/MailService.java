@@ -1,11 +1,15 @@
 package dev.capibyte.bookingsaas.notification;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
+import java.nio.file.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Component;
 
 /**
@@ -36,6 +40,21 @@ public class MailService {
 			mailSender.send(message);
 		} catch (MailException ex) {
 			log.warn("Failed to send email to {} (subject: {}): {}", to, subject, ex.getMessage());
+		}
+	}
+
+	public void sendWithAttachment(String to, String subject, String body, Path attachmentPath, String contentType) {
+		try {
+			MimeMessage mime = mailSender.createMimeMessage();
+			MimeMessageHelper helper = new MimeMessageHelper(mime, true);
+			helper.setFrom(fromAddress);
+			helper.setTo(to);
+			helper.setSubject(subject);
+			helper.setText(body);
+			helper.addAttachment(attachmentPath.getFileName().toString(), attachmentPath.toFile());
+			mailSender.send(mime);
+		} catch (MessagingException | MailException ex) {
+			log.warn("Failed to send email with attachment to {} (subject: {}): {}", to, subject, ex.getMessage());
 		}
 	}
 }

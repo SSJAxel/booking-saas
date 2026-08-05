@@ -25,13 +25,14 @@ public class JwtService {
 		this.expirationMinutes = expirationMinutes;
 	}
 
-	public String generateToken(UUID userId, UUID tenantId, String email, Role role) {
+	public String generateToken(UUID userId, UUID tenantId, String email, Role role, boolean platformAdmin) {
 		Instant now = Instant.now();
 		return Jwts.builder()
 				.subject(userId.toString())
 				.claim("tenantId", tenantId.toString())
 				.claim("email", email)
 				.claim("role", role.name())
+				.claim("platformAdmin", platformAdmin)
 				.issuedAt(Date.from(now))
 				.expiration(Date.from(now.plus(expirationMinutes, ChronoUnit.MINUTES)))
 				.signWith(key)

@@ -105,7 +105,7 @@ const SECTIONS = [
 		],
 	},
 	{
-		title: "Plan",
+		title: "Mi Plan",
 		intro:
 			"Configuración general del negocio: suscripción, cobros con Mercado Pago, marca de tu página pública, zona horaria y notificaciones.",
 		items: [

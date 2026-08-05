@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
+import MonthCalendar from "../components/MonthCalendar.jsx";
 
 export default function ProfessionalsPage() {
 	const [branches, setBranches] = useState([]);
@@ -13,6 +14,9 @@ export default function ProfessionalsPage() {
 	const [saving, setSaving] = useState(false);
 	const [editingId, setEditingId] = useState(null);
 	const [editDraft, setEditDraft] = useState({ displayName: "", bio: "", active: true, branchId: "" });
+	const [rangePickerFor, setRangePickerFor] = useState(null);
+	const [selectedDates, setSelectedDates] = useState(new Set());
+	const [rangeReason, setRangeReason] = useState("");
 
 	function flashNotice(message) {
 		setNotice(message);
@@ -121,6 +125,50 @@ export default function ProfessionalsPage() {
 		try {
 			await api.professionals.deleteTimeOff(professionalId, timeOffId);
 			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	function openRangePicker(professionalId) {
+		setRangePickerFor(professionalId);
+		setSelectedDates(new Set());
+		setRangeReason("");
+	}
+
+	function closeRangePicker() {
+		setRangePickerFor(null);
+		setSelectedDates(new Set());
+		setRangeReason("");
+	}
+
+	function toggleDate(dateKey) {
+		setSelectedDates((prev) => {
+			const next = new Set(prev);
+			if (next.has(dateKey)) next.delete(dateKey);
+			else next.add(dateKey);
+			return next;
+		});
+	}
+
+	async function handleAddMultiDayTimeOff(professionalId) {
+		const dates = [...selectedDates];
+		if (dates.length === 0) return;
+		setError("");
+		try {
+			await Promise.all(
+				dates.map((date) =>
+					api.professionals.addTimeOff(professionalId, {
+						date,
+						startTime: null,
+						endTime: null,
+						reason: rangeReason || null,
+					}),
+				),
+			);
+			closeRangePicker();
+			await refresh();
+			flashNotice(`${dates.length} bloqueo${dates.length === 1 ? "" : "s"} agregado${dates.length === 1 ? "" : "s"}.`);
 		} catch (err) {
 			setError(err.message);
 		}
@@ -272,6 +320,40 @@ export default function ProfessionalsPage() {
 								<input name="reason" placeholder="Motivo (opcional)" />
 								<button type="submit">+ Bloqueo</button>
 							</form>
+
+							{rangePickerFor === p.id ? (
+								<div className="add-form" style={{ flexDirection: "column", alignItems: "stretch" }}>
+									<MonthCalendar selected={selectedDates} onToggle={toggleDate} />
+									<input
+										value={rangeReason}
+										onChange={(event) => setRangeReason(event.target.value)}
+										placeholder="Motivo (opcional, ej: Vacaciones)"
+									/>
+									<div className="button-row">
+										<button
+											type="button"
+											disabled={selectedDates.size === 0}
+											onClick={() => handleAddMultiDayTimeOff(p.id)}
+										>
+											{selectedDates.size === 0
+											? "Bloquear días seleccionados"
+											: `Bloquear ${selectedDates.size} día${selectedDates.size === 1 ? "" : "s"}`}
+										</button>
+										<button type="button" className="secondary" onClick={closeRangePicker}>
+											Cancelar
+										</button>
+									</div>
+								</div>
+							) : (
+								<button
+									type="button"
+									className="secondary"
+									style={{ marginTop: "0.6rem" }}
+									onClick={() => openRangePicker(p.id)}
+								>
+									Bloquear varios días completos (vacaciones, licencia...)
+								</button>
+							)}
 						</div>
 					</div>
 				))}

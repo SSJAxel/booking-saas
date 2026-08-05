@@ -26,6 +26,29 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 	return data;
 }
 
+async function requestForm(path, formData) {
+	const headers = {};
+	const token = getToken();
+	if (token) headers.Authorization = `Bearer ${token}`;
+	// No Content-Type here on purpose — the browser sets multipart/form-data with the boundary
+	// itself; setting it manually would drop the boundary and break parsing server-side.
+	const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: formData });
+	if (res.status === 204) return null;
+	const data = await res.json().catch(() => null);
+	if (!res.ok) {
+		throw new Error(data?.message || `Request failed (${res.status})`);
+	}
+	return data;
+}
+
+async function requestBlob(path) {
+	const token = getToken();
+	const headers = token ? { Authorization: `Bearer ${token}` } : {};
+	const res = await fetch(`${API_BASE}${path}`, { headers });
+	if (!res.ok) throw new Error(`Request failed (${res.status})`);
+	return res.blob();
+}
+
 function toQuery(params = {}) {
 	const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== "");
 	if (entries.length === 0) return "";
@@ -74,6 +97,11 @@ export const api = {
 		addTimeOff: (id, body) => request(`/api/professionals/${id}/time-off`, { method: "POST", body }),
 		deleteTimeOff: (id, timeOffId) => request(`/api/professionals/${id}/time-off/${timeOffId}`, { method: "DELETE" }),
 	},
+	reports: {
+		today: () => request("/api/reports/today"),
+		traffic: (days = 7) => request(`/api/reports/traffic${toQuery({ days })}`),
+		productSales: (days = 7) => request(`/api/reports/product-sales${toQuery({ days })}`),
+	},
 	services: {
 		list: () => request("/api/services"),
 		create: (body) => request("/api/services", { method: "POST", body }),
@@ -97,6 +125,24 @@ export const api = {
 	appointments: {
 		list: (params) => request(`/api/appointments${toQuery(params)}`),
 		transition: (id, status) => request(`/api/appointments/${id}/status`, { method: "PATCH", body: { status } }),
+	},
+	support: {
+		report: (message, imageFile) => {
+			const fd = new FormData();
+			fd.append("message", message);
+			fd.append("image", imageFile);
+			return requestForm("/api/support-reports", fd);
+		},
+	},
+	admin: {
+		tenants: () => request("/api/admin/tenants"),
+		updateTenantPlan: (id, planTier) => request(`/api/admin/tenants/${id}/plan`, { method: "PATCH", body: { planTier } }),
+		updateTenantNextPaymentDue: (id, nextPaymentDueAt) =>
+			request(`/api/admin/tenants/${id}/next-payment-due`, { method: "PATCH", body: { nextPaymentDueAt } }),
+		supportReports: () => request("/api/admin/support-reports"),
+		resolveReport: (id, resolved) =>
+			request(`/api/admin/support-reports/${id}/resolved`, { method: "PATCH", body: { resolved } }),
+		reportImageBlob: (id) => requestBlob(`/api/admin/support-reports/${id}/image`),
 	},
 	public: {
 		tenant: (tenantSlug) => request(`/api/public/${tenantSlug}`, { auth: false }),

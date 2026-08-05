@@ -40,6 +40,6 @@ public class MeController {
 
 	private MeResponse toResponse(AppUser user, String role) {
 		return new MeResponse(user.getId(), TenantContext.getTenantId(), role, user.getEmail(), user.getDisplayName(),
-				user.getAvatarUrl());
+				user.getAvatarUrl(), user.isPlatformAdmin());
 	}
 }

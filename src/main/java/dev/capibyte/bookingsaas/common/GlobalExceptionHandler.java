@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -41,6 +42,14 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(UnauthorizedException.class)
 	public ResponseEntity<ApiError> handleUnauthorized(UnauthorizedException ex) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiError.of("UNAUTHORIZED", ex.getMessage()));
+	}
+
+	/** Without this, a denied @PreAuthorize check falls through to handleUnexpected() below and
+	 * returns 500 instead of 403 — Spring Security 6+ throws this (not the older
+	 * AccessDeniedException) for method-security denials. */
+	@ExceptionHandler(AuthorizationDeniedException.class)
+	public ResponseEntity<ApiError> handleAuthorizationDenied(AuthorizationDeniedException ex) {
+		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of("FORBIDDEN", "Access denied"));
 	}
 
 	@ExceptionHandler(DataIntegrityViolationException.class)

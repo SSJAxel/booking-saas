@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import HelpManual from "../components/HelpManual.jsx";
 
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
@@ -9,6 +10,7 @@ export default function TenantPage() {
 	const [brandingNotice, setBrandingNotice] = useState("");
 	const [timezoneNotice, setTimezoneNotice] = useState("");
 	const [notificationsNotice, setNotificationsNotice] = useState("");
+	const [manualOpen, setManualOpen] = useState(false);
 	const { session } = useAuth();
 	const canManage = session.role === "OWNER" || session.role === "ADMIN";
 
@@ -111,7 +113,7 @@ export default function TenantPage() {
 
 	return (
 		<div>
-			<h1>Negocio</h1>
+			<h1>Mi Plan</h1>
 			{error && <p className="error">{error}</p>}
 
 			<p className="label">Accesos rápidos</p>
@@ -133,10 +135,14 @@ export default function TenantPage() {
 				>
 					Abrir WhatsApp
 				</button>
+				<button type="button" className="secondary" onClick={() => setManualOpen(true)}>
+					Manual del panel
+				</button>
 				{!tenant.contactEmail || !tenant.whatsappNumber ? (
 					<span className="muted">Completá el email y/o el WhatsApp más abajo para habilitar esos botones.</span>
 				) : null}
 			</div>
+			<HelpManual open={manualOpen} onClose={() => setManualOpen(false)} />
 
 			<div className="card">
 				<p>

@@ -122,8 +122,9 @@ public class AuthService {
 	}
 
 	private AuthResponse authResponse(Tenant tenant, AppUser user) {
-		String token = jwtService.generateToken(user.getId(), tenant.getId(), user.getEmail(), user.getRole());
+		String token = jwtService.generateToken(user.getId(), tenant.getId(), user.getEmail(), user.getRole(),
+				user.isPlatformAdmin());
 		return new AuthResponse(token, tenant.getId(), tenant.getSlug(), user.getId(), user.getEmail(),
-				user.getRole().name());
+				user.getRole().name(), user.isPlatformAdmin());
 	}
 }

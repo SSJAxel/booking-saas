@@ -24,6 +24,10 @@ spring:
           auth: false
           starttls:
             enable: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
 
 management:
   endpoints:
@@ -56,6 +60,13 @@ app:
     # Where the emailed "confirm your email" link points — the admin panel's own verification
     # page, not a backend URL, since it needs to call the API and then redirect into the app.
     verification-base-url: ${MAIL_VERIFICATION_BASE_URL:http://localhost:5180/verificar-email}
+  uploads:
+    # Local-disk storage for tenant-submitted support-report images — fine for a solo-founder
+    # MVP running on one instance; would need object storage (S3-like) behind a load balancer.
+    dir: ${UPLOADS_DIR:./uploads}
+  support:
+    # Where bug-report emails (message + uploaded image) land — see SupportReportNotificationListener.
+    founder-email: ${SUPPORT_FOUNDER_EMAIL:info.capibyte@gmail.com}
   rate-limit:
     # Applies to the whole unauthenticated /api/public/** surface, keyed by client IP.
     capacity: ${RATE_LIMIT_CAPACITY:30}
