@@ -69,6 +69,10 @@ app:
     # Where the emailed "confirm your email" link points — the admin panel's own verification
     # page, not a backend URL, since it needs to call the API and then redirect into the app.
     verification-base-url: ${MAIL_VERIFICATION_BASE_URL:http://localhost:5180/verificar-email}
+    resend:
+      # When set, MailService sends via Resend's HTTPS API instead of SMTP — see its Javadoc for
+      # why (some PaaS free tiers block outbound SMTP). Blank means "use SMTP", same as today.
+      api-key: ${RESEND_API_KEY:}
   uploads:
     # Local-disk storage for tenant-submitted support-report images — fine for a solo-founder
     # MVP running on one instance; would need object storage (S3-like) behind a load balancer.

@@ -134,6 +134,26 @@ reales ahora; si el volumen crece o empiezan a caer en spam, migrar a uno de eso
 el mismo cambio de variables de entorno (`MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD` que te da el
 proveedor), sin tocar código.
 
+**⚠️ No funciona en Render (ni en varios otros PaaS free tier)**: confirmado en vivo — el free tier
+de Render bloquea las conexiones salientes por SMTP, así que `smtp.gmail.com:587` cuelga hasta
+tirar `MailConnectException` (el registro/booking sigue funcionando igual, `MailService` atrapa el
+error, pero el mail nunca sale). Para ese caso usar **Resend** en cambio, que manda por su API
+HTTPS (puerto 443, nunca bloqueado):
+
+1. Crear cuenta gratis en resend.com (100 mails/día, sin tarjeta) y generar una API key
+   (Dashboard → API Keys → Create API Key).
+2. Variables de entorno:
+   ```
+   RESEND_API_KEY=re_xxxxxxxx
+   MAIL_FROM=onboarding@resend.dev
+   ```
+   Sin verificar un dominio propio en Resend, `MAIL_FROM` tiene que ser exactamente
+   `onboarding@resend.dev`, y Resend solo entrega a la casilla con la que se creó la cuenta —
+   suficiente para probar en vivo; para mandarle a clientes reales hace falta verificar un
+   dominio propio en Resend y usar una dirección de ese dominio.
+3. Con `RESEND_API_KEY` seteado, `MailService` usa la API de Resend en vez de SMTP automáticamente
+   — no hace falta tocar `MAIL_HOST`/`MAIL_PORT`/etc, esas variables quedan sin efecto.
+
 ## Frenar el WhatsApp para no arriesgar el número
 
 Cada vez que un turno cambia de estado (reservado, confirmado, cancelado) se manda un WhatsApp al
