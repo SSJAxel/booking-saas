@@ -10,6 +10,7 @@ export default function TenantPage() {
 	const [brandingNotice, setBrandingNotice] = useState("");
 	const [timezoneNotice, setTimezoneNotice] = useState("");
 	const [notificationsNotice, setNotificationsNotice] = useState("");
+	const [transferAliasNotice, setTransferAliasNotice] = useState("");
 	const [manualOpen, setManualOpen] = useState(false);
 	const { session } = useAuth();
 	const canManage = session.role === "OWNER" || session.role === "ADMIN";
@@ -70,9 +71,32 @@ export default function TenantPage() {
 					tagline: form.get("tagline")?.trim() || null,
 					contactEmail: form.get("contactEmail")?.trim() || null,
 					whatsappNumber: form.get("whatsappNumber")?.trim() || null,
+					transferAlias: tenant.transferAlias,
 				}),
 			);
 			setBrandingNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleSaveTransferAlias(event) {
+		event.preventDefault();
+		setError("");
+		setTransferAliasNotice("");
+		const form = new FormData(event.target);
+		try {
+			setTenant(
+				await api.tenant.updateBranding({
+					logoUrl: tenant.logoUrl,
+					accentColor: tenant.accentColor,
+					tagline: tenant.tagline,
+					contactEmail: tenant.contactEmail,
+					whatsappNumber: tenant.whatsappNumber,
+					transferAlias: form.get("transferAlias")?.trim() || null,
+				}),
+			);
+			setTransferAliasNotice("Guardado.");
 		} catch (err) {
 			setError(err.message);
 		}
@@ -241,6 +265,26 @@ export default function TenantPage() {
 					</button>
 				) : (
 					<p className="muted">Solo el dueño puede conectar la cuenta.</p>
+				)}
+				<p className="muted" style={{ marginTop: "1rem" }}>
+					Alternativa: si un cliente reserva un servicio con seña, le mostramos este alias para que
+					transfiera directo — vos confirmás el turno a mano desde "Turnos" cuando veas el pago.
+				</p>
+				{canManage ? (
+					<form className="inline-form small" onSubmit={handleSaveTransferAlias}>
+						<input
+							name="transferAlias"
+							placeholder="Alias para transferencias (ej: minegocio.mp)"
+							defaultValue={tenant.transferAlias ?? ""}
+						/>
+						<button type="submit">Guardar</button>
+						{transferAliasNotice && <span className="notice">{transferAliasNotice}</span>}
+					</form>
+				) : (
+					<p className="muted">
+						Alias actual: <strong>{tenant.transferAlias || "sin cargar"}</strong>. Solo el dueño o un admin
+						pueden cambiarlo.
+					</p>
 				)}
 			</div>
 

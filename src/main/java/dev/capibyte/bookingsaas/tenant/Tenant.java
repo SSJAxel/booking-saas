@@ -62,6 +62,12 @@ public class Tenant extends BaseEntity {
 	@Column(name = "whatsapp_number")
 	private String whatsappNumber;
 
+	/** Shown to a client on the public booking page when the chosen service requires a deposit —
+	 * an alternative to the MercadoPago checkout, confirmed manually by the owner (see
+	 * AppointmentController.confirmDeposit). Optional. */
+	@Column(name = "transfer_alias")
+	private String transferAlias;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

@@ -46,6 +46,13 @@ public class AppointmentController {
 		return toResponse(appointmentService.transitionStatus(id, request.status()));
 	}
 
+	/** Manual counterpart to the MercadoPago webhook — lets the owner confirm a deposit paid by
+	 * bank transfer (see Tenant.transferAlias) instead of an automated payment provider. */
+	@PatchMapping("/{id}/confirm-deposit")
+	public AppointmentResponse confirmDeposit(@PathVariable UUID id) {
+		return toResponse(appointmentService.markDepositPaid(id));
+	}
+
 	private AppointmentResponse toResponse(Appointment appointment) {
 		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));
 	}

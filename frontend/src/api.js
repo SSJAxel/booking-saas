@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8080";
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 function getToken() {
 	return localStorage.getItem("token");
@@ -125,6 +125,7 @@ export const api = {
 	appointments: {
 		list: (params) => request(`/api/appointments${toQuery(params)}`),
 		transition: (id, status) => request(`/api/appointments/${id}/status`, { method: "PATCH", body: { status } }),
+		confirmDeposit: (id) => request(`/api/appointments/${id}/confirm-deposit`, { method: "PATCH" }),
 	},
 	support: {
 		report: (message, imageFile) => {

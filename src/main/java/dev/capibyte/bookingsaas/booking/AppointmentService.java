@@ -157,10 +157,10 @@ public class AppointmentService {
 	 * appointment already moved on (e.g. got cancelled while the payment was in flight).
 	 */
 	@Transactional
-	public void markDepositPaid(UUID appointmentId) {
+	public Appointment markDepositPaid(UUID appointmentId) {
 		Appointment appointment = findById(appointmentId);
 		if (appointment.getPaymentStatus() == PaymentStatus.PAID) {
-			return; // already processed — webhooks can be delivered more than once
+			return appointment; // already processed — webhooks (or a re-click) can arrive more than once
 		}
 		appointment.setPaymentStatus(PaymentStatus.PAID);
 
@@ -171,6 +171,7 @@ public class AppointmentService {
 			ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
 			publishNotification(appointment, client, professional, service, AppointmentStatus.CONFIRMED);
 		}
+		return appointment;
 	}
 
 	/** Public so controllers can enrich AppointmentResponse with client contact info. */

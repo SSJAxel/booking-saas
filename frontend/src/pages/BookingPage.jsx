@@ -199,6 +199,9 @@ export default function BookingPage() {
 								<span className="muted">
 									{s.durationMinutes} min · ${Number(s.price).toLocaleString("es-AR")}
 								</span>
+								{s.depositAmount && (
+									<span className="muted">Requiere seña de ${Number(s.depositAmount).toLocaleString("es-AR")}</span>
+								)}
 								{s.description && <span className="muted">{s.description}</span>}
 							</button>
 						))}
@@ -306,6 +309,25 @@ export default function BookingPage() {
 							</p>
 							<p className="muted">Te enviamos la confirmación a tu email.</p>
 						</div>
+						{appointment.paymentStatus === "PENDING" && (
+							<div className="card deposit-instructions">
+								<p>
+									<strong>Este turno todavía no está confirmado.</strong> Requiere una seña de $
+									{Number(service.depositAmount).toLocaleString("es-AR")} para confirmarse.
+								</p>
+								{tenant.transferAlias ? (
+									<p>
+										Transferí ese monto al alias <strong>{tenant.transferAlias}</strong>. Apenas el negocio vea el
+										pago, tu turno queda confirmado.
+									</p>
+								) : (
+									<p className="muted">
+										Este negocio todavía no cargó un alias de transferencia — va a contactarte para coordinar la
+										seña.
+									</p>
+								)}
+							</div>
+						)}
 					</div>
 				)}
 			</div>

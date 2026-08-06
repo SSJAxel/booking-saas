@@ -103,6 +103,51 @@ Para reemplazarlos: subir los archivos finales con esos mismos nombres (`avatar-
 128×128px, fondo no transparente (se recortan en círculo en la UI). Si se quiere sumar o sacar
 opciones, también hay que ajustar `AVATAR_OPTIONS` (hoy es `avatar-1` a `avatar-8`, fijo).
 
+## Enviar mail real (Gmail SMTP)
+
+En desarrollo local, todos los mails (confirmación de turno, verificación de email, reportes de
+bug) van a MailHog — no salen a internet. Para que salgan de verdad usando una cuenta de Gmail:
+
+1. En la cuenta de Google que va a mandar los mails (ej. `info.capibyte@gmail.com`), activar
+   verificación en 2 pasos (Cuenta de Google → Seguridad → Verificación en 2 pasos) — Gmail no
+   deja usar la contraseña normal para SMTP, exige esto primero.
+2. Una vez activada, ir a Cuenta de Google → Seguridad → "Contraseñas de aplicaciones", generar
+   una nueva (nombre libre, ej. "booking-saas"). Google te da una contraseña de 16 caracteres —
+   esa es la que se usa, **no** la contraseña normal de la cuenta.
+3. Configurar estas variables de entorno donde corra el backend (no hardcodear en `application.yml`):
+   ```
+   MAIL_HOST=smtp.gmail.com
+   MAIL_PORT=587
+   MAIL_USERNAME=info.capibyte@gmail.com
+   MAIL_PASSWORD=<la contraseña de aplicación de 16 caracteres, sin espacios>
+   MAIL_SMTP_AUTH=true
+   MAIL_SMTP_STARTTLS=true
+   MAIL_FROM=info.capibyte@gmail.com
+   ```
+4. Reiniciar el backend — los mails van a salir de verdad. Probar con el flujo de "olvidé mi
+   contraseña" o reservando un turno de prueba.
+
+**Límite y a tener en cuenta**: Gmail permite ~500 mails/día por cuenta, y al venir de una cuenta
+personal (no un dominio propio verificado) hay más chance de que caigan en spam que con un
+proveedor transaccional (Resend, SendGrid, Amazon SES). Sirve perfecto para probar con usuarios
+reales ahora; si el volumen crece o empiezan a caer en spam, migrar a uno de esos servicios es
+el mismo cambio de variables de entorno (`MAIL_HOST`/`MAIL_USERNAME`/`MAIL_PASSWORD` que te da el
+proveedor), sin tocar código.
+
+## Frenar el WhatsApp para no arriesgar el número
+
+Cada vez que un turno cambia de estado (reservado, confirmado, cancelado) se manda un WhatsApp al
+cliente si el negocio lo tiene activado (`Tenant.whatsappEnabled`). Meta le pone una "calificación
+de calidad" a cada número de WhatsApp Business, y una ráfaga de mensajes seguidos al mismo
+contacto (por ejemplo: reserva, cancela, reserva de nuevo, todo en un minuto) se lee como
+comportamiento de spam y puede bajar esa calificación o directamente restringir el número.
+
+`WhatsAppNotificationService` (`src/main/java/dev/capibyte/bookingsaas/notification/`) espacia
+automáticamente los mensajes al mismo número: si ya se le mandó algo hace menos de
+`WHATSAPP_MIN_INTERVAL_SECONDS` (30 segundos por defecto), el siguiente mensaje se demora en vez
+de mandarse al toque, usando un scheduler propio (no bloquea nada más de la app). El mail nunca se
+demora — solo el WhatsApp, que ya es un canal secundario por diseño.
+
 ## Cuenta de prueba
 
 Para probar el panel de administración (`frontend/`, `http://localhost:5180`) o el flujo público de

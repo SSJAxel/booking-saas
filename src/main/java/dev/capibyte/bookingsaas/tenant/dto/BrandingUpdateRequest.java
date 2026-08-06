@@ -11,5 +11,6 @@ public record BrandingUpdateRequest(
 		@Size(max = 255) String tagline,
 		@Email @Size(max = 255) String contactEmail,
 		@Pattern(regexp = "^[+0-9 ()-]{6,30}$",
-				message = "must be a phone number (digits, spaces, +, -, ( ) only)") String whatsappNumber) {
+				message = "must be a phone number (digits, spaces, +, -, ( ) only)") String whatsappNumber,
+		@Size(max = 255) String transferAlias) {
 }

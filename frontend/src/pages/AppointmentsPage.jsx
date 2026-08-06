@@ -56,6 +56,16 @@ export default function AppointmentsPage() {
 		}
 	}
 
+	async function handleConfirmDeposit(id) {
+		setError("");
+		try {
+			await api.appointments.confirmDeposit(id);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	return (
 		<div>
 			<h1>Turnos</h1>
@@ -103,6 +113,16 @@ export default function AppointmentsPage() {
 								</td>
 								<td>{a.paymentStatus}</td>
 								<td>
+									{a.paymentStatus === "PENDING" && (
+										<button
+											type="button"
+											className="link-button"
+											onClick={() => handleConfirmDeposit(a.id)}
+											title="Marcar la seña como recibida (transferencia por alias) y confirmar el turno"
+										>
+											Confirmar seña
+										</button>
+									)}
 									{NEXT_STATUS[a.status].map((s) => (
 										<button key={s} type="button" className="link-button" onClick={() => handleTransition(a.id, s)}>
 											{s}

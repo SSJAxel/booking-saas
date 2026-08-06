@@ -46,7 +46,8 @@ public class TenantController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public TenantResponse updateBranding(@Valid @RequestBody BrandingUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateBranding(TenantContext.getTenantId(), request.logoUrl(),
-				request.accentColor(), request.tagline(), request.contactEmail(), request.whatsappNumber()));
+				request.accentColor(), request.tagline(), request.contactEmail(), request.whatsappNumber(),
+				request.transferAlias()));
 	}
 
 	/**

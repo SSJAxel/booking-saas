@@ -1,3 +1,7 @@
+server:
+  # Render (and most PaaS) inject PORT and expect the app to bind to it; 8080 stays the local default.
+  port: ${PORT:8080}
+
 spring:
   application:
     name: booking-saas
@@ -16,14 +20,19 @@ spring:
     enabled: true
     baseline-on-migrate: true
   mail:
+    # Dev default: MailHog (localhost:1025, no auth/TLS). For real sending — e.g. Gmail SMTP —
+    # override MAIL_HOST/PORT/USERNAME/PASSWORD and flip MAIL_SMTP_AUTH/MAIL_SMTP_STARTTLS to
+    # true (see README "Enviar mail real" for the Gmail App Password setup).
     host: ${MAIL_HOST:localhost}
     port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
     properties:
       mail:
         smtp:
-          auth: false
+          auth: ${MAIL_SMTP_AUTH:false}
           starttls:
-            enable: false
+            enable: ${MAIL_SMTP_STARTTLS:false}
   servlet:
     multipart:
       max-file-size: 5MB
@@ -99,3 +108,8 @@ app:
     # Twilio WhatsApp sender number, e.g. "+14155238886" (no "whatsapp:" prefix here — added at
     # call time).
     whatsapp-from: ${TWILIO_WHATSAPP_FROM:}
+  whatsapp:
+    # Minimum gap between two messages sent to the same client phone number (see
+    # WhatsAppNotificationService) — a burst of back-to-back messages reads as spam to Meta's
+    # WhatsApp Business quality rating and can get the sending number restricted.
+    min-interval-seconds: ${WHATSAPP_MIN_INTERVAL_SECONDS:30}

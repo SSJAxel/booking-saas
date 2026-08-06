@@ -1455,3 +1455,15 @@ button.danger:hover:not(:disabled) {
 .booking-done {
 	text-align: center;
 }
+
+.deposit-instructions {
+	text-align: left;
+	background: var(--warning-bg);
+	border-color: transparent;
+	box-shadow: none;
+	margin-top: 1rem;
+}
+
+.deposit-instructions p {
+	margin: 0.3rem 0;
+}
