@@ -81,7 +81,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 						))}
 						{ACTIVE_STATUSES.has(appointment.status) && (
 							<button type="button" className="secondary" onClick={onReplace}>
-								Reemplazar
+								Sobreturno
 							</button>
 						)}
 					</div>

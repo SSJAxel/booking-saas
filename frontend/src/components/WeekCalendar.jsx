@@ -17,11 +17,13 @@ function minutesOfDay(date) {
 }
 
 /**
- * Side-by-side layout for appointments that overlap the same day (different professionals booked
- * at the same time) — standard greedy calendar-event packing: walk appointments in start-time
- * order, put each one in the first column whose last appointment already ended, and once a group
- * of mutually-overlapping appointments closes, give every appointment in it the same column count
- * so they split the width evenly instead of drawing on top of each other.
+ * Side-by-side layout for appointments that overlap the same day — standard greedy calendar-event
+ * packing: walk appointments in start-time order, put each one in the first column whose last
+ * appointment already ended, and once a group of mutually-overlapping appointments closes, give
+ * every appointment in it the same column count so they split the width evenly instead of drawing
+ * on top of each other. Doesn't look at professionalId at all, so it works the same way whether
+ * the overlap is two different professionals booked at the same time, or a "sobreturno" — the same
+ * professional deliberately double-booked (see AppointmentService#book's overtime overload).
  */
 function layoutDay(appointments) {
 	const sorted = [...appointments].sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -112,7 +114,7 @@ export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourSt
 									<button
 										type="button"
 										key={appointment.id}
-										className={`appt-block status-${appointment.status.toLowerCase()}`}
+										className={`appt-block status-${appointment.status.toLowerCase()}${appointment.overtime ? " is-overtime" : ""}`}
 										style={{ top, height, width: `calc(${width}% - 4px)`, left: `calc(${width * col}% + 2px)` }}
 										onClick={() => onSelect(appointment)}
 										title={`${pad(start.getHours())}:${pad(start.getMinutes())} · ${appointment.clientName} · ${professionalName(appointment.professionalId)}`}

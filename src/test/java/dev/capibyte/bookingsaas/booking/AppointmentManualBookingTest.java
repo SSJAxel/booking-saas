@@ -16,11 +16,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 
 /**
- * Covers the owner-side "sobreturno" flow: a manual appointment created straight from the panel
+ * Covers the owner-side manual booking flow: a manual appointment created straight from the panel
  * (POST /api/appointments), and "replace" (POST /api/appointments/{id}/replace) for when a client
  * cancels by phone instead of through the system. Both reuse AppointmentService.book() under the
  * hood, so the no_double_booking constraint still applies exactly as it does for the public flow —
- * replace() is a cancel-then-book, never a true overlapping booking.
+ * replace() is a cancel-then-book, never a true overlapping booking. For the intentional-overlap
+ * case ("sobreturno"), see AppointmentOvertimeBookingTest.
  */
 class AppointmentManualBookingTest extends IntegrationTestBase {
 

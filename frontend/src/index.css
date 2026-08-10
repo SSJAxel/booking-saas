@@ -1599,6 +1599,14 @@ button.danger:hover:not(:disabled) {
 	border-color: var(--border);
 }
 
+/* Sobreturno: se superpone a propósito con otro turno del mismo profesional — un borde punteado
+   alcanza para distinguirlo sin pisar el color de estado (pendiente/confirmado/etc.), que sigue
+   comunicando lo mismo que siempre. */
+.appt-block.is-overtime {
+	border-style: dashed;
+	border-width: 2px;
+}
+
 .appt-block:hover {
 	filter: brightness(0.96);
 	transform: none;

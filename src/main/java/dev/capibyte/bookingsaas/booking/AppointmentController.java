@@ -64,16 +64,33 @@ public class AppointmentController {
 	}
 
 	/**
-	 * "Sobreturno" / walk-in override: the client of {@code id} called to cancel outside the
-	 * system, so free that slot and hand it to a new client in one action. See {@link
-	 * AppointmentService#replace} for why this is a cancel-then-book, not a true overlapping
-	 * booking — the no_double_booking constraint is deliberately never bypassed, including here.
+	 * Walk-in override: the client of {@code id} called to cancel outside the system, so free that
+	 * slot and hand it to a new client in one action. This is always a cancel-then-book, never a
+	 * true overlapping booking — the no_double_booking constraint applies here exactly as it does
+	 * for a normal booking. For an intentional overlapping booking ("sobreturno"), see {@link
+	 * #createOvertime}.
 	 */
 	@PostMapping("/{id}/replace")
 	public AppointmentResponse replace(@PathVariable UUID id, @Valid @RequestBody BookAppointmentRequest request) {
 		Instant startTime = toInstant(request);
 		return toResponse(appointmentService.replace(id, request.professionalId(), request.serviceId(), startTime,
 				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram()));
+	}
+
+	/**
+	 * "Sobreturno": a manual booking allowed to overlap another appointment of the same
+	 * professional on purpose (e.g. a long service in progress while the professional also takes a
+	 * quick one) — the owner is the only one who can decide this, never automatic and never
+	 * reachable from the public booking flow. {@code overtime=true} is hardcoded here, not read
+	 * from the request body: {@link BookAppointmentRequest} has no such field at all, so there is
+	 * no way to trigger this from anywhere except this exact endpoint.
+	 */
+	@PostMapping("/overtime")
+	@ResponseStatus(HttpStatus.CREATED)
+	public AppointmentResponse createOvertime(@Valid @RequestBody BookAppointmentRequest request) {
+		Instant startTime = toInstant(request);
+		return toResponse(appointmentService.book(request.professionalId(), request.serviceId(), startTime,
+				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram(), true));
 	}
 
 	private Instant toInstant(BookAppointmentRequest request) {

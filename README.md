@@ -41,10 +41,26 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   que un mismo cliente no pierda su historial si cambia de mail. Panel de "Mejores clientes"
   configurable por tenant (calificación mínima, cuántos mostrar) más clientes fijados a mano, y
   listas de frecuentes / cancelan seguido / no aparecen.
-- **Calendario semanal real y "sobreturno".** La vista de Turnos del dueño pasó de una tabla plana
-  a una grilla semana × hora, con turnos superpuestos mostrados lado a lado. Se agregó "Reemplazar
-  turno" (para cuando un cliente cancela por teléfono, no por el sistema) y carga manual de turnos
-  desde el panel — antes solo se podía reservar desde el sitio público.
+- **Calendario semanal real y "Reemplazar turno".** La vista de Turnos del dueño pasó de una tabla
+  plana a una grilla semana × hora, con turnos superpuestos mostrados lado a lado. Se agregó
+  "Reemplazar turno" (para cuando un cliente cancela por teléfono, no por el sistema) y carga
+  manual de turnos desde el panel — antes solo se podía reservar desde el sitio público.
+- **Calendario separado por sucursal + límite de sucursales por plan.** Un negocio con 2+
+  sucursales veía un único calendario con los turnos de todos los locales mezclados, sin indicar
+  sucursal ni profesional por turno. Selector exclusivo de sucursal en Turnos (persistido por
+  tenant, solo visible con 2+ sucursales activas) que filtra Calendario y Lista; cada bloque del
+  calendario ahora muestra también el profesional que atiende. Límite de sucursales por plan
+  (BASIC: 1, PRO/Demo: 2, MAX: 4), visible en Sucursales con el contador y bloqueo del alta al
+  llegar al tope.
+- **Sobreturno: turno solapado real.** Nueva feature, distinta de "Reemplazar turno": el dueño
+  puede agendar manualmente un turno que se superpone en el tiempo con otro turno ya existente del
+  mismo profesional — caso real: un profesional atendiendo un servicio largo (ej. rulos
+  permanentes) puede, en simultáneo, atender otros servicios cortos a otros clientes; el propio
+  tenant decide a quién atender en paralelo. El constraint `no_double_booking` se aflojó *solo*
+  para turnos marcados `is_overtime` (columna nueva, `EXCLUDE` parcial extendido) — el sitio
+  público y el agendado normal siguen bloqueados contra choques exactamente como antes. Accesible
+  desde "Nuevo turno" (checkbox) o desde el botón "Sobreturno" (ex "Reemplazar") sobre un turno
+  existente, que ahora ofrece elegir entre reemplazar (cancela) o superponer (no cancela).
 
 ## ¿Qué es un sistema de "booking"?
 
@@ -780,23 +796,15 @@ pendientes:
     `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real
     (cliente paga en minutos, no en más de media hora) es un caso raro, pero hay que resolverlo
     antes de manejar plata de verdad.
-14. **Re-agendamiento y sobreturno "turno exprés" (anotado 2026-08-10, todavía sin construir).**
-    Dos features distintas que se pidieron juntas, con dos preguntas sin cerrar antes de empezar:
-    - **Re-agendamiento**: botón para mover un turno de horario (típicamente porque el cliente
-      avisó con 24-48hs de anticipación) sin que cuente como una cancelación común. Un dropdown
-      "Motivo" con dos opciones: *"Personal del tenant"* (el negocio decide moverlo — no toca la
-      calificación del cliente en absoluto) y *"Aviso"* (el cliente pidió el cambio — sí toca la
-      calificación, con la misma gracia que ya tienen las cancelaciones: la 1ª vez no descuenta
-      nada, de la 2ª en adelante -2 puntos cada vez). **Sin cerrar:** ¿el descuento por "Aviso"
-      comparte el contador de cancelaciones (`Client.cancelledCount`) o necesita uno propio
-      (`rescheduledCount`) con su propia gracia independiente?
-    - **Sobreturno / "turno exprés"**: el botón "Reemplazar" (`AppointmentService.replace`, ver
-      "Design notes" más arriba) pasa a llamarse "Sobreturno" y suma un segundo modo además del
-      actual (cancelar+reagendar sigue igual): un turno exprés que se mete en un hueco de 15 a 40
-      minutos entre dos turnos ya agendados del mismo profesional — solo pide cliente y servicio,
-      sin que el dueño tenga que elegir una hora exacta a mano — y también tiene que quedar
-      accesible desde "Nuevo turno", no solo desde ese botón. **Sin cerrar:** ¿el turno exprés se
-      ubica *dentro* del hueco libre sin superponerse en el tiempo con el turno siguiente (compatible
-      con el constraint `no_double_booking` que se decidió no tocar la vez pasada — ver "Design
-      notes" → Double-booking prevention), o realmente tiene que poder solaparse con el turno de al
-      lado? Si es lo segundo, hace falta una migración para aflojar ese constraint, no es gratis.
+14. **Re-agendamiento (anotado 2026-08-10, decisión cerrada 2026-08-10, todavía sin construir).**
+    Botón para mover un turno de horario (típicamente porque el cliente avisó con 24-48hs de
+    anticipación) sin que cuente como una cancelación común. Un dropdown "Motivo" con dos opciones:
+    *"Personal del tenant"* (el negocio decide moverlo — no toca la calificación del cliente en
+    absoluto) y *"Aviso"* (el cliente pidió el cambio — sí toca la calificación, con la misma
+    gracia que ya tienen las cancelaciones: la 1ª vez no descuenta nada, de la 2ª en adelante -2
+    puntos cada vez). **Decidido:** el descuento por "Aviso" usa un contador propio e independiente
+    (`Client.rescheduledCount`), separado de `Client.cancelledCount` — cancelar y reagendar son
+    comportamientos distintos (uno termina en un turno atendido, el otro no), cada uno con su
+    propia gracia de "primera vez gratis".
+    - **Sobreturno** (la otra mitad de este ítem) ya está construido — ver el Registro de cambios
+      y "Design notes" → Double-booking prevention.

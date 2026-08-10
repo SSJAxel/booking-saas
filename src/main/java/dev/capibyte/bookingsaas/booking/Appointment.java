@@ -17,9 +17,11 @@ import lombok.Setter;
 /**
  * The DB-level {@code no_double_booking} EXCLUDE constraint (see V4 migration) — not application
  * code — is what actually guarantees two overlapping appointments for the same professional can
- * never both be inserted, even under concurrent requests. {@code endTime} is computed and stored
- * at booking time so a later edit to a service's duration can't retroactively corrupt history.
- * No hard deletes — cancellation is a status, so history is preserved.
+ * never both be inserted, even under concurrent requests. The one deliberate exception is
+ * {@code overtime} (see V25 migration): an owner can explicitly double-book a professional on
+ * purpose, and those rows sit entirely outside the constraint. {@code endTime} is computed and
+ * stored at booking time so a later edit to a service's duration can't retroactively corrupt
+ * history. No hard deletes — cancellation is a status, so history is preserved.
  */
 @Entity
 @Table(name = "appointments")
@@ -56,6 +58,9 @@ public class Appointment extends BaseTenantEntity {
 
 	@Column
 	private String notes;
+
+	@Column(name = "is_overtime", nullable = false)
+	private boolean overtime;
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;

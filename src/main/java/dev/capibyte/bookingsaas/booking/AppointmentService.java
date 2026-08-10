@@ -44,6 +44,21 @@ public class AppointmentService {
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
 			String clientEmail, String clientPhone, String clientInstagram) {
+		return book(professionalId, serviceId, startTime, clientName, clientEmail, clientPhone, clientInstagram,
+				false);
+	}
+
+	/**
+	 * {@code overtime=true} is how the owner deliberately double-books a professional on purpose —
+	 * see the V25 migration: an overtime appointment sits entirely outside the no_double_booking
+	 * constraint, both as the new row being inserted and as an existing row a new insert is checked
+	 * against. Never derived from client input: the only caller that can pass true is
+	 * AppointmentController#createOvertime, which hardcodes it — BookAppointmentRequest (shared with
+	 * the public booking controller) has no such field, by design.
+	 */
+	@Transactional
+	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
+			String clientEmail, String clientPhone, String clientInstagram, boolean overtime) {
 		ServiceOffering service = serviceOfferingService.findById(serviceId);
 		List<UUID> eligible = serviceOfferingService.findProfessionalIdsForService(serviceId);
 		if (!eligible.contains(professionalId)) {
@@ -61,6 +76,7 @@ public class AppointmentService {
 		appointment.setClientId(client.getId());
 		appointment.setStartTime(startTime);
 		appointment.setEndTime(endTime);
+		appointment.setOvertime(overtime);
 		PaymentStatus paymentStatus = service.getDepositAmount() != null ? PaymentStatus.PENDING : PaymentStatus.NOT_REQUIRED;
 		appointment.setPaymentStatus(paymentStatus);
 		// No deposit to wait for, so there's nothing PENDING should mean here — confirm immediately
@@ -212,7 +228,9 @@ public class AppointmentService {
 	 * Cancels {@code oldAppointmentId} and books the replacement through the exact same {@link
 	 * #book} path (same double-booking guarantee, same notification/waitlist side effects), all in
 	 * one transaction — if the new booking fails (e.g. someone else already took that other slot),
-	 * the cancellation rolls back too, so the old appointment is never lost for nothing.
+	 * the cancellation rolls back too, so the old appointment is never lost for nothing. This is
+	 * always a cancel-then-book, never a true overlapping booking — for an intentional overlap
+	 * ("sobreturno"), see the overtime overload of {@link #book}.
 	 */
 	@Transactional
 	public Appointment replace(UUID oldAppointmentId, UUID professionalId, UUID serviceId, Instant startTime,

@@ -131,6 +131,7 @@ export const api = {
 		confirmDeposit: (id) => request(`/api/appointments/${id}/confirm-deposit`, { method: "PATCH" }),
 		create: (body) => request("/api/appointments", { method: "POST", body }),
 		replace: (id, body) => request(`/api/appointments/${id}/replace`, { method: "POST", body }),
+		createOvertime: (body) => request("/api/appointments/overtime", { method: "POST", body }),
 	},
 	clients: {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),

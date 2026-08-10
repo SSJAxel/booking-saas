@@ -358,10 +358,10 @@ export default function AppointmentsPage() {
 												<button
 													type="button"
 													className="link-button"
-													title="El cliente avisó que cancela y otro ocupa este horario"
+													title="Reemplazar este turno o agendar un sobreturno en paralelo"
 													onClick={() => openReplace(a)}
 												>
-													Reemplazar
+													Sobreturno
 												</button>
 											)}
 											{NEXT_STATUS[a.status].map((s) => (
