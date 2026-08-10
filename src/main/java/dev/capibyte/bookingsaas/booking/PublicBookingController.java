@@ -102,7 +102,7 @@ public class PublicBookingController {
 		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
 		Instant startTime = ZonedDateTime.of(request.date(), request.startTime(), zone).toInstant();
 		Appointment appointment = appointmentService.book(request.professionalId(), request.serviceId(), startTime,
-				request.clientName(), request.clientEmail(), request.clientPhone());
+				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram());
 		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));
 	}
 }

@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.common.ApiError;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import dev.capibyte.bookingsaas.tenant.TenantStatus;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -43,13 +44,21 @@ public class PublicTenantResolutionFilter extends OncePerRequestFilter {
 		}
 
 		String slug = matcher.group(1);
-		Optional<Tenant> tenant = tenantService.findBySlug(slug);
-		if (tenant.isEmpty()) {
-			writeNotFound(response, slug);
+		Optional<Tenant> found = tenantService.findBySlug(slug);
+		if (found.isEmpty()) {
+			writeError(response, HttpServletResponse.SC_NOT_FOUND, "NOT_FOUND", "Unknown business: " + slug);
+			return;
+		}
+		Tenant tenant = found.get();
+		if (tenant.getStatus() != TenantStatus.ACTIVE) {
+			// Deliberately the same message for PENDING_APPROVAL and SUSPENDED — a client shouldn't
+			// be able to tell those apart, and neither should reveal more than "not available yet".
+			writeError(response, HttpServletResponse.SC_FORBIDDEN, "TENANT_NOT_ACTIVE",
+					"Este negocio todavía no está habilitado");
 			return;
 		}
 
-		TenantContext.setTenantId(tenant.get().getId());
+		TenantContext.setTenantId(tenant.getId());
 		try {
 			chain.doFilter(request, response);
 		} finally {
@@ -57,10 +66,11 @@ public class PublicTenantResolutionFilter extends OncePerRequestFilter {
 		}
 	}
 
-	private void writeNotFound(HttpServletResponse response, String slug) throws IOException {
-		response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+	private void writeError(HttpServletResponse response, int status, String code, String message)
+			throws IOException {
+		response.setStatus(status);
 		response.setContentType(MediaType.APPLICATION_JSON_VALUE);
 		response.setCharacterEncoding("UTF-8");
-		objectMapper.writeValue(response.getWriter(), ApiError.of("NOT_FOUND", "Unknown business: " + slug));
+		objectMapper.writeValue(response.getWriter(), ApiError.of(code, message));
 	}
 }

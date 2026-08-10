@@ -3,6 +3,12 @@ import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import HelpManual from "../components/HelpManual.jsx";
 
+// TRIAL keeps its internal name (DB column, enum, API contract) — only what the tenant sees on
+// screen says "Demo". See TenantService.create's Javadoc for why the value itself stays TRIAL.
+function planLabel(tier) {
+	return tier === "TRIAL" ? "Demo" : tier;
+}
+
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
 	const [plans, setPlans] = useState([]);
@@ -11,6 +17,10 @@ export default function TenantPage() {
 	const [timezoneNotice, setTimezoneNotice] = useState("");
 	const [notificationsNotice, setNotificationsNotice] = useState("");
 	const [transferAliasNotice, setTransferAliasNotice] = useState("");
+	const [clientRankingNotice, setClientRankingNotice] = useState("");
+	const [planUpgradeOpen, setPlanUpgradeOpen] = useState(false);
+	const [planUpgradeSending, setPlanUpgradeSending] = useState(false);
+	const [planUpgradeNotice, setPlanUpgradeNotice] = useState("");
 	const [manualOpen, setManualOpen] = useState(false);
 	const { session } = useAuth();
 	const canManage = session.role === "OWNER" || session.role === "ADMIN";
@@ -116,6 +126,40 @@ export default function TenantPage() {
 		}
 	}
 
+	async function handleRequestPlanUpgrade(event) {
+		event.preventDefault();
+		setError("");
+		setPlanUpgradeSending(true);
+		const form = new FormData(event.target);
+		try {
+			await api.support.requestPlanUpgrade(form.get("note")?.trim() || null);
+			setPlanUpgradeOpen(false);
+			setPlanUpgradeNotice("Listo, le avisamos al equipo — te contactamos a la brevedad.");
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setPlanUpgradeSending(false);
+		}
+	}
+
+	async function handleSaveClientRanking(event) {
+		event.preventDefault();
+		setError("");
+		setClientRankingNotice("");
+		const form = new FormData(event.target);
+		try {
+			setTenant(
+				await api.tenant.updateClientRanking(
+					Number(form.get("topClientsThreshold")),
+					Number(form.get("topClientsCount")),
+				),
+			);
+			setClientRankingNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	async function handleToggleWhatsApp(event) {
 		const enabled = event.target.checked;
 		setError("");
@@ -172,9 +216,29 @@ export default function TenantPage() {
 				<p>
 					<strong>{tenant.name}</strong> ({tenant.slug})
 				</p>
-				<p>
-					Plan actual: <span className={`badge badge-${tenant.planTier.toLowerCase()}`}>{tenant.planTier}</span>
-				</p>
+				<div className="card-header" style={{ alignItems: "center" }}>
+					<p style={{ margin: 0 }}>
+						Plan actual:{" "}
+						<span className={`badge badge-${tenant.planTier.toLowerCase()}`}>{planLabel(tenant.planTier)}</span>
+					</p>
+					{session.role === "OWNER" &&
+						(planUpgradeOpen ? (
+							<form className="inline-form small" style={{ margin: 0 }} onSubmit={handleRequestPlanUpgrade}>
+								<input name="note" placeholder="¿Qué necesitás? (opcional)" style={{ minWidth: "220px" }} />
+								<button type="submit" disabled={planUpgradeSending}>
+									{planUpgradeSending ? "Enviando..." : "Enviar"}
+								</button>
+								<button type="button" className="secondary" onClick={() => setPlanUpgradeOpen(false)}>
+									Cancelar
+								</button>
+							</form>
+						) : (
+							<button type="button" onClick={() => setPlanUpgradeOpen(true)}>
+								Mejorar plan
+							</button>
+						))}
+				</div>
+				{planUpgradeNotice && <p className="notice">{planUpgradeNotice}</p>}
 				<div className="cards">
 					{plans.map((plan) => {
 						const isCurrent = plan.tier === tenant.planTier;
@@ -187,7 +251,7 @@ export default function TenantPage() {
 						return (
 							<div className="card" key={plan.tier}>
 								<h3>
-									{plan.tier}
+									{planLabel(plan.tier)}
 									{isCurrent && " (actual)"}
 								</h3>
 								<p className="muted">{priceLabel}</p>
@@ -204,11 +268,13 @@ export default function TenantPage() {
 												: handleSubscribe(plan.tier)
 										}
 									>
-										{plan.monthlyPrice === null
-											? "Próximamente"
-											: Number(plan.monthlyPrice) === 0
-												? `Pasar a ${plan.tier}`
-												: `Suscribirme a ${plan.tier}`}
+										{isCurrent
+											? "Tu plan actual"
+											: plan.monthlyPrice === null
+												? "Próximamente"
+												: Number(plan.monthlyPrice) === 0
+													? `Pasar a ${planLabel(plan.tier)}`
+													: `Suscribirme a ${planLabel(plan.tier)}`}
 									</button>
 								) : (
 									<p className="muted">Solo el dueño puede cambiar el plan.</p>
@@ -340,6 +406,47 @@ export default function TenantPage() {
 					<p className="muted">
 						WhatsApp está {tenant.whatsappEnabled ? "activado" : "desactivado"}. Solo el dueño o un admin pueden
 						cambiarlo.
+					</p>
+				)}
+			</div>
+
+			<p className="label">Ranking de clientes</p>
+			<div className="card">
+				<p className="muted">
+					Un cliente suma 1 punto por cada turno marcado como completado, y pierde puntos si cancela seguido o
+					falta sin avisar (ver "Clientes" en Turnos → Lista). Acá definís cuándo un cliente entra al panel de
+					"mejores clientes" y cuántos se muestran como máximo.
+				</p>
+				{canManage ? (
+					<form className="inline-form small" onSubmit={handleSaveClientRanking}>
+						<label>
+							Calificación mínima
+							<input
+								name="topClientsThreshold"
+								type="number"
+								min="0"
+								defaultValue={tenant.topClientsThreshold}
+								style={{ width: "5rem" }}
+							/>
+						</label>
+						<label>
+							Máximo a mostrar (1–15)
+							<input
+								name="topClientsCount"
+								type="number"
+								min="1"
+								max="15"
+								defaultValue={tenant.topClientsCount}
+								style={{ width: "5rem" }}
+							/>
+						</label>
+						<button type="submit">Guardar</button>
+						{clientRankingNotice && <span className="notice">{clientRankingNotice}</span>}
+					</form>
+				) : (
+					<p className="muted">
+						Calificación mínima: <strong>{tenant.topClientsThreshold}</strong>, hasta{" "}
+						<strong>{tenant.topClientsCount}</strong> clientes. Solo el dueño o un admin pueden cambiarlo.
 					</p>
 				)}
 			</div>

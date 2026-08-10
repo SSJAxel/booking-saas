@@ -132,6 +132,7 @@ export default function BookingPage() {
 				clientName: form.get("clientName"),
 				clientEmail: form.get("clientEmail"),
 				clientPhone: form.get("clientPhone") || undefined,
+				clientInstagram: form.get("clientInstagram") || undefined,
 			});
 			setAppointment(result);
 			setStep("done");
@@ -290,6 +291,10 @@ export default function BookingPage() {
 						<label>
 							Teléfono (opcional)
 							<input name="clientPhone" type="tel" />
+						</label>
+						<label>
+							Instagram (opcional)
+							<input name="clientInstagram" placeholder="@usuario" />
 						</label>
 						<button type="submit" disabled={loading}>
 							{loading ? "Reservando..." : "Confirmar turno"}

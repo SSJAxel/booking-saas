@@ -1,5 +1,6 @@
 package dev.capibyte.bookingsaas.report;
 
+import dev.capibyte.bookingsaas.report.dto.ClientStatsResponse;
 import dev.capibyte.bookingsaas.report.dto.DailyCountResponse;
 import dev.capibyte.bookingsaas.report.dto.DailySalesResponse;
 import dev.capibyte.bookingsaas.report.dto.ReportSummaryResponse;
@@ -44,5 +45,10 @@ public class ReportController {
 	@GetMapping("/product-sales")
 	public List<DailySalesResponse> productSales(@RequestParam(defaultValue = "7") int days) {
 		return reportService.dailySales(days);
+	}
+
+	@GetMapping("/clients")
+	public List<ClientStatsResponse> clients() {
+		return reportService.clientStats();
 	}
 }

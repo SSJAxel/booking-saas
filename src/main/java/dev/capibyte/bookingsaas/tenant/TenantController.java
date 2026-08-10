@@ -6,6 +6,7 @@ import dev.capibyte.bookingsaas.payment.SubscriptionService;
 import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
+import dev.capibyte.bookingsaas.tenant.dto.ClientRankingSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
@@ -70,6 +71,17 @@ public class TenantController {
 	public TenantResponse updateNotifications(@Valid @RequestBody NotificationSettingsRequest request) {
 		return TenantResponse
 				.from(tenantService.updateWhatsAppEnabled(TenantContext.getTenantId(), request.whatsappEnabled()));
+	}
+
+	/**
+	 * Owner/admin: how the "mejores clientes" panel filters and caps the ranking — the minimum
+	 * rating to qualify, and at most how many to show (1–15).
+	 */
+	@PatchMapping("/client-ranking")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateClientRanking(@Valid @RequestBody ClientRankingSettingsRequest request) {
+		return TenantResponse.from(tenantService.updateClientRankingSettings(TenantContext.getTenantId(),
+				request.topClientsThreshold(), request.topClientsCount()));
 	}
 
 	/**

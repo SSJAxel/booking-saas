@@ -75,6 +75,14 @@ public class AppUserService {
 				});
 	}
 
+	/** Used by PlatformAdminService#approveTenant to find who to email — see that method's Javadoc
+	 * for why this must be a call through this bean's own Spring proxy (a fresh session, opened
+	 * after the caller has already set TenantContext), not a same-class helper. */
+	@Transactional(readOnly = true)
+	public Optional<AppUser> findOwner() {
+		return appUserRepository.findFirstByRole(Role.OWNER);
+	}
+
 	@Transactional(readOnly = true)
 	public AppUser findById(UUID id) {
 		return appUserRepository.findById(id).orElseThrow(() -> new NotFoundException("User not found: " + id));

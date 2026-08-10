@@ -3,6 +3,7 @@ package dev.capibyte.bookingsaas.report;
 import dev.capibyte.bookingsaas.booking.Appointment;
 import dev.capibyte.bookingsaas.booking.AppointmentService;
 import dev.capibyte.bookingsaas.booking.AppointmentStatus;
+import dev.capibyte.bookingsaas.booking.Client;
 import dev.capibyte.bookingsaas.booking.PaymentStatus;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
@@ -11,6 +12,7 @@ import dev.capibyte.bookingsaas.inventory.Sale;
 import dev.capibyte.bookingsaas.inventory.SaleRepository;
 import dev.capibyte.bookingsaas.payment.Payment;
 import dev.capibyte.bookingsaas.payment.PaymentRepository;
+import dev.capibyte.bookingsaas.report.dto.ClientStatsResponse;
 import dev.capibyte.bookingsaas.report.dto.DailyCountResponse;
 import dev.capibyte.bookingsaas.report.dto.DailySalesResponse;
 import dev.capibyte.bookingsaas.report.dto.ProfessionalCount;
@@ -22,6 +24,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,6 +123,34 @@ public class ReportService {
 
 		return startDate.datesUntil(today.plusDays(1))
 				.map(date -> new DailyCountResponse(date, countsByDay.getOrDefault(date, 0L)))
+				.toList();
+	}
+
+	/**
+	 * Per-client rollup across the tenant's whole history (no date filter — a client who cancels a
+	 * lot or comes back often is a pattern worth seeing regardless of which week it's viewed from).
+	 * Sorted by total appointments descending; the frontend derives its own "cancela más" /
+	 * "viene seguido" lists from completedCount/cancelledCount rather than this needing two
+	 * separate sorted lists, since a client can appear in both.
+	 */
+	@Transactional(readOnly = true)
+	public List<ClientStatsResponse> clientStats() {
+		Map<UUID, List<Appointment>> byClient = appointmentService.search(null, null, null, null, null).stream()
+				.collect(Collectors.groupingBy(Appointment::getClientId));
+
+		return byClient.entrySet().stream()
+				.map(e -> {
+					List<Appointment> clientAppointments = e.getValue();
+					Client client = appointmentService.findClient(e.getKey());
+					Map<AppointmentStatus, Long> byStatus = clientAppointments.stream()
+							.collect(Collectors.groupingBy(Appointment::getStatus, Collectors.counting()));
+					return new ClientStatsResponse(client.getId(), client.getName(), client.getEmail(),
+							clientAppointments.size(), byStatus.getOrDefault(AppointmentStatus.COMPLETED, 0L),
+							byStatus.getOrDefault(AppointmentStatus.CANCELLED, 0L),
+							byStatus.getOrDefault(AppointmentStatus.NO_SHOW, 0L), client.getRating(),
+							client.isPinned());
+				})
+				.sorted(Comparator.comparingLong(ClientStatsResponse::totalAppointments).reversed())
 				.toList();
 	}
 

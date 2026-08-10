@@ -17,8 +17,10 @@ import org.springframework.stereotype.Component;
  * it as occupied) on the strength of a checkout the client may never finish. Left alone, an
  * abandoned checkout would squat that slot forever, so this periodically cancels ones that have
  * been waiting too long — freeing the slot, since the EXCLUDE constraint's WHERE clause excludes
- * CANCELLED rows. Reuses {@link AppointmentService#transitionStatus} rather than writing the
- * status directly, so the cancellation still fires the client email and waitlist notification.
+ * CANCELLED rows. Calls {@link AppointmentService#expireForNonPayment} (not {@code
+ * transitionStatus}) so the cancellation still fires the client email/waitlist notification but
+ * is scored against the client's rating as an abandoned checkout, not a "communicated"
+ * cancellation — see that method's Javadoc.
  *
  * <p>Runs with no tenant already in {@link TenantContext} (there's no request, no JWT, no URL
  * slug), so it has to loop tenants explicitly and set the context itself for each one — same
@@ -55,7 +57,7 @@ public class PendingDepositExpirationScheduler {
 				for (Appointment appointment : stale) {
 					log.info("Expiring appointment {} for tenant {}: deposit unpaid after {} minutes",
 							appointment.getId(), tenant.getId(), expirationMinutes);
-					appointmentService.transitionStatus(appointment.getId(), AppointmentStatus.CANCELLED);
+					appointmentService.expireForNonPayment(appointment.getId());
 				}
 			} finally {
 				TenantContext.clear();

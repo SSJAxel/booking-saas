@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { getStoredTheme, setTheme, systemPrefersDark } from "../theme.js";
 import ReportBugModal from "../components/ReportBugModal.jsx";
@@ -49,7 +50,15 @@ export default function DashboardLayout() {
 	const { session, me, logout } = useAuth();
 	const [theme, setThemeState] = useState(() => getStoredTheme() ?? (systemPrefersDark() ? "dark" : "light"));
 	const [reportBugOpen, setReportBugOpen] = useState(false);
+	const [tenantStatus, setTenantStatus] = useState(null);
 	const links = LINKS.filter((link) => !link.roles || link.roles.includes(session.role));
+
+	useEffect(() => {
+		api.tenant
+			.get()
+			.then((t) => setTenantStatus(t.status))
+			.catch(() => {});
+	}, []);
 
 	function chooseTheme(next) {
 		setTheme(next);
@@ -101,6 +110,12 @@ export default function DashboardLayout() {
 				</div>
 			</aside>
 			<main className="content">
+				{tenantStatus === "PENDING_APPROVAL" && (
+					<div className="pending-approval-banner">
+						Tu cuenta está en revisión — vas a poder recibir turnos en tu sitio público en cuanto la
+						aprobemos. Mientras tanto podés cargar tranquilo sucursales, profesionales y servicios.
+					</div>
+				)}
 				<Outlet />
 			</main>
 			<ReportBugModal open={reportBugOpen} onClose={() => setReportBugOpen(false)} />

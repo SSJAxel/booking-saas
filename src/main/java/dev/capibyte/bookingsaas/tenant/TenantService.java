@@ -3,7 +3,9 @@ package dev.capibyte.bookingsaas.tenant;
 import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
 import java.time.DateTimeException;
+import java.time.Instant;
 import java.time.ZoneId;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class TenantService {
 
+	private static final int TRIAL_DAYS = 15;
+
 	private final TenantRepository tenantRepository;
 
 	@Transactional
@@ -30,6 +34,15 @@ public class TenantService {
 		Tenant tenant = new Tenant();
 		tenant.setName(name);
 		tenant.setSlug(slug);
+		// Every new tenant starts on TRIAL ("Demo" in the UI — see V13); this is what
+		// TrialExpirationScheduler reads to auto-downgrade to BASIC after TRIAL_DAYS. Left null by
+		// every migration before this feature, so it never touches a tenant that already existed.
+		tenant.setTrialExpiresAt(Instant.now().plus(TRIAL_DAYS, ChronoUnit.DAYS));
+		// Founder reviews every new business (and how many professionals it set up — pricing is
+		// per-employee) before its public booking site goes live. See TenantStatus's Javadoc and
+		// PublicTenantResolutionFilter. Every tenant that existed before this feature shipped is
+		// already ACTIVE in the DB, so this default only ever applies going forward.
+		tenant.setStatus(TenantStatus.PENDING_APPROVAL);
 		return tenantRepository.save(tenant);
 	}
 
@@ -109,6 +122,22 @@ public class TenantService {
 	public Tenant updateWhatsAppEnabled(UUID tenantId, boolean enabled) {
 		Tenant tenant = findById(tenantId);
 		tenant.setWhatsappEnabled(enabled);
+		return tenant;
+	}
+
+	/** {@code topClientsCount} bounds (1–15) are also enforced by validation on the request DTO and
+	 * a DB check constraint (V21) — kept in three places deliberately: the DTO gives a clean 400 for
+	 * the API, this method is the one source of truth if this is ever called from somewhere that
+	 * skips DTO validation, and the DB constraint is the last line of defense against any code path
+	 * that bypasses both. */
+	@Transactional
+	public Tenant updateClientRankingSettings(UUID tenantId, int topClientsThreshold, int topClientsCount) {
+		if (topClientsCount < 1 || topClientsCount > 15) {
+			throw new BadRequestException("topClientsCount must be between 1 and 15");
+		}
+		Tenant tenant = findById(tenantId);
+		tenant.setTopClientsThreshold(topClientsThreshold);
+		tenant.setTopClientsCount(topClientsCount);
 		return tenant;
 	}
 }

@@ -37,6 +37,10 @@ public abstract class IntegrationTestBase {
 	 * login now). Tests can't click an emailed link, so this marks the owner verified directly in
 	 * the database — the same "bypass the external dependency, not the behavior under test"
 	 * pattern already used elsewhere for MercadoPago-gated plan changes — then logs in for real.
+	 * Also auto-approves the tenant (see TenantStatus#PENDING_APPROVAL) the same way, so every
+	 * existing test that registers a tenant and immediately books against its public site doesn't
+	 * need to know about the approval gate. Tests that specifically exercise that gate (pending vs.
+	 * approved) skip this helper and drive registration/approval themselves.
 	 */
 	protected RegisteredTenant registerTenant() {
 		String slug = "t-" + UUID.randomUUID().toString().substring(0, 8);
@@ -50,6 +54,7 @@ public abstract class IntegrationTestBase {
 		restTemplate.postForEntity("/api/auth/register", request, Map.class);
 
 		jdbcTemplate.update("UPDATE app_users SET email_verified = true WHERE email = ?", email);
+		jdbcTemplate.update("UPDATE tenants SET status = 'ACTIVE' WHERE slug = ?", slug);
 
 		Map<String, Object> loginRequest = Map.of("tenantSlug", slug, "email", email, "password", password);
 		ResponseEntity<Map> loginResponse = restTemplate.postForEntity("/api/auth/login", loginRequest, Map.class);

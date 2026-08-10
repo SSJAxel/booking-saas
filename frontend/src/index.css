@@ -383,6 +383,17 @@ h3 {
 	max-width: 1100px;
 }
 
+/* Shown on every page while TenantStatus is PENDING_APPROVAL (DashboardLayout.jsx). */
+.pending-approval-banner {
+	background: var(--warning-bg);
+	color: var(--warning);
+	border-radius: var(--r-md);
+	padding: 0.8rem 1.1rem;
+	margin-bottom: 1.5rem;
+	font-size: 0.9rem;
+	font-weight: 600;
+}
+
 /* Auth page */
 .auth-page {
 	min-height: 100vh;
@@ -549,7 +560,13 @@ button:disabled {
 	font-weight: 600;
 }
 
-.link-button:hover {
+/* button.link-button:hover:not(:disabled), not just .link-button:hover: the base button:hover
+   rule (index.css ~L501) is button:hover:not(:disabled) — a plain class+pseudo selector loses that
+   specificity fight, so the accent-blue fill was winning on hover, leaving near-invisible
+   accent-on-accent text. Only showed up visually on a button that stays on screen after being
+   clicked (the mouse lingers on it), unlike this app's other .link-buttons which usually trigger
+   navigation or disappear immediately. */
+button.link-button:hover:not(:disabled) {
 	background: none;
 	border-color: transparent;
 	box-shadow: none;
@@ -834,6 +851,10 @@ tr:last-child td {
 }
 
 .filters {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 1rem;
 	margin-bottom: 1rem;
 }
 
@@ -1390,6 +1411,269 @@ button.danger:hover:not(:disabled) {
 	background: var(--text-h);
 	color: var(--bg);
 	border-color: transparent;
+}
+
+/* Turnos page: a real X=day/Y=hour calendar grid (WeekCalendar.jsx), used for both "Día" (one
+   column) and "Semana" (seven columns) so the two views are visually the same component, not a
+   list pretending to be a calendar. Blocks are deliberately small — tapping one opens
+   AppointmentDetailModal for the full-size, legible view. */
+.calendar-toolbar {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.8rem;
+	margin-bottom: 1rem;
+}
+
+.calendar-nav {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+}
+
+.calendar-nav button {
+	padding: 0.35rem 0.7rem;
+}
+
+.calendar-nav-label {
+	font-family: var(--font-display);
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--text-h);
+	min-width: 11rem;
+	text-align: center;
+}
+
+.calendar-nav input[type="date"] {
+	padding: 0.35rem 0.5rem;
+	width: auto;
+}
+
+.time-grid {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-xl);
+	box-shadow: var(--shadow-resting);
+	overflow: hidden;
+}
+
+.time-grid-header {
+	display: flex;
+	border-bottom: 1px solid var(--border);
+}
+
+.time-grid-gutter {
+	flex: none;
+	width: 3.4rem;
+}
+
+.time-grid-day-header {
+	flex: 1;
+	min-width: 0;
+	text-align: center;
+	padding: 0.5rem 0.2rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+
+.time-grid-day-header.is-today .time-grid-day-num {
+	color: var(--accent);
+}
+
+.time-grid-day-name {
+	font-size: 0.68rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-dim);
+}
+
+.time-grid-day-num {
+	font-family: var(--font-display);
+	font-weight: 600;
+	color: var(--text-h);
+}
+
+.time-grid-body {
+	display: flex;
+	position: relative;
+	overflow-y: auto;
+	overflow-x: hidden;
+	max-height: 70vh;
+	/* Room above hour 0 for its top-aligned label's line-height so nothing is clipped by the
+	   scroll container — see the Javadoc-style comment in WeekCalendar.jsx. */
+	padding-top: 0.9rem;
+}
+
+.time-grid-gutter {
+	position: relative;
+}
+
+.time-grid-hour-label {
+	position: absolute;
+	right: 0.5rem;
+	font-size: 0.68rem;
+	color: var(--text-dim);
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+.time-grid-day-col {
+	flex: 1;
+	min-width: 0;
+	position: relative;
+	border-left: 1px solid var(--border);
+}
+
+.time-grid-hour-line {
+	position: absolute;
+	left: 0;
+	right: 0;
+	height: 0;
+	border-top: 1px solid var(--border);
+}
+
+.appt-block {
+	position: absolute;
+	overflow: hidden;
+	text-align: left;
+	border-radius: 6px;
+	padding: 0.15rem 0.4rem;
+	font-size: 0.72rem;
+	line-height: 1.25;
+	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+	border: 1px solid transparent;
+	cursor: pointer;
+	z-index: 1;
+}
+
+.appt-block-time {
+	font-weight: 700;
+}
+
+.appt-block.status-pending {
+	background: var(--warning-bg);
+	color: var(--warning);
+	border-color: color-mix(in srgb, var(--warning) 35%, transparent);
+}
+
+.appt-block.status-confirmed {
+	background: var(--ok-bg);
+	color: var(--ok-text);
+	border-color: color-mix(in srgb, var(--ok-text) 35%, transparent);
+}
+
+.appt-block.status-cancelled,
+.appt-block.status-no_show {
+	background: var(--danger-bg);
+	color: var(--danger);
+	border-color: color-mix(in srgb, var(--danger) 35%, transparent);
+	opacity: 0.7;
+}
+
+.appt-block.status-completed {
+	background: var(--surface-2);
+	color: var(--text-dim);
+	border-color: var(--border);
+}
+
+.appt-block:hover {
+	filter: brightness(0.96);
+	transform: none;
+}
+
+/* Turnos → Lista: two clearly separated sections, "Clientes" then "Turnos", instead of the
+   client-insight cards floating unlabeled above the filter bar. */
+.client-section,
+.appointments-section {
+	margin-bottom: 1.6rem;
+}
+
+.client-section h2,
+.appointments-section h2 {
+	font-family: var(--font-display);
+	font-size: 1.05rem;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var(--text-h);
+	margin: 0 0 0.8rem;
+}
+
+.badge-danger {
+	background: var(--danger-bg);
+	color: var(--danger);
+}
+
+/* Client insights (ClientInsights.jsx) — "clientes frecuentes" / "clientes que más cancelan".
+   Name+email and the count badge are stacked, not squeezed onto one row: these cards sit 3-up in
+   a narrow grid, and a long email next to a badge like "4 completados" doesn't fit on one line —
+   forcing it did (the badge text got cut off, visually painted over by the next card). */
+.client-insight-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.7rem;
+}
+
+.client-insight-list li {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.3rem;
+}
+
+.client-insight-name {
+	overflow-wrap: anywhere;
+}
+
+/* Rating hit 0 — "cliente en rojo" per the loyalty-rating design (ClientRatingService). */
+.rating-flag {
+	display: inline-block;
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background: var(--danger);
+	margin-right: 0.35rem;
+}
+
+.pinned-flag {
+	margin-right: 0.3rem;
+	font-size: 0.85em;
+}
+
+/* Inline "Editar" panel on the Mejores clientes card (ClientInsights.jsx) — settings form plus
+   the "fijar cliente" search box, boxed off from the ranked list below it. */
+.top-clients-editor {
+	background: var(--surface-2);
+	border-radius: var(--r-md);
+	padding: 0.9rem 1rem;
+	margin: 0.8rem 0 1.1rem;
+}
+
+/* Appointment detail popup (AppointmentDetailModal) */
+.appointment-detail-panel {
+	width: min(480px, 100%);
+}
+
+.detail-grid {
+	display: grid;
+	grid-template-columns: auto 1fr;
+	gap: 0.5rem 1rem;
+	margin-top: 1rem;
+}
+
+.detail-grid .label {
+	margin: 0;
+}
+
+@media (max-width: 720px) {
+	.calendar-nav-label {
+		min-width: 0;
+	}
 }
 
 .slot-panel {

@@ -20,5 +20,6 @@ public record BookAppointmentRequest(
 		@NotNull LocalTime startTime,
 		@NotBlank String clientName,
 		@NotBlank @Email String clientEmail,
-		String clientPhone) {
+		String clientPhone,
+		String clientInstagram) {
 }

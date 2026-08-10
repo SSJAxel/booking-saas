@@ -74,6 +74,8 @@ export const api = {
 		updateTimezone: (timezone) => request("/api/tenant/timezone", { method: "PATCH", body: { timezone } }),
 		updateNotifications: (whatsappEnabled) =>
 			request("/api/tenant/notifications", { method: "PATCH", body: { whatsappEnabled } }),
+		updateClientRanking: (topClientsThreshold, topClientsCount) =>
+			request("/api/tenant/client-ranking", { method: "PATCH", body: { topClientsThreshold, topClientsCount } }),
 	},
 	branches: {
 		list: () => request("/api/branches"),
@@ -101,6 +103,7 @@ export const api = {
 		today: () => request("/api/reports/today"),
 		traffic: (days = 7) => request(`/api/reports/traffic${toQuery({ days })}`),
 		productSales: (days = 7) => request(`/api/reports/product-sales${toQuery({ days })}`),
+		clients: () => request("/api/reports/clients"),
 	},
 	services: {
 		list: () => request("/api/services"),
@@ -126,6 +129,12 @@ export const api = {
 		list: (params) => request(`/api/appointments${toQuery(params)}`),
 		transition: (id, status) => request(`/api/appointments/${id}/status`, { method: "PATCH", body: { status } }),
 		confirmDeposit: (id) => request(`/api/appointments/${id}/confirm-deposit`, { method: "PATCH" }),
+		create: (body) => request("/api/appointments", { method: "POST", body }),
+		replace: (id, body) => request(`/api/appointments/${id}/replace`, { method: "POST", body }),
+	},
+	clients: {
+		search: (q) => request(`/api/clients/search${toQuery({ q })}`),
+		setPinned: (id, pinned) => request(`/api/clients/${id}/pin`, { method: "PATCH", body: { pinned } }),
 	},
 	support: {
 		report: (message, imageFile) => {
@@ -134,15 +143,18 @@ export const api = {
 			fd.append("image", imageFile);
 			return requestForm("/api/support-reports", fd);
 		},
+		requestPlanUpgrade: (note) => request("/api/support-reports/plan-upgrade", { method: "POST", body: { note } }),
 	},
 	admin: {
 		tenants: () => request("/api/admin/tenants"),
 		updateTenantPlan: (id, planTier) => request(`/api/admin/tenants/${id}/plan`, { method: "PATCH", body: { planTier } }),
+		approveTenant: (id) => request(`/api/admin/tenants/${id}/approve`, { method: "POST" }),
 		updateTenantNextPaymentDue: (id, nextPaymentDueAt) =>
 			request(`/api/admin/tenants/${id}/next-payment-due`, { method: "PATCH", body: { nextPaymentDueAt } }),
 		supportReports: () => request("/api/admin/support-reports"),
 		resolveReport: (id, resolved) =>
 			request(`/api/admin/support-reports/${id}/resolved`, { method: "PATCH", body: { resolved } }),
+		deleteReport: (id) => request(`/api/admin/support-reports/${id}`, { method: "DELETE" }),
 		reportImageBlob: (id) => requestBlob(`/api/admin/support-reports/${id}/image`),
 	},
 	public: {

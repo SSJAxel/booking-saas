@@ -76,6 +76,24 @@ public class Tenant extends BaseEntity {
 	@Column(name = "next_payment_due_at")
 	private LocalDate nextPaymentDueAt;
 
+	/** Minimum ClientRatingService rating a client needs to clear to show up in the "mejores
+	 * clientes" panel. */
+	@Column(name = "top_clients_threshold", nullable = false)
+	private int topClientsThreshold = 8;
+
+	/** How many clients the "mejores clientes" panel shows at most — capped at 15 by
+	 * TenantService.updateClientRankingSettings, not just the DB check constraint, so a bad value
+	 * fails with a clear message instead of a raw constraint-violation 500. */
+	@Column(name = "top_clients_count", nullable = false)
+	private int topClientsCount = 3;
+
+	/** Set once, at creation (TenantService.create) — null for every tenant that existed before
+	 * this feature shipped, which is deliberate: TrialExpirationScheduler only ever acts on a
+	 * non-null value in the past, so old TRIAL ("Demo") tenants keep working exactly as before,
+	 * unaffected. */
+	@Column(name = "trial_expires_at")
+	private Instant trialExpiresAt;
+
 	@PrePersist
 	void onCreate() {
 		createdAt = Instant.now();

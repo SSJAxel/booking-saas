@@ -29,16 +29,19 @@ public class AuthService {
 	private final JwtService jwtService;
 	private final MailService mailService;
 	private final String verificationBaseUrl;
+	private final String founderEmail;
 
 	public AuthService(TenantService tenantService, AppUserService appUserService, PasswordEncoder passwordEncoder,
 			JwtService jwtService, MailService mailService,
-			@Value("${app.mail.verification-base-url}") String verificationBaseUrl) {
+			@Value("${app.mail.verification-base-url}") String verificationBaseUrl,
+			@Value("${app.support.founder-email}") String founderEmail) {
 		this.tenantService = tenantService;
 		this.appUserService = appUserService;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtService = jwtService;
 		this.mailService = mailService;
 		this.verificationBaseUrl = verificationBaseUrl;
+		this.founderEmail = founderEmail;
 	}
 
 	/**
@@ -54,6 +57,7 @@ public class AuthService {
 		try {
 			AppUser owner = appUserService.createOwner(request.ownerEmail(), request.ownerPassword());
 			sendVerificationEmail(tenant, owner);
+			notifyFounderOfNewTenant(tenant, owner);
 			return new RegisterResponse(tenant.getId(), tenant.getSlug(), owner.getEmail());
 		} catch (RuntimeException ex) {
 			// Best-effort compensation: the two-step create isn't atomic across the tenant/owner
@@ -112,6 +116,20 @@ public class AuthService {
 				TenantContext.clear();
 			}
 		});
+	}
+
+	/**
+	 * Alerts the founder that a new tenant needs review (see TenantStatus#PENDING_APPROVAL) — a
+	 * direct send, not an event, on purpose: this class is deliberately NOT @Transactional (see its
+	 * own Javadoc), so by the time this line runs, tenantService.create(...) and
+	 * appUserService.createOwner(...) have already committed in their own separate transactions —
+	 * there's no single enclosing transaction here for a @TransactionalEventListener(AFTER_COMMIT)
+	 * to hook onto, so a plain synchronous call is actually the correct fit, not a shortcut.
+	 */
+	private void notifyFounderOfNewTenant(Tenant tenant, AppUser owner) {
+		mailService.send(founderEmail, "Nuevo negocio registrado — " + tenant.getName(),
+				tenant.getName() + " (" + tenant.getSlug() + ") se registró, dueño: " + owner.getEmail()
+						+ ".\n\nRevisalo y aprobalo desde el panel de admin cuando esté listo.");
 	}
 
 	private void sendVerificationEmail(Tenant tenant, AppUser owner) {

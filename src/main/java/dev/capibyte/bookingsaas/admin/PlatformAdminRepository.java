@@ -49,10 +49,32 @@ public class PlatformAdminRepository {
 		return rows.stream().findFirst();
 	}
 
+	/** Backs the "Profesionales" column in the admin tenants table — context for the founder's
+	 * approval/pricing call (billing is per-employee), purely informational here. Tenants with zero
+	 * professionals are absent from the map. */
+	public Map<UUID, Long> countProfessionalsByTenant() {
+		String sql = "SELECT tenant_id, COUNT(*) AS professional_count FROM professionals GROUP BY tenant_id";
+		return jdbcTemplate.query(sql, rs -> {
+			Map<UUID, Long> result = new java.util.HashMap<>();
+			while (rs.next()) {
+				result.put(UUID.fromString(rs.getString("tenant_id")), rs.getLong("professional_count"));
+			}
+			return result;
+		});
+	}
+
+	/** Single-tenant counterpart to {@link #countProfessionalsByTenant}, same "used after a
+	 * single-tenant write" reasoning as {@link #findLatestSubscriptionStatus}. */
+	public long countProfessionalsForTenant(UUID tenantId) {
+		Long count = jdbcTemplate.queryForObject("SELECT COUNT(*) FROM professionals WHERE tenant_id = ?", Long.class,
+				tenantId);
+		return count == null ? 0 : count;
+	}
+
 	public List<AdminSupportReportRow> findAllSupportReports() {
 		String sql = """
 				SELECT sr.id, sr.tenant_id, t.name AS tenant_name, t.slug AS tenant_slug,
-				       au.email AS submitter_email, sr.message, sr.resolved, sr.created_at
+				       au.email AS submitter_email, sr.type, sr.message, sr.image_path, sr.resolved, sr.created_at
 				FROM support_reports sr
 				JOIN tenants t ON t.id = sr.tenant_id
 				JOIN app_users au ON au.id = sr.app_user_id
@@ -64,7 +86,9 @@ public class PlatformAdminRepository {
 				rs.getString("tenant_name"),
 				rs.getString("tenant_slug"),
 				rs.getString("submitter_email"),
+				rs.getString("type"),
 				rs.getString("message"),
+				rs.getString("image_path") != null,
 				rs.getBoolean("resolved"),
 				rs.getTimestamp("created_at").toInstant()));
 	}
@@ -80,8 +104,16 @@ public class PlatformAdminRepository {
 		jdbcTemplate.update("UPDATE support_reports SET resolved = ? WHERE id = ?", resolved, id);
 	}
 
+	/** Permanent delete — for a bug "report" that turns out not to be a real bug, so it doesn't
+	 * clutter the (otherwise permanent) resolved history. Doesn't clean up the uploaded screenshot
+	 * file, if any; an orphaned file on disk is a minor cleanup issue, not a functional one. */
+	public void deleteSupportReport(UUID id) {
+		jdbcTemplate.update("DELETE FROM support_reports WHERE id = ?", id);
+	}
+
 	public record AdminSupportReportRow(UUID id, UUID tenantId, String tenantName, String tenantSlug,
-			String submitterEmail, String message, boolean resolved, Instant createdAt) {
+			String submitterEmail, String type, String message, boolean hasImage, boolean resolved,
+			Instant createdAt) {
 	}
 
 	public record ImageRef(String imagePath, String contentType) {

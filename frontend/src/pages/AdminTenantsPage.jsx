@@ -3,8 +3,14 @@ import { api } from "../api.js";
 
 const PLAN_TIERS = ["TRIAL", "BASIC", "PRO", "MAX"];
 
+// TRIAL keeps its internal name (DB column, enum, API contract) — only what the founder/tenant
+// sees on screen says "Demo". See TenantService.create's Javadoc for why the value itself stays.
+function planLabel(tier) {
+	return tier === "TRIAL" ? "Demo" : tier;
+}
+
 function statusChip(tenant) {
-	if (tenant.planTier === "TRIAL") return { label: "Prueba", className: "badge-pending" };
+	if (tenant.planTier === "TRIAL") return { label: "Demo", className: "badge-pending" };
 	if (tenant.daysRemaining === null) return { label: "Sin vencimiento cargado", className: "badge-pending" };
 	if (tenant.daysRemaining < 0) return { label: "Atrasado", className: "badge-cancelled" };
 	return { label: "Al día", className: "badge-confirmed" };
@@ -45,6 +51,15 @@ export default function AdminTenantsPage() {
 		}
 	}
 
+	async function handleApprove(tenantId) {
+		setError("");
+		try {
+			replaceTenant(await api.admin.approveTenant(tenantId));
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	return (
 		<div>
 			<h1>Tenants</h1>
@@ -59,6 +74,8 @@ export default function AdminTenantsPage() {
 						<tr>
 							<th>Tenant</th>
 							<th>Slug</th>
+							<th>Profesionales</th>
+							<th>Aprobación</th>
 							<th>Plan</th>
 							<th>Suscripción</th>
 							<th>Vence</th>
@@ -73,11 +90,23 @@ export default function AdminTenantsPage() {
 								<tr key={t.tenantId}>
 									<td>{t.name}</td>
 									<td>{t.slug}</td>
+									<td>{t.professionalCount}</td>
+									<td>
+										{t.status === "PENDING_APPROVAL" ? (
+											<button type="button" onClick={() => handleApprove(t.tenantId)}>
+												Aprobar
+											</button>
+										) : t.status === "ACTIVE" ? (
+											<span className="muted">Activo</span>
+										) : (
+											<span className="muted">Suspendido</span>
+										)}
+									</td>
 									<td>
 										<select value={t.planTier} onChange={(event) => handlePlanChange(t.tenantId, event.target.value)}>
 											{PLAN_TIERS.map((tier) => (
 												<option key={tier} value={tier}>
-													{tier}
+													{planLabel(tier)}
 												</option>
 											))}
 										</select>

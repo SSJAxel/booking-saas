@@ -57,6 +57,11 @@ app:
     # this.
     deposit-expiration-minutes: ${DEPOSIT_EXPIRATION_MINUTES:30}
     expiration-check-interval-ms: ${EXPIRATION_CHECK_INTERVAL_MS:60000}
+  trial:
+    # How often TrialExpirationScheduler checks for TRIAL ("Demo") tenants past their 15-day
+    # window — hourly is plenty, unlike the deposit-expiration check this isn't holding a booking
+    # slot hostage.
+    expiration-check-interval-ms: ${TRIAL_EXPIRATION_CHECK_INTERVAL_MS:3600000}
   cors:
     # Comma-separated allow-list of frontend origins allowed to call this API from a browser
     # (the admin panel, eventually a business's own public site). No wildcard on purpose.

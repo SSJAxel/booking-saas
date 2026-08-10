@@ -3,6 +3,8 @@ package dev.capibyte.bookingsaas.support;
 import dev.capibyte.bookingsaas.common.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import java.time.Instant;
@@ -11,8 +13,9 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-/** A bug report a tenant user submits from their dashboard — message + an uploaded image,
- * reviewed by the founder in the super-admin panel (see PlatformAdminController). */
+/** Two things a tenant user submits from their dashboard to the founder, sharing one inbox in the
+ * super-admin panel (see PlatformAdminController): a bug report (message + a required screenshot)
+ * or a "Mejorar plan" request (message only, see TenantPage). {@link #type} tells them apart. */
 @Entity
 @Table(name = "support_reports")
 @Getter
@@ -20,13 +23,19 @@ import lombok.Setter;
 @NoArgsConstructor
 public class SupportReport extends BaseTenantEntity {
 
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private SupportReportType type = SupportReportType.BUG;
+
 	@Column(nullable = false, columnDefinition = "text")
 	private String message;
 
-	@Column(name = "image_path", nullable = false)
+	/** Required for BUG, always null for PLAN_UPGRADE — enforced in SupportReportService, not the
+	 * column itself, since the rule is per-type. */
+	@Column(name = "image_path")
 	private String imagePath;
 
-	@Column(name = "image_content_type", nullable = false)
+	@Column(name = "image_content_type")
 	private String imageContentType;
 
 	/** Raw id, not a @ManyToOne — matches this codebase's convention for referencing another

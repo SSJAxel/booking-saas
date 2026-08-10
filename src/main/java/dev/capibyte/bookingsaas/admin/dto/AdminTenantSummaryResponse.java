@@ -7,7 +7,9 @@ import java.util.UUID;
 
 /** {@code subscriptionStatus} is null when the tenant never subscribed. {@code daysRemaining} is
  * null when no due date has been set, and can be negative (overdue) — "paid up" is deliberately
- * not collapsed into one boolean here, the frontend renders it from these fields together. */
+ * not collapsed into one boolean here, the frontend renders it from these fields together.
+ * {@code professionalCount} is purely informational context for the founder's approval/pricing
+ * call (billing is per-employee) — no pricing logic is derived from it here. */
 public record AdminTenantSummaryResponse(
 		UUID tenantId,
 		String name,
@@ -16,5 +18,6 @@ public record AdminTenantSummaryResponse(
 		PlanTier planTier,
 		String subscriptionStatus,
 		LocalDate nextPaymentDueAt,
-		Long daysRemaining) {
+		Long daysRemaining,
+		long professionalCount) {
 }

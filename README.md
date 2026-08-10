@@ -11,6 +11,41 @@ The two hardest correctness properties of this domain (never double-booking a pr
 leaking one tenant's data to another) are enforced structurally rather than just in application
 code — see [Design notes](#design-notes) below.
 
+## Registro de cambios
+
+Bitácora de qué se hizo y por qué, para tener noción del avance sin tener que leer el `git log`
+entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
+[Design notes](#design-notes); esto es solo el resumen fechado.
+
+### 2026-08-10 — Aprobación de tenants, planes, calificación de clientes, calendario
+
+- **Aprobación de tenants por el super-admin.** Todo negocio nuevo arranca "pendiente" — su sitio
+  público (`/reservar/...`) queda bloqueado hasta que el founder lo aprueba desde `/admin/tenants`.
+  El panel del dueño (cargar sucursales, profesionales, servicios) sigue abierto mientras tanto,
+  justamente para que el founder pueda ver cuántos empleados tiene antes de aprobar — la idea de
+  fondo es que el cobro va a ser por cantidad de empleados (esa lógica de precio todavía no está
+  construida, solo el gate de aprobación). Mail automático al founder cuando alguien se registra,
+  y al dueño cuando se lo aprueba.
+- **Plan Demo con vencimiento.** `TRIAL` pasó a mostrarse como "Demo" en toda la UI (el valor
+  interno sigue siendo `TRIAL`, sin migración de datos). Todo tenant nuevo vence a los 15 días de
+  creado y baja solo a `BASIC` — los tenants que ya existían no se tocan. Se arregló de paso un bug
+  real: el plan MAX se guardaba bien, pero el botón en "Mi Plan" seguía diciendo "Próximamente" en
+  vez de reflejar que ya era el plan activo.
+- **"Mejorar plan" y bandeja de reportes unificada.** Botón en "Mi Plan" que le avisa al super-admin
+  en vez de ir directo a Mercado Pago (pensado para MAX, que todavía no tiene precio de
+  autoservicio, y para pedidos a medida). Comparte la misma bandeja que los reportes de bug
+  (`/admin` → Reportes), separada en Pendientes / Historial permanente, con borrado manual para
+  falsos positivos.
+- **Sistema de calificación de clientes.** Puntaje por cliente (+1 turno completado, -2 desde la
+  2ª cancelación, -5 no-show o depósito vencido sin pagar), identificado por email o teléfono para
+  que un mismo cliente no pierda su historial si cambia de mail. Panel de "Mejores clientes"
+  configurable por tenant (calificación mínima, cuántos mostrar) más clientes fijados a mano, y
+  listas de frecuentes / cancelan seguido / no aparecen.
+- **Calendario semanal real y "sobreturno".** La vista de Turnos del dueño pasó de una tabla plana
+  a una grilla semana × hora, con turnos superpuestos mostrados lado a lado. Se agregó "Reemplazar
+  turno" (para cuando un cliente cancela por teléfono, no por el sistema) y carga manual de turnos
+  desde el panel — antes solo se podía reservar desde el sitio público.
+
 ## ¿Qué es un sistema de "booking"?
 
 Un "booking" (reserva de turnos) es lo que le permite al cliente final de un negocio elegir un día

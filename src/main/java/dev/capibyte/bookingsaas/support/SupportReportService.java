@@ -28,6 +28,7 @@ public class SupportReportService {
 		String relativePath = fileStorageService.store(image, UPLOAD_SUBDIR);
 
 		SupportReport report = new SupportReport();
+		report.setType(SupportReportType.BUG);
 		report.setMessage(message);
 		report.setImagePath(relativePath);
 		report.setImageContentType(image.getContentType());
@@ -36,6 +37,23 @@ public class SupportReportService {
 
 		eventPublisher.publishEvent(new SupportReportSubmittedEvent(tenantName, submitterEmail, message,
 				fileStorageService.resolve(relativePath), image.getContentType()));
+		return report;
+	}
+
+	/** "Mejorar plan" — no screenshot, and the founder reaches out and grants the plan by hand from
+	 * the super-admin panel (PlatformAdminController#updateTenantPlan) rather than an automated
+	 * checkout, since MAX has no self-service price yet and a custom deal needs a conversation. */
+	@Transactional
+	public SupportReport createPlanUpgradeRequest(String note, UUID appUserId, String submitterEmail,
+			String tenantName, String tenantSlug) {
+		SupportReport report = new SupportReport();
+		report.setType(SupportReportType.PLAN_UPGRADE);
+		report.setMessage(note == null || note.isBlank() ? "Quiere mejorar su plan." : note);
+		report.setAppUserId(appUserId);
+		report = supportReportRepository.save(report);
+
+		eventPublisher.publishEvent(
+				new PlanUpgradeRequestSubmittedEvent(tenantName, tenantSlug, submitterEmail, report.getMessage()));
 		return report;
 	}
 }

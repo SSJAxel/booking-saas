@@ -16,6 +16,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -37,11 +38,12 @@ public class AppointmentService {
 	private final ProfessionalService professionalService;
 	private final WaitlistService waitlistService;
 	private final TenantService tenantService;
+	private final ClientRatingService clientRatingService;
 	private final ApplicationEventPublisher eventPublisher;
 
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
-			String clientEmail, String clientPhone) {
+			String clientEmail, String clientPhone, String clientInstagram) {
 		ServiceOffering service = serviceOfferingService.findById(serviceId);
 		List<UUID> eligible = serviceOfferingService.findProfessionalIdsForService(serviceId);
 		if (!eligible.contains(professionalId)) {
@@ -50,13 +52,7 @@ public class AppointmentService {
 		Professional professional = professionalService.findById(professionalId);
 		Instant endTime = startTime.plus(service.getDurationMinutes(), ChronoUnit.MINUTES);
 
-		Client client = clientRepository.findByEmail(clientEmail).orElseGet(() -> {
-			Client created = new Client();
-			created.setName(clientName);
-			created.setEmail(clientEmail);
-			created.setPhone(clientPhone);
-			return clientRepository.save(created);
-		});
+		Client client = findOrCreateClient(clientName, clientEmail, clientPhone, clientInstagram);
 
 		Appointment appointment = new Appointment();
 		appointment.setBranchId(professional.getBranchId());
@@ -91,6 +87,35 @@ public class AppointmentService {
 			// constraint's GiST index, so it means the same thing — the slot was just taken.
 			throw new SlotAlreadyBookedException();
 		}
+	}
+
+	/**
+	 * Matches on email first, then phone (only if the email didn't already match) — the same
+	 * person rebooking with a slightly different email but the same phone number must resolve to
+	 * their existing {@link Client} row, not a fresh one, or their whole rating history would be
+	 * silently lost and restarted from 0. Doesn't overwrite the matched client's stored details
+	 * with whatever was typed this time (a name typo or a changed email on a later booking
+	 * shouldn't clobber the identity a rating is already attached to) — {@code instagramHandle} is
+	 * the one exception, backfilled only when the existing client doesn't have one yet.
+	 */
+	private Client findOrCreateClient(String name, String email, String phone, String instagram) {
+		Optional<Client> existing = clientRepository.findByEmail(email);
+		if (existing.isEmpty() && phone != null && !phone.isBlank()) {
+			existing = clientRepository.findByPhone(phone).stream().findFirst();
+		}
+		if (existing.isPresent()) {
+			Client client = existing.get();
+			if (client.getInstagramHandle() == null && instagram != null && !instagram.isBlank()) {
+				client.setInstagramHandle(instagram);
+			}
+			return client;
+		}
+		Client created = new Client();
+		created.setName(name);
+		created.setEmail(email);
+		created.setPhone(phone);
+		created.setInstagramHandle(instagram);
+		return clientRepository.save(created);
 	}
 
 	private boolean isDoubleBookingViolation(DataIntegrityViolationException ex) {
@@ -141,10 +166,17 @@ public class AppointmentService {
 		ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
 		publishNotification(appointment, client, professional, service, newStatus);
 
-		if (newStatus == AppointmentStatus.CANCELLED) {
-			ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
-			LocalDate freedDate = appointment.getStartTime().atZone(zone).toLocalDate();
-			waitlistService.notifyNextForFreedSlot(appointment.getProfessionalId(), appointment.getServiceId(), freedDate);
+		switch (newStatus) {
+			case CANCELLED -> {
+				ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+				LocalDate freedDate = appointment.getStartTime().atZone(zone).toLocalDate();
+				waitlistService.notifyNextForFreedSlot(appointment.getProfessionalId(), appointment.getServiceId(), freedDate);
+				clientRatingService.recordCancellation(client);
+			}
+			case COMPLETED -> clientRatingService.recordCompleted(client);
+			case NO_SHOW -> clientRatingService.recordNoShow(client);
+			default -> {
+			}
 		}
 
 		return appointment;
@@ -171,6 +203,67 @@ public class AppointmentService {
 			ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
 			publishNotification(appointment, client, professional, service, AppointmentStatus.CONFIRMED);
 		}
+		return appointment;
+	}
+
+	/**
+	 * "Reemplazar turno": the client called to cancel by phone instead of cancelling through the
+	 * system, so the owner needs to free this slot and hand it to someone else in one action.
+	 * Cancels {@code oldAppointmentId} and books the replacement through the exact same {@link
+	 * #book} path (same double-booking guarantee, same notification/waitlist side effects), all in
+	 * one transaction — if the new booking fails (e.g. someone else already took that other slot),
+	 * the cancellation rolls back too, so the old appointment is never lost for nothing.
+	 */
+	@Transactional
+	public Appointment replace(UUID oldAppointmentId, UUID professionalId, UUID serviceId, Instant startTime,
+			String clientName, String clientEmail, String clientPhone, String clientInstagram) {
+		Appointment old = findById(oldAppointmentId);
+		validateTransition(old.getStatus(), AppointmentStatus.CANCELLED);
+		old.setStatus(AppointmentStatus.CANCELLED);
+		// Must be flushed now: Hibernate's default flush order runs pending inserts before pending
+		// updates, so without this, book()'s own saveAndFlush() below could try inserting the
+		// replacement while this row still reads as active, tripping the very constraint this
+		// method exists to work around safely.
+		Appointment savedOld = appointmentRepository.saveAndFlush(old);
+
+		Client oldClient = loadClient(savedOld.getClientId());
+		Professional oldProfessional = professionalService.findById(savedOld.getProfessionalId());
+		ServiceOffering oldService = serviceOfferingService.findById(savedOld.getServiceId());
+		publishNotification(savedOld, oldClient, oldProfessional, oldService, AppointmentStatus.CANCELLED);
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		LocalDate freedDate = savedOld.getStartTime().atZone(zone).toLocalDate();
+		waitlistService.notifyNextForFreedSlot(savedOld.getProfessionalId(), savedOld.getServiceId(), freedDate);
+		// This is exactly the "client called to cancel" case the rating grace is designed for —
+		// same recordCancellation() as a manual CANCELLED transition, not the harsher no-show-style
+		// penalty (see expireForNonPayment for the path that does deserve that).
+		clientRatingService.recordCancellation(oldClient);
+
+		return book(professionalId, serviceId, startTime, clientName, clientEmail, clientPhone, clientInstagram);
+	}
+
+	/**
+	 * Distinct from transitionStatus(CANCELLED): an abandoned checkout is nobody actively telling
+	 * anyone they're backing out, so it skips the "first cancellation is free" grace entirely and
+	 * always costs the harsher no-show-equivalent penalty — see ClientRatingService.
+	 * PendingDepositExpirationScheduler calls this instead of transitionStatus for exactly that
+	 * reason.
+	 */
+	@Transactional
+	public Appointment expireForNonPayment(UUID id) {
+		Appointment appointment = findById(id);
+		validateTransition(appointment.getStatus(), AppointmentStatus.CANCELLED);
+		appointment.setStatus(AppointmentStatus.CANCELLED);
+
+		Client client = loadClient(appointment.getClientId());
+		Professional professional = professionalService.findById(appointment.getProfessionalId());
+		ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
+		publishNotification(appointment, client, professional, service, AppointmentStatus.CANCELLED);
+
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		LocalDate freedDate = appointment.getStartTime().atZone(zone).toLocalDate();
+		waitlistService.notifyNextForFreedSlot(appointment.getProfessionalId(), appointment.getServiceId(), freedDate);
+		clientRatingService.recordAutoExpired(client);
+
 		return appointment;
 	}
 
