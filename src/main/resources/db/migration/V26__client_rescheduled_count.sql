@@ -1,0 +1,1 @@
+ALTER TABLE clients ADD COLUMN rescheduled_count INT NOT NULL DEFAULT 0;

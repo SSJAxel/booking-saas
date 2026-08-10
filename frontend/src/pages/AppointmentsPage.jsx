@@ -5,6 +5,7 @@ import WelcomeBanner from "../components/WelcomeBanner.jsx";
 import WeekCalendar, { toDateKey } from "../components/WeekCalendar.jsx";
 import AppointmentFormModal from "../components/AppointmentFormModal.jsx";
 import AppointmentDetailModal from "../components/AppointmentDetailModal.jsx";
+import RescheduleModal from "../components/RescheduleModal.jsx";
 import ClientInsights from "../components/ClientInsights.jsx";
 import { paymentStatusLabel, statusLabel } from "../labels.js";
 
@@ -104,6 +105,7 @@ export default function AppointmentsPage() {
 	const [showWelcome, setShowWelcome] = useState(false);
 	const [formModal, setFormModal] = useState({ open: false, replacing: null });
 	const [detailAppointment, setDetailAppointment] = useState(null);
+	const [rescheduleAppointment, setRescheduleAppointment] = useState(null);
 
 	useEffect(() => {
 		const dismissed = localStorage.getItem(`onboarding-dismissed-${session.tenantSlug}`) === "true";
@@ -230,9 +232,14 @@ export default function AppointmentsPage() {
 		setFormModal({ open: true, replacing: null });
 	}
 
-	function openReplace(appointment) {
+	function openOvertime(appointment) {
 		setDetailAppointment(null);
 		setFormModal({ open: true, replacing: toReplacingContext(appointment) });
+	}
+
+	function openReschedule(appointment) {
+		setDetailAppointment(null);
+		setRescheduleAppointment(appointment);
 	}
 
 	function closeFormModal() {
@@ -241,6 +248,11 @@ export default function AppointmentsPage() {
 
 	function handleSaved() {
 		closeFormModal();
+		refresh();
+	}
+
+	function handleRescheduleSaved() {
+		setRescheduleAppointment(null);
 		refresh();
 	}
 
@@ -355,14 +367,24 @@ export default function AppointmentsPage() {
 												</button>
 											)}
 											{ACTIVE_STATUSES.has(a.status) && (
-												<button
-													type="button"
-													className="link-button"
-													title="Reemplazar este turno o agendar un sobreturno en paralelo"
-													onClick={() => openReplace(a)}
-												>
-													Sobreturno
-												</button>
+												<>
+													<button
+														type="button"
+														className="link-button"
+														title="Mover este turno a otra fecha u horario"
+														onClick={() => openReschedule(a)}
+													>
+														Reagendar
+													</button>
+													<button
+														type="button"
+														className="link-button"
+														title="Agendar un turno en paralelo con el mismo profesional"
+														onClick={() => openOvertime(a)}
+													>
+														Sobreturno
+													</button>
+												</>
 											)}
 											{NEXT_STATUS[a.status].map((s) => (
 												<button key={s} type="button" className="link-button" onClick={() => handleTransition(a.id, s)}>
@@ -434,7 +456,8 @@ export default function AppointmentsPage() {
 				serviceName={detailAppointment ? serviceName(detailAppointment.serviceId) : ""}
 				onTransition={(status) => handleTransition(detailAppointment.id, status)}
 				onConfirmDeposit={() => handleConfirmDeposit(detailAppointment.id)}
-				onReplace={() => openReplace(detailAppointment)}
+				onReschedule={() => openReschedule(detailAppointment)}
+				onOvertime={() => openOvertime(detailAppointment)}
 				error={error}
 			/>
 
@@ -446,6 +469,12 @@ export default function AppointmentsPage() {
 				replacing={formModal.replacing}
 				defaultDate={todayKey()}
 				onSaved={handleSaved}
+			/>
+
+			<RescheduleModal
+				appointment={rescheduleAppointment}
+				onClose={() => setRescheduleAppointment(null)}
+				onSaved={handleRescheduleSaved}
 			/>
 		</div>
 	);

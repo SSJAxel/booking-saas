@@ -11,6 +11,7 @@ import dev.capibyte.bookingsaas.staff.ProfessionalService;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import dev.capibyte.bookingsaas.waitlist.WaitlistService;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -223,40 +224,74 @@ public class AppointmentService {
 	}
 
 	/**
-	 * "Reemplazar turno": the client called to cancel by phone instead of cancelling through the
-	 * system, so the owner needs to free this slot and hand it to someone else in one action.
-	 * Cancels {@code oldAppointmentId} and books the replacement through the exact same {@link
-	 * #book} path (same double-booking guarantee, same notification/waitlist side effects), all in
-	 * one transaction — if the new booking fails (e.g. someone else already took that other slot),
-	 * the cancellation rolls back too, so the old appointment is never lost for nothing. This is
-	 * always a cancel-then-book, never a true overlapping booking — for an intentional overlap
-	 * ("sobreturno"), see the overtime overload of {@link #book}.
+	 * "Reagendar": moves {@code appointmentId} to a new date/time for the exact same client,
+	 * professional and service — {@link dev.capibyte.bookingsaas.booking.dto.RescheduleRequest} has
+	 * no fields for those, they never change here. Updates startTime/endTime in place, on the SAME
+	 * row, instead of cancelling and re-booking: that way the no_double_booking EXCLUDE constraint
+	 * runs against this UPDATE exactly as it would an INSERT, so the same guarantee against clashing
+	 * with another appointment of the same professional still holds.
+	 *
+	 * <p>{@code reason} decides two independent things:
+	 * <ul>
+	 *   <li>Whether the client's rating takes a hit: {@link RescheduleReason#TENANT_DECISION} never
+	 *   does; {@link RescheduleReason#CLIENT_NOTICE} follows the same first-time-free grace as a
+	 *   cancellation, via {@link ClientRatingService#recordRescheduledByClient}, against its own
+	 *   counter ({@link Client#getRescheduledCount()}), kept deliberately separate from
+	 *   {@link Client#getCancelledCount()}.</li>
+	 *   <li>Whether an already-PAID deposit survives the move: TENANT_DECISION always keeps it, no
+	 *   matter how many times it happens. CLIENT_NOTICE only keeps it the first time this client
+	 *   reschedules for that reason; from the second time on the deposit is forfeited — modeled as
+	 *   resetting {@code paymentStatus} back to PENDING on this same appointment, since no refund
+	 *   flow exists anywhere in this codebase (the tenant simply keeps what was already paid).</li>
+	 * </ul>
+	 * If forfeiting a deposit knocks the appointment out of CONFIRMED (i.e. it was CONFIRMED only
+	 * because the deposit was PAID), its status drops back to PENDING too — mirroring exactly what
+	 * {@link #book} does for a fresh booking whose deposit isn't resolved yet.
 	 */
 	@Transactional
-	public Appointment replace(UUID oldAppointmentId, UUID professionalId, UUID serviceId, Instant startTime,
-			String clientName, String clientEmail, String clientPhone, String clientInstagram) {
-		Appointment old = findById(oldAppointmentId);
-		validateTransition(old.getStatus(), AppointmentStatus.CANCELLED);
-		old.setStatus(AppointmentStatus.CANCELLED);
-		// Must be flushed now: Hibernate's default flush order runs pending inserts before pending
-		// updates, so without this, book()'s own saveAndFlush() below could try inserting the
-		// replacement while this row still reads as active, tripping the very constraint this
-		// method exists to work around safely.
-		Appointment savedOld = appointmentRepository.saveAndFlush(old);
+	public Appointment reschedule(UUID appointmentId, Instant newStartTime, RescheduleReason reason) {
+		Appointment appointment = findById(appointmentId);
+		if (appointment.getStatus() != AppointmentStatus.PENDING && appointment.getStatus() != AppointmentStatus.CONFIRMED) {
+			throw new BadRequestException("Cannot reschedule an appointment with status " + appointment.getStatus());
+		}
 
-		Client oldClient = loadClient(savedOld.getClientId());
-		Professional oldProfessional = professionalService.findById(savedOld.getProfessionalId());
-		ServiceOffering oldService = serviceOfferingService.findById(savedOld.getServiceId());
-		publishNotification(savedOld, oldClient, oldProfessional, oldService, AppointmentStatus.CANCELLED);
-		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
-		LocalDate freedDate = savedOld.getStartTime().atZone(zone).toLocalDate();
-		waitlistService.notifyNextForFreedSlot(savedOld.getProfessionalId(), savedOld.getServiceId(), freedDate);
-		// This is exactly the "client called to cancel" case the rating grace is designed for —
-		// same recordCancellation() as a manual CANCELLED transition, not the harsher no-show-style
-		// penalty (see expireForNonPayment for the path that does deserve that).
-		clientRatingService.recordCancellation(oldClient);
+		Client client = loadClient(appointment.getClientId());
+		boolean keepsDeposit;
+		if (reason == RescheduleReason.TENANT_DECISION) {
+			keepsDeposit = true;
+		} else {
+			keepsDeposit = client.getRescheduledCount() == 0;
+			clientRatingService.recordRescheduledByClient(client);
+		}
 
-		return book(professionalId, serviceId, startTime, clientName, clientEmail, clientPhone, clientInstagram);
+		if (!keepsDeposit && appointment.getPaymentStatus() == PaymentStatus.PAID) {
+			appointment.setPaymentStatus(PaymentStatus.PENDING);
+			if (appointment.getStatus() == AppointmentStatus.CONFIRMED) {
+				appointment.setStatus(AppointmentStatus.PENDING);
+			}
+		}
+
+		Duration duration = Duration.between(appointment.getStartTime(), appointment.getEndTime());
+		appointment.setStartTime(newStartTime);
+		appointment.setEndTime(newStartTime.plus(duration));
+
+		try {
+			// saveAndFlush (not save): same reason as book() — the EXCLUDE constraint only fires once
+			// this UPDATE actually runs, which must happen inside this try/catch to translate it to
+			// 409 instead of surfacing as an unhandled error at commit time.
+			Appointment saved = appointmentRepository.saveAndFlush(appointment);
+			Professional professional = professionalService.findById(saved.getProfessionalId());
+			ServiceOffering service = serviceOfferingService.findById(saved.getServiceId());
+			publishNotification(saved, client, professional, service, saved.getStatus());
+			return saved;
+		} catch (DataIntegrityViolationException ex) {
+			if (isDoubleBookingViolation(ex)) {
+				throw new SlotAlreadyBookedException();
+			}
+			throw ex;
+		} catch (CannotAcquireLockException ex) {
+			throw new SlotAlreadyBookedException();
+		}
 	}
 
 	/**

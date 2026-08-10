@@ -41,6 +41,16 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   que un mismo cliente no pierda su historial si cambia de mail. Panel de "Mejores clientes"
   configurable por tenant (calificación mínima, cuántos mostrar) más clientes fijados a mano, y
   listas de frecuentes / cancelan seguido / no aparecen.
+- **Reagendar (y se saca "Reemplazar turno").** "Reemplazar turno" (cancelar y dárselo a otro
+  cliente) se sacó del panel por no tener uso real — quedan sólo "Reagendar" y "Sobreturno" como
+  acciones sobre un turno. Reagendar mueve un turno del mismo cliente a otro horario (mismo
+  profesional y servicio, sólo cambia fecha/hora) con un dropdown "Motivo": *"Personal del
+  tenant"* (el negocio decide — nunca toca la calificación del cliente, y una seña ya pagada
+  siempre se mantiene) o *"Aviso"* (el cliente pidió el cambio — misma gracia que las
+  cancelaciones, contador propio `Client.rescheduledCount` separado de `cancelledCount`: la 1ª vez
+  no descuenta nada ni toca la seña, de la 2ª en adelante -2 puntos y la seña ya pagada se pierde,
+  sin reembolso — no existe ningún flujo de reembolso de Mercado Pago construido en este proyecto,
+  así que "perderla" es simplemente resetear el turno a `PENDING`).
 - **Calendario semanal real y "Reemplazar turno".** La vista de Turnos del dueño pasó de una tabla
   plana a una grilla semana × hora, con turnos superpuestos mostrados lado a lado. Se agregó
   "Reemplazar turno" (para cuando un cliente cancela por teléfono, no por el sistema) y carga
@@ -796,15 +806,5 @@ pendientes:
     `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real
     (cliente paga en minutos, no en más de media hora) es un caso raro, pero hay que resolverlo
     antes de manejar plata de verdad.
-14. **Re-agendamiento (anotado 2026-08-10, decisión cerrada 2026-08-10, todavía sin construir).**
-    Botón para mover un turno de horario (típicamente porque el cliente avisó con 24-48hs de
-    anticipación) sin que cuente como una cancelación común. Un dropdown "Motivo" con dos opciones:
-    *"Personal del tenant"* (el negocio decide moverlo — no toca la calificación del cliente en
-    absoluto) y *"Aviso"* (el cliente pidió el cambio — sí toca la calificación, con la misma
-    gracia que ya tienen las cancelaciones: la 1ª vez no descuenta nada, de la 2ª en adelante -2
-    puntos cada vez). **Decidido:** el descuento por "Aviso" usa un contador propio e independiente
-    (`Client.rescheduledCount`), separado de `Client.cancelledCount` — cancelar y reagendar son
-    comportamientos distintos (uno termina en un turno atendido, el otro no), cada uno con su
-    propia gracia de "primera vez gratis".
-    - **Sobreturno** (la otra mitad de este ítem) ya está construido — ver el Registro de cambios
-      y "Design notes" → Double-booking prevention.
+14. ~~**Re-agendamiento y Sobreturno.**~~ Hecho — ver el Registro de cambios y "Design notes" →
+    Double-booking prevention.

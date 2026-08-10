@@ -39,12 +39,22 @@ public class Client extends BaseTenantEntity {
 	@Column(nullable = false)
 	private int rating = 0;
 
-	/** Lifetime count of client-communicated cancellations (transitionStatus(CANCELLED) or
-	 * AppointmentService.replace) — deliberately NOT incremented by an auto-expired unpaid deposit
-	 * (see AppointmentService.expireForNonPayment), so that path never eats into or counts toward
-	 * this client's "first cancellation is free" grace. */
+	/** Lifetime count of client-communicated cancellations (transitionStatus(CANCELLED)) —
+	 * deliberately NOT incremented by an auto-expired unpaid deposit (see
+	 * AppointmentService.expireForNonPayment), so that path never eats into or counts toward this
+	 * client's "first cancellation is free" grace. Also NOT incremented by a "Reagendar" with motivo
+	 * Aviso — that has its own separate grace, see {@link #rescheduledCount}. */
 	@Column(name = "cancelled_count", nullable = false)
 	private int cancelledCount = 0;
+
+	/** Lifetime count of "Reagendar" actions with motivo "Aviso" (the client asked for the change) —
+	 * deliberately separate from {@link #cancelledCount}: rescheduling isn't cancelling, so it gets
+	 * its own "first time is free" grace, tracked and spent independently. Never incremented for
+	 * motivo "Personal del tenant" — the business moving the appointment on its own initiative never
+	 * touches rating or this counter. See ClientRatingService#recordRescheduledByClient and
+	 * AppointmentService#reschedule. */
+	@Column(name = "rescheduled_count", nullable = false)
+	private int rescheduledCount = 0;
 
 	/** "Cliente fijo": manually kept in the "Mejores clientes" panel regardless of {@code rating} —
 	 * see ClientController#setPinned. Every tenant has that one loyal regular whose history

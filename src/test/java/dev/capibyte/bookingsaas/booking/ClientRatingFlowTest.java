@@ -84,30 +84,6 @@ class ClientRatingFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void replaceAppliesTheSameCancellationRuleAsAManualCancel() {
-		RegisteredTenant tenant = registerTenant();
-		HttpHeaders headers = authHeaders(tenant.token());
-		Setup setup = setUpProfessionalAndService(headers, null);
-
-		// Burn this client's free first cancellation via a manual transition...
-		String a1 = book(tenant.slug(), setup, "09:00:00", "client-c@example.com");
-		transition(a1, "CANCELLED", headers);
-		assertThat(ratingFor(headers, "client-c@example.com")).isEqualTo(0);
-
-		// ...then replace a second appointment: this is their second cancellation, via a different
-		// code path (AppointmentService.replace), and must cost the same 2 points (floored at 0).
-		String a2 = book(tenant.slug(), setup, "10:00:00", "client-c@example.com");
-		Map<String, Object> replaceBody = Map.of(
-				"professionalId", setup.professionalId(), "serviceId", setup.serviceId(),
-				"date", nextMonday().toString(), "startTime", "10:00:00",
-				"clientName", "Client C", "clientEmail", "client-c@example.com", "clientPhone", "+549111111111");
-		ResponseEntity<Map> replaced = restTemplate.exchange("/api/appointments/" + a2 + "/replace", HttpMethod.POST,
-				new HttpEntity<>(replaceBody, headers), Map.class);
-		assertThat(replaced.getStatusCode().is2xxSuccessful()).isTrue();
-		assertThat(ratingFor(headers, "client-c@example.com")).isEqualTo(0);
-	}
-
-	@Test
 	void autoExpiredDepositCostsFivePointsAndNeverCountsTowardTheCancellationGrace() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());

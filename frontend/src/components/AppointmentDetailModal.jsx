@@ -24,7 +24,7 @@ const DATE_FORMAT = new Intl.DateTimeFormat("es-AR", {
  * on (client contact, service, payment, status actions) lives here instead.
  */
 export default function AppointmentDetailModal({ appointment, onClose, professionalName, serviceName, onTransition,
-	onConfirmDeposit, onReplace, error }) {
+	onConfirmDeposit, onReschedule, onOvertime, error }) {
 	useEffect(() => {
 		if (!appointment) return;
 		function onKeyDown(event) {
@@ -80,9 +80,14 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 							</button>
 						))}
 						{ACTIVE_STATUSES.has(appointment.status) && (
-							<button type="button" className="secondary" onClick={onReplace}>
-								Sobreturno
-							</button>
+							<>
+								<button type="button" className="secondary" onClick={onReschedule}>
+									Reagendar
+								</button>
+								<button type="button" className="secondary" onClick={onOvertime}>
+									Sobreturno
+								</button>
+							</>
 						)}
 					</div>
 				</div>

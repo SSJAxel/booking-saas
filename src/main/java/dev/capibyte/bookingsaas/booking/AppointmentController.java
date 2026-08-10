@@ -2,6 +2,7 @@ package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.AppointmentResponse;
 import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
+import dev.capibyte.bookingsaas.booking.dto.RescheduleRequest;
 import dev.capibyte.bookingsaas.booking.dto.StatusTransitionRequest;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.tenant.TenantService;
@@ -64,17 +65,14 @@ public class AppointmentController {
 	}
 
 	/**
-	 * Walk-in override: the client of {@code id} called to cancel outside the system, so free that
-	 * slot and hand it to a new client in one action. This is always a cancel-then-book, never a
-	 * true overlapping booking — the no_double_booking constraint applies here exactly as it does
-	 * for a normal booking. For an intentional overlapping booking ("sobreturno"), see {@link
-	 * #createOvertime}.
+	 * "Reagendar": moves an existing appointment to a new date/time for the same client, professional
+	 * and service — see {@link AppointmentService#reschedule} for what {@code reason} controls
+	 * (rating impact and whether an already-paid deposit is kept).
 	 */
-	@PostMapping("/{id}/replace")
-	public AppointmentResponse replace(@PathVariable UUID id, @Valid @RequestBody BookAppointmentRequest request) {
-		Instant startTime = toInstant(request);
-		return toResponse(appointmentService.replace(id, request.professionalId(), request.serviceId(), startTime,
-				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram()));
+	@PostMapping("/{id}/reschedule")
+	public AppointmentResponse reschedule(@PathVariable UUID id, @Valid @RequestBody RescheduleRequest request) {
+		Instant newStartTime = toInstant(request);
+		return toResponse(appointmentService.reschedule(id, newStartTime, request.reason()));
 	}
 
 	/**
@@ -94,6 +92,11 @@ public class AppointmentController {
 	}
 
 	private Instant toInstant(BookAppointmentRequest request) {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		return ZonedDateTime.of(request.date(), request.startTime(), zone).toInstant();
+	}
+
+	private Instant toInstant(RescheduleRequest request) {
 		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
 		return ZonedDateTime.of(request.date(), request.startTime(), zone).toInstant();
 	}

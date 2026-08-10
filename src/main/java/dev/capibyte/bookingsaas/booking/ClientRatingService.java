@@ -15,8 +15,14 @@ import org.springframework.stereotype.Service;
  * PendingDepositExpirationScheduler} (an abandoned checkout, not a client actively telling anyone
  * they're backing out) costs the same 5 automatically, every time — it deliberately does NOT
  * count toward {@link Client#getCancelledCount()}, so it can never eat into or trigger the
- * cancellation grace. Rating never goes below 0; there's no upper cap, so a genuinely loyal client
- * can keep climbing indefinitely past the tenant's "top clients" threshold.
+ * cancellation grace. A client-requested reschedule ("Reagendar" con motivo "Aviso") follows the
+ * identical first-time-free/then-2-points shape, but keeps its own counter
+ * ({@link Client#getRescheduledCount()}) entirely separate from cancellations — see
+ * AppointmentService#reschedule for how it also decides whether an already-paid deposit survives
+ * the move. A tenant-initiated reschedule (motivo "Personal del tenant") never calls into this
+ * service at all — it's the business's own decision, never the client's, so it can never cost
+ * rating. Rating never goes below 0; there's no upper cap, so a genuinely loyal client can keep
+ * climbing indefinitely past the tenant's "top clients" threshold.
  */
 @Service
 public class ClientRatingService {
@@ -25,6 +31,7 @@ public class ClientRatingService {
 	private static final int REPEAT_CANCELLATION_PENALTY = 2;
 	private static final int NO_SHOW_PENALTY = 5;
 	private static final int AUTO_EXPIRED_PENALTY = 5;
+	private static final int RESCHEDULE_PENALTY = 2;
 
 	public void recordCompleted(Client client) {
 		client.setRating(client.getRating() + COMPLETED_POINTS);
@@ -43,6 +50,17 @@ public class ClientRatingService {
 
 	public void recordAutoExpired(Client client) {
 		applyPenalty(client, AUTO_EXPIRED_PENALTY);
+	}
+
+	/** Only ever called for {@code RescheduleReason.CLIENT_NOTICE} — see AppointmentService#reschedule.
+	 * Same first-time-free shape as {@link #recordCancellation}, but against
+	 * {@link Client#getRescheduledCount()} instead, so a client's cancellation grace and reschedule
+	 * grace are spent independently of each other. */
+	public void recordRescheduledByClient(Client client) {
+		if (client.getRescheduledCount() > 0) {
+			applyPenalty(client, RESCHEDULE_PENALTY);
+		}
+		client.setRescheduledCount(client.getRescheduledCount() + 1);
 	}
 
 	private void applyPenalty(Client client, int points) {
