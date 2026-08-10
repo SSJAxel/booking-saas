@@ -2,8 +2,11 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
 
+const BRANCH_LIMITS = { TRIAL: 2, BASIC: 1, PRO: 2, MAX: 4 };
+
 export default function BranchesPage() {
 	const [branches, setBranches] = useState([]);
+	const [tenant, setTenant] = useState(null);
 	const [hoursByBranch, setHoursByBranch] = useState({});
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
@@ -20,8 +23,9 @@ export default function BranchesPage() {
 	async function refresh() {
 		setLoading(true);
 		try {
-			const list = await api.branches.list();
+			const [list, t] = await Promise.all([api.branches.list(), api.tenant.get()]);
 			setBranches(list);
+			setTenant(t);
 			const entries = await Promise.all(list.map(async (b) => [b.id, await api.branches.listHours(b.id)]));
 			setHoursByBranch(Object.fromEntries(entries));
 		} catch (err) {
@@ -89,17 +93,29 @@ export default function BranchesPage() {
 
 	if (loading) return <p>Cargando...</p>;
 
+	const limit = tenant && BRANCH_LIMITS[tenant.planTier];
+	const atLimit = limit != null && branches.length >= limit;
+
 	return (
 		<div>
 			<h1>Sucursales</h1>
+			{tenant && (
+				<p className="muted">
+					Plan {tenant.planTier} · {branches.length}/{limit} sucursales
+				</p>
+			)}
 			{error && <p className="error">{error}</p>}
 			{notice && <p className="notice">{notice}</p>}
-			<form className="inline-form" onSubmit={handleCreate}>
-				<input name="name" placeholder="Nombre" required />
-				<input name="address" placeholder="Dirección" />
-				<input name="phone" placeholder="Teléfono" />
-				<button type="submit">Agregar</button>
-			</form>
+			{atLimit ? (
+				<p className="muted">Llegaste al límite de sucursales de tu plan {tenant.planTier}.</p>
+			) : (
+				<form className="inline-form" onSubmit={handleCreate}>
+					<input name="name" placeholder="Nombre" required />
+					<input name="address" placeholder="Dirección" />
+					<input name="phone" placeholder="Teléfono" />
+					<button type="submit">Agregar</button>
+				</form>
+			)}
 
 			{branches.length === 0 ? (
 				<p className="muted">Todavía no hay sucursales.</p>

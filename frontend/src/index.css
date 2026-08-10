@@ -1553,6 +1553,26 @@ button.danger:hover:not(:disabled) {
 	font-weight: 700;
 }
 
+/* Forced to one line — without this, a long client name wraps inside a narrow (multi-professional)
+   block and pushes .appt-block-professional below the block's own fixed height, where the
+   overflow: hidden on .appt-block clips it away entirely instead of just truncating it. */
+.appt-block-line1 {
+	display: block;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.appt-block-professional {
+	display: block;
+	font-size: 0.62rem;
+	line-height: 1.1;
+	opacity: 0.8;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 .appt-block.status-pending {
 	background: var(--warning-bg);
 	color: var(--warning);

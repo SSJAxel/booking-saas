@@ -1,5 +1,7 @@
 const PX_PER_HOUR = 56;
-const MIN_BLOCK_HEIGHT = 22;
+// Tall enough for time+client on one line plus the professional name on a second — a 30min
+// appointment only computes to 28px from duration alone, not enough room for that second line.
+const MIN_BLOCK_HEIGHT = 34;
 const WEEKDAY_SHORT = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function pad(n) {
@@ -68,7 +70,7 @@ function layoutDay(appointments) {
  * to its line instead of vertically centered on it — centering the very first label would put half
  * of it above y=0, where the scroll container has nothing to show, so it was rendering clipped off.
  */
-export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourStart, hourEnd }) {
+export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourStart, hourEnd, professionalName }) {
 	const hours = Array.from({ length: hourEnd - hourStart }, (_, i) => hourStart + i);
 	const bodyHeight = (hourEnd - hourStart) * PX_PER_HOUR;
 	const today = toDateKey(new Date());
@@ -113,11 +115,15 @@ export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourSt
 										className={`appt-block status-${appointment.status.toLowerCase()}`}
 										style={{ top, height, width: `calc(${width}% - 4px)`, left: `calc(${width * col}% + 2px)` }}
 										onClick={() => onSelect(appointment)}
+										title={`${pad(start.getHours())}:${pad(start.getMinutes())} · ${appointment.clientName} · ${professionalName(appointment.professionalId)}`}
 									>
-										<span className="appt-block-time">
-											{pad(start.getHours())}:{pad(start.getMinutes())}
-										</span>{" "}
-										<span className="appt-block-name">{appointment.clientName}</span>
+										<span className="appt-block-line1">
+											<span className="appt-block-time">
+												{pad(start.getHours())}:{pad(start.getMinutes())}
+											</span>{" "}
+											<span className="appt-block-name">{appointment.clientName}</span>
+										</span>
+										<span className="appt-block-professional">{professionalName(appointment.professionalId)}</span>
 									</button>
 								);
 							})}

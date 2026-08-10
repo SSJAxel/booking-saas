@@ -92,6 +92,10 @@ export default function AppointmentsPage() {
 	const [calendarAppointments, setCalendarAppointments] = useState([]);
 	const [professionals, setProfessionals] = useState([]);
 	const [services, setServices] = useState([]);
+	const [branches, setBranches] = useState([]);
+	const [selectedBranchId, setSelectedBranchId] = useState(
+		() => localStorage.getItem(`selected-branch-${session.tenantSlug}`) || "",
+	);
 	const [hourBounds, setHourBounds] = useState(DEFAULT_HOUR_BOUNDS);
 
 	const [error, setError] = useState("");
@@ -111,13 +115,19 @@ export default function AppointmentsPage() {
 	}, []);
 
 	useEffect(() => {
-		Promise.all([api.professionals.list(), api.services.list()])
-			.then(([p, s]) => {
+		Promise.all([api.professionals.list(), api.services.list(), api.branches.list()])
+			.then(([p, s, b]) => {
 				setProfessionals(p);
 				setServices(s);
+				setBranches(b);
 			})
 			.catch((err) => setError(err.message));
 	}, []);
+
+	function selectBranch(branchId) {
+		setSelectedBranchId(branchId);
+		localStorage.setItem(`selected-branch-${session.tenantSlug}`, branchId);
+	}
 
 	useEffect(() => {
 		if (professionals.length === 0) return;
@@ -126,6 +136,16 @@ export default function AppointmentsPage() {
 			.catch(() => {});
 	}, [professionals]);
 
+	const activeBranches = branches.filter((b) => b.active);
+	// Exclusive dropdown, no "todas" option — always resolves to one real branch. Falls back to the
+	// first active branch when nothing's stored yet, or the stored id points at a branch that's
+	// since been deactivated/deleted. With a single branch there's nothing to pick, so the dropdown
+	// doesn't render and no branchId is sent at all.
+	const effectiveBranchId =
+		activeBranches.length > 1
+			? activeBranches.find((b) => b.id === selectedBranchId)?.id ?? activeBranches[0]?.id
+			: undefined;
+
 	async function refreshList() {
 		setLoading(true);
 		try {
@@ -133,7 +153,9 @@ export default function AppointmentsPage() {
 			// resolved turnos (completed/cancelled/no-show from months ago) just pile up otherwise.
 			// No upper bound, so a turno booked weeks ahead never disappears from the default view.
 			const from = showFullHistory ? undefined : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
-			setAppointments(await api.appointments.list({ status: statusFilter || undefined, from }));
+			setAppointments(
+				await api.appointments.list({ status: statusFilter || undefined, from, branchId: effectiveBranchId }),
+			);
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -145,7 +167,7 @@ export default function AppointmentsPage() {
 		if (view !== "lista") return;
 		refreshList();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [view, statusFilter, showFullHistory]);
+	}, [view, statusFilter, showFullHistory, effectiveBranchId]);
 
 	async function refreshCalendar() {
 		setLoading(true);
@@ -153,7 +175,9 @@ export default function AppointmentsPage() {
 			const from = mondayOf(selectedDate);
 			const to = new Date(from);
 			to.setDate(to.getDate() + 7);
-			setCalendarAppointments(await api.appointments.list({ from: from.toISOString(), to: to.toISOString() }));
+			setCalendarAppointments(
+				await api.appointments.list({ from: from.toISOString(), to: to.toISOString(), branchId: effectiveBranchId }),
+			);
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -165,7 +189,7 @@ export default function AppointmentsPage() {
 		if (view !== "calendario") return;
 		refreshCalendar();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [view, selectedDate]);
+	}, [view, selectedDate, effectiveBranchId]);
 
 	function refresh() {
 		return view === "lista" ? refreshList() : refreshCalendar();
@@ -373,6 +397,18 @@ export default function AppointmentsPage() {
 								aria-label="Ir a una fecha"
 							/>
 						</div>
+						{activeBranches.length > 1 && (
+							<label>
+								Sucursal
+								<select value={effectiveBranchId} onChange={(event) => selectBranch(event.target.value)}>
+									{activeBranches.map((b) => (
+										<option key={b.id} value={b.id}>
+											{b.name}
+										</option>
+									))}
+								</select>
+							</label>
+						)}
 					</div>
 
 					{loading ? (
@@ -384,6 +420,7 @@ export default function AppointmentsPage() {
 							onSelect={setDetailAppointment}
 							hourStart={hourBounds.hourStart}
 							hourEnd={hourBounds.hourEnd}
+							professionalName={professionalName}
 						/>
 					)}
 				</>

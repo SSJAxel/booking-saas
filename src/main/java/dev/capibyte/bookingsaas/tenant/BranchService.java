@@ -1,6 +1,7 @@
 package dev.capibyte.bookingsaas.tenant;
 
 import dev.capibyte.bookingsaas.common.NotFoundException;
+import dev.capibyte.bookingsaas.common.TenantContext;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -12,9 +13,15 @@ import org.springframework.transaction.annotation.Transactional;
 public class BranchService {
 
 	private final BranchRepository branchRepository;
+	private final TenantService tenantService;
 
 	@Transactional
 	public Branch create(String name, String address, String phone) {
+		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
+		if (branchRepository.countByActiveTrue() >= tier.getMaxBranches()) {
+			throw new BranchLimitExceededException(tier);
+		}
+
 		Branch branch = new Branch();
 		branch.setName(name);
 		branch.setAddress(address);
