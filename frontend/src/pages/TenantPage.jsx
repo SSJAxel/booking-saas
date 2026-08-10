@@ -2,12 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import HelpManual from "../components/HelpManual.jsx";
-
-// TRIAL keeps its internal name (DB column, enum, API contract) — only what the tenant sees on
-// screen says "Demo". See TenantService.create's Javadoc for why the value itself stays TRIAL.
-function planLabel(tier) {
-	return tier === "TRIAL" ? "Demo" : tier;
-}
+import { planLabel } from "../labels.js";
 
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);

@@ -86,7 +86,7 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 				{topRated.length === 0 ? (
 					<p className="muted">
 						Todavía nadie superó los {tenant.topClientsThreshold} puntos (se gana +1 por cada turno marcado
-						"COMPLETED"), y no fijaste ningún cliente a mano.
+						"Completado"), y no fijaste ningún cliente a mano.
 					</p>
 				) : (
 					<ClientList clients={topRated} countKey="rating" countLabel="puntos" showPinned />

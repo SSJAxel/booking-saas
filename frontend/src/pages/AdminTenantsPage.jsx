@@ -1,13 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { planLabel, subscriptionStatusLabel } from "../labels.js";
 
 const PLAN_TIERS = ["TRIAL", "BASIC", "PRO", "MAX"];
-
-// TRIAL keeps its internal name (DB column, enum, API contract) — only what the founder/tenant
-// sees on screen says "Demo". See TenantService.create's Javadoc for why the value itself stays.
-function planLabel(tier) {
-	return tier === "TRIAL" ? "Demo" : tier;
-}
 
 function statusChip(tenant) {
 	if (tenant.planTier === "TRIAL") return { label: "Demo", className: "badge-pending" };
@@ -62,17 +57,17 @@ export default function AdminTenantsPage() {
 
 	return (
 		<div>
-			<h1>Tenants</h1>
+			<h1>Cuentas</h1>
 			{error && <p className="error">{error}</p>}
 			{loading ? (
 				<p>Cargando...</p>
 			) : tenants.length === 0 ? (
-				<p className="muted">No hay tenants todavía.</p>
+				<p className="muted">No hay cuentas todavía.</p>
 			) : (
 				<table>
 					<thead>
 						<tr>
-							<th>Tenant</th>
+							<th>Negocio</th>
 							<th>Slug</th>
 							<th>Profesionales</th>
 							<th>Aprobación</th>
@@ -111,7 +106,7 @@ export default function AdminTenantsPage() {
 											))}
 										</select>
 									</td>
-									<td>{t.subscriptionStatus ?? "—"}</td>
+									<td>{subscriptionStatusLabel(t.subscriptionStatus)}</td>
 									<td>
 										<input
 											type="date"

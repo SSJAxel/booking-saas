@@ -2,7 +2,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 
 const LINKS = [
-	{ to: "tenants", label: "Tenants" },
+	{ to: "tenants", label: "Cuentas" },
 	{ to: "support-reports", label: "Reportes" },
 ];
 

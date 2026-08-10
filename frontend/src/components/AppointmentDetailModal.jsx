@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { paymentStatusLabel, statusLabel } from "../labels.js";
 
 const NEXT_STATUS = {
 	PENDING: ["CONFIRMED", "CANCELLED"],
@@ -47,7 +48,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 					</button>
 				</div>
 				<div className="modal-body">
-					<span className={`badge badge-${appointment.status.toLowerCase()}`}>{appointment.status}</span>
+					<span className={`badge badge-${appointment.status.toLowerCase()}`}>{statusLabel(appointment.status)}</span>
 
 					<div className="detail-grid">
 						<span className="label">Fecha</span>
@@ -62,7 +63,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 							{appointment.clientPhone && <> · {appointment.clientPhone}</>}
 						</span>
 						<span className="label">Pago</span>
-						<span>{appointment.paymentStatus}</span>
+						<span>{paymentStatusLabel(appointment.paymentStatus)}</span>
 					</div>
 
 					{error && <p className="error">{error}</p>}
@@ -75,7 +76,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 						)}
 						{NEXT_STATUS[appointment.status].map((s) => (
 							<button key={s} type="button" className="secondary" onClick={() => onTransition(s)}>
-								{s}
+								{statusLabel(s)}
 							</button>
 						))}
 						{ACTIVE_STATUSES.has(appointment.status) && (

@@ -107,7 +107,7 @@ function ReportTable({ title, reports, emptyMessage, onToggleResolved, onDelete 
 					<thead>
 						<tr>
 							<th>Tipo</th>
-							<th>Tenant</th>
+							<th>Negocio</th>
 							<th>Reportado por</th>
 							<th>Mensaje</th>
 							<th>Fecha</th>

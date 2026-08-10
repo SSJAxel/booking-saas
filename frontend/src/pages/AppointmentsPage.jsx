@@ -6,6 +6,7 @@ import WeekCalendar, { toDateKey } from "../components/WeekCalendar.jsx";
 import AppointmentFormModal from "../components/AppointmentFormModal.jsx";
 import AppointmentDetailModal from "../components/AppointmentDetailModal.jsx";
 import ClientInsights from "../components/ClientInsights.jsx";
+import { paymentStatusLabel, statusLabel } from "../labels.js";
 
 const STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"];
 const NEXT_STATUS = {
@@ -302,7 +303,7 @@ export default function AppointmentsPage() {
 								<option value="">Todos</option>
 								{STATUSES.map((s) => (
 									<option key={s} value={s}>
-										{s}
+										{statusLabel(s)}
 									</option>
 								))}
 							</select>
@@ -339,9 +340,9 @@ export default function AppointmentsPage() {
 										</td>
 										<td>{APPOINTMENT_DATETIME_FORMAT.format(new Date(a.startTime))}</td>
 										<td>
-											<span className={`badge badge-${a.status.toLowerCase()}`}>{a.status}</span>
+											<span className={`badge badge-${a.status.toLowerCase()}`}>{statusLabel(a.status)}</span>
 										</td>
-										<td>{a.paymentStatus}</td>
+										<td>{paymentStatusLabel(a.paymentStatus)}</td>
 										<td>
 											{a.paymentStatus === "PENDING" && (
 												<button
@@ -365,7 +366,7 @@ export default function AppointmentsPage() {
 											)}
 											{NEXT_STATUS[a.status].map((s) => (
 												<button key={s} type="button" className="link-button" onClick={() => handleTransition(a.id, s)}>
-													{s}
+													{statusLabel(s)}
 												</button>
 											))}
 										</td>

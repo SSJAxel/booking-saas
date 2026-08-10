@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { planLabel } from "../labels.js";
 
 export default function ProductsPage() {
 	const [products, setProducts] = useState([]);
@@ -108,7 +109,7 @@ export default function ProductsPage() {
 			<h1>Productos</h1>
 			{tenant && (
 				<p className="muted">
-					Plan {tenant.planTier}
+					Plan {planLabel(tenant.planTier)}
 					{limit ? ` · ${products.length}/${limit} productos activos` : ` · ${products.length} productos`}
 				</p>
 			)}

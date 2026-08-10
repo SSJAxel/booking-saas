@@ -21,7 +21,7 @@ async function request(path, { method = "GET", body, auth = true } = {}) {
 		const detail = data?.fieldErrors?.length
 			? ": " + data.fieldErrors.map((f) => `${f.field} ${f.message}`).join(", ")
 			: "";
-		throw new Error((data?.message || `Request failed (${res.status})`) + detail);
+		throw new Error((data?.message || `La solicitud falló (${res.status})`) + detail);
 	}
 	return data;
 }
@@ -36,7 +36,7 @@ async function requestForm(path, formData) {
 	if (res.status === 204) return null;
 	const data = await res.json().catch(() => null);
 	if (!res.ok) {
-		throw new Error(data?.message || `Request failed (${res.status})`);
+		throw new Error(data?.message || `La solicitud falló (${res.status})`);
 	}
 	return data;
 }
@@ -45,7 +45,7 @@ async function requestBlob(path) {
 	const token = getToken();
 	const headers = token ? { Authorization: `Bearer ${token}` } : {};
 	const res = await fetch(`${API_BASE}${path}`, { headers });
-	if (!res.ok) throw new Error(`Request failed (${res.status})`);
+	if (!res.ok) throw new Error(`La solicitud falló (${res.status})`);
 	return res.blob();
 }
 

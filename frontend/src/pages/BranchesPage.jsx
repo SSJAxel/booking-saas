@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { planLabel } from "../labels.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
 
 const BRANCH_LIMITS = { TRIAL: 2, BASIC: 1, PRO: 2, MAX: 4 };
@@ -101,13 +102,13 @@ export default function BranchesPage() {
 			<h1>Sucursales</h1>
 			{tenant && (
 				<p className="muted">
-					Plan {tenant.planTier} · {branches.length}/{limit} sucursales
+					Plan {planLabel(tenant.planTier)} · {branches.length}/{limit} sucursales
 				</p>
 			)}
 			{error && <p className="error">{error}</p>}
 			{notice && <p className="notice">{notice}</p>}
 			{atLimit ? (
-				<p className="muted">Llegaste al límite de sucursales de tu plan {tenant.planTier}.</p>
+				<p className="muted">Llegaste al límite de sucursales de tu plan {planLabel(tenant.planTier)}.</p>
 			) : (
 				<form className="inline-form" onSubmit={handleCreate}>
 					<input name="name" placeholder="Nombre" required />
