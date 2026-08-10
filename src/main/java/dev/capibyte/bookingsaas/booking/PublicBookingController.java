@@ -8,6 +8,7 @@ import dev.capibyte.bookingsaas.booking.dto.PublicServiceResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicTenantResponse;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
+import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
@@ -101,6 +102,14 @@ public class PublicBookingController {
 	public AppointmentResponse book(@PathVariable String tenantSlug, @Valid @RequestBody BookAppointmentRequest request) {
 		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
 		Instant startTime = ZonedDateTime.of(request.date(), request.startTime(), zone).toInstant();
+		// GET .../availability already excludes past slots for today (see
+		// PublicAvailabilityService), but that's just what the client is shown — nothing stopped a
+		// direct POST here with an already-past time. Only guarded on the public path: the owner's
+		// own manual booking (AppointmentController) deliberately allows backdating, e.g. to log a
+		// walk-in that already happened.
+		if (startTime.isBefore(Instant.now())) {
+			throw new BadRequestException("Can't book an appointment in the past");
+		}
 		Appointment appointment = appointmentService.book(request.professionalId(), request.serviceId(), startTime,
 				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram());
 		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));

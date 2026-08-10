@@ -64,6 +64,15 @@ public class PublicAvailabilityService {
 						LocalTime.ofInstant(a.getEndTime(), zone)))
 				.forEach(blocked::add);
 
-		return calculator.freeSlots(openWindows, blocked, service.getDurationMinutes());
+		List<TimeSlot> slots = calculator.freeSlots(openWindows, blocked, service.getDurationMinutes());
+		// The calculator only knows about weekly hours/time-off/other bookings — it has no notion
+		// of "now", so a client browsing today's date would otherwise see (and could book) a slot
+		// earlier today that's already gone. Only matters for today; a future date has nothing to
+		// filter since every slot on it is already in the future.
+		if (date.equals(LocalDate.now(zone))) {
+			LocalTime now = LocalTime.now(zone);
+			slots = slots.stream().filter(slot -> !slot.start().isBefore(now)).toList();
+		}
+		return slots;
 	}
 }

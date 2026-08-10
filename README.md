@@ -780,3 +780,23 @@ pendientes:
     `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real
     (cliente paga en minutos, no en más de media hora) es un caso raro, pero hay que resolverlo
     antes de manejar plata de verdad.
+14. **Re-agendamiento y sobreturno "turno exprés" (anotado 2026-08-10, todavía sin construir).**
+    Dos features distintas que se pidieron juntas, con dos preguntas sin cerrar antes de empezar:
+    - **Re-agendamiento**: botón para mover un turno de horario (típicamente porque el cliente
+      avisó con 24-48hs de anticipación) sin que cuente como una cancelación común. Un dropdown
+      "Motivo" con dos opciones: *"Personal del tenant"* (el negocio decide moverlo — no toca la
+      calificación del cliente en absoluto) y *"Aviso"* (el cliente pidió el cambio — sí toca la
+      calificación, con la misma gracia que ya tienen las cancelaciones: la 1ª vez no descuenta
+      nada, de la 2ª en adelante -2 puntos cada vez). **Sin cerrar:** ¿el descuento por "Aviso"
+      comparte el contador de cancelaciones (`Client.cancelledCount`) o necesita uno propio
+      (`rescheduledCount`) con su propia gracia independiente?
+    - **Sobreturno / "turno exprés"**: el botón "Reemplazar" (`AppointmentService.replace`, ver
+      "Design notes" más arriba) pasa a llamarse "Sobreturno" y suma un segundo modo además del
+      actual (cancelar+reagendar sigue igual): un turno exprés que se mete en un hueco de 15 a 40
+      minutos entre dos turnos ya agendados del mismo profesional — solo pide cliente y servicio,
+      sin que el dueño tenga que elegir una hora exacta a mano — y también tiene que quedar
+      accesible desde "Nuevo turno", no solo desde ese botón. **Sin cerrar:** ¿el turno exprés se
+      ubica *dentro* del hueco libre sin superponerse en el tiempo con el turno siguiente (compatible
+      con el constraint `no_double_booking` que se decidió no tocar la vez pasada — ver "Design
+      notes" → Double-booking prevention), o realmente tiene que poder solaparse con el turno de al
+      lado? Si es lo segundo, hace falta una migración para aflojar ese constraint, no es gratis.
