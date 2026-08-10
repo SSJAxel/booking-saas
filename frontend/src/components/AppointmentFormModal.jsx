@@ -14,18 +14,13 @@ const emptyDraft = {
 };
 
 /**
- * Shared form for the two ways an owner books a slot by hand instead of a client doing it
- * publicly:
- * - "Nuevo turno" (no context): a brand-new manual appointment, with an optional "sobreturno"
- *   checkbox for deliberately overlapping another appointment of the chosen professional.
- * - "Sobreturno" (replacing set): books a second appointment that overlaps the one it was opened
- *   from on purpose (e.g. a long service in progress while the same professional also takes a
- *   quick one) — the old appointment is left untouched, and the professional field is locked to
- *   match it, since overlapping only ever makes sense for the same professional. Moving an
- *   existing appointment to a new time ("Reagendar") is a separate, simpler flow — see
- *   RescheduleModal.
+ * "Nuevo turno": a brand-new manual appointment, with an optional "sobreturno" checkbox for
+ * deliberately overlapping another appointment of the chosen professional (see
+ * AppointmentService#book's overtime overload). This is the only entry point for booking a
+ * sobreturno — moving an existing appointment to a new time ("Reagendar") is a separate, simpler
+ * flow, see RescheduleModal.
  */
-export default function AppointmentFormModal({ open, onClose, professionals, services, replacing, defaultDate, onSaved }) {
+export default function AppointmentFormModal({ open, onClose, professionals, services, defaultDate, onSaved }) {
 	const [draft, setDraft] = useState(emptyDraft);
 	const [eligibleProfessionalIds, setEligibleProfessionalIds] = useState(null);
 	const [error, setError] = useState("");
@@ -33,12 +28,7 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 
 	useEffect(() => {
 		if (!open) return;
-		setDraft({
-			...emptyDraft,
-			date: replacing?.date ?? defaultDate ?? "",
-			serviceId: replacing?.serviceId ?? "",
-			professionalId: replacing?.professionalId ?? "",
-		});
+		setDraft({ ...emptyDraft, date: defaultDate ?? "" });
 		setEligibleProfessionalIds(null);
 		setError("");
 		setSaving(false);
@@ -47,7 +37,7 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 		}
 		document.addEventListener("keydown", onKeyDown);
 		return () => document.removeEventListener("keydown", onKeyDown);
-	}, [open, replacing, defaultDate, onClose]);
+	}, [open, defaultDate, onClose]);
 
 	useEffect(() => {
 		if (!draft.serviceId) {
@@ -70,8 +60,6 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 		setDraft((prev) => ({ ...prev, [field]: value }));
 	}
 
-	const isOvertime = replacing ? true : draft.overtime;
-
 	async function handleSubmit(event) {
 		event.preventDefault();
 		setError("");
@@ -87,7 +75,7 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 			clientInstagram: draft.clientInstagram || null,
 		};
 		try {
-			if (isOvertime) {
+			if (draft.overtime) {
 				await api.appointments.createOvertime(body);
 			} else {
 				await api.appointments.create(body);
@@ -104,18 +92,12 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 		<div className="modal-backdrop" onClick={onClose}>
 			<div className="modal-panel" onClick={(event) => event.stopPropagation()} role="dialog" aria-modal="true">
 				<div className="modal-header">
-					<h2>{!replacing ? "Nuevo turno" : "Sobreturno"}</h2>
+					<h2>Nuevo turno</h2>
 					<button type="button" className="modal-close" onClick={onClose} aria-label="Cerrar">
 						×
 					</button>
 				</div>
 				<div className="modal-body">
-					{replacing && (
-						<p className="muted" style={{ marginTop: 0 }}>
-							El turno de <strong>{replacing.clientName}</strong> sigue como está — este se agenda en paralelo, con
-							el mismo profesional atendiendo a los dos.
-						</p>
-					)}
 					<form className="field-grid" onSubmit={handleSubmit}>
 						<label>
 							Servicio
@@ -132,12 +114,7 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 						</label>
 						<label>
 							Profesional
-							<select
-								value={draft.professionalId}
-								onChange={(e) => set("professionalId", e.target.value)}
-								disabled={!!replacing}
-								required
-							>
+							<select value={draft.professionalId} onChange={(e) => set("professionalId", e.target.value)} required>
 								<option value="" disabled>
 									Elegir profesional
 								</option>
@@ -181,20 +158,14 @@ export default function AppointmentFormModal({ open, onClose, professionals, ser
 								placeholder="@usuario"
 							/>
 						</label>
-						{!replacing && (
-							<label className="span-2" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
-								<input
-									type="checkbox"
-									checked={draft.overtime}
-									onChange={(e) => set("overtime", e.target.checked)}
-								/>
-								Es un sobreturno (se superpone con otro turno del profesional)
-							</label>
-						)}
+						<label className="span-2" style={{ flexDirection: "row", alignItems: "center", gap: "0.5rem" }}>
+							<input type="checkbox" checked={draft.overtime} onChange={(e) => set("overtime", e.target.checked)} />
+							Es un sobreturno (se superpone con otro turno del profesional)
+						</label>
 						{error && <p className="error span-2">{error}</p>}
 						<div className="button-row span-2">
 							<button type="submit" disabled={saving}>
-								{saving ? "Guardando..." : replacing ? "Crear sobreturno" : "Crear turno"}
+								{saving ? "Guardando..." : draft.overtime ? "Crear sobreturno" : "Crear turno"}
 							</button>
 							<button type="button" className="secondary" onClick={onClose} disabled={saving}>
 								Cancelar

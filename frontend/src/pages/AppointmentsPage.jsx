@@ -29,10 +29,6 @@ const APPOINTMENT_DATETIME_FORMAT = new Intl.DateTimeFormat("es-AR", {
 	minute: "2-digit",
 });
 
-function pad(n) {
-	return String(n).padStart(2, "0");
-}
-
 function todayKey() {
 	return toDateKey(new Date());
 }
@@ -68,21 +64,6 @@ function computeBusinessHourBounds(availabilityEntries) {
 	return { hourStart: Math.floor(min / 60), hourEnd: Math.ceil(max / 60) };
 }
 
-/** Same {id, clientName, serviceId, professionalId, date, time} shape AppointmentFormModal expects
- * for the "replacing" prop — extracted from the appointment being replaced so the form can prefill
- * professional/service and show what's about to be cancelled. */
-function toReplacingContext(appointment) {
-	const start = new Date(appointment.startTime);
-	return {
-		id: appointment.id,
-		clientName: appointment.clientName,
-		serviceId: appointment.serviceId,
-		professionalId: appointment.professionalId,
-		date: toDateKey(start),
-		time: `${pad(start.getHours())}:${pad(start.getMinutes())}`,
-	};
-}
-
 export default function AppointmentsPage() {
 	const { session } = useAuth();
 	const [view, setView] = useState("calendario");
@@ -103,7 +84,7 @@ export default function AppointmentsPage() {
 	const [error, setError] = useState("");
 	const [loading, setLoading] = useState(true);
 	const [showWelcome, setShowWelcome] = useState(false);
-	const [formModal, setFormModal] = useState({ open: false, replacing: null });
+	const [formOpen, setFormOpen] = useState(false);
 	const [detailAppointment, setDetailAppointment] = useState(null);
 	const [rescheduleAppointment, setRescheduleAppointment] = useState(null);
 
@@ -229,12 +210,7 @@ export default function AppointmentsPage() {
 	}
 
 	function openCreate() {
-		setFormModal({ open: true, replacing: null });
-	}
-
-	function openOvertime(appointment) {
-		setDetailAppointment(null);
-		setFormModal({ open: true, replacing: toReplacingContext(appointment) });
+		setFormOpen(true);
 	}
 
 	function openReschedule(appointment) {
@@ -243,7 +219,7 @@ export default function AppointmentsPage() {
 	}
 
 	function closeFormModal() {
-		setFormModal({ open: false, replacing: null });
+		setFormOpen(false);
 	}
 
 	function handleSaved() {
@@ -367,24 +343,14 @@ export default function AppointmentsPage() {
 												</button>
 											)}
 											{ACTIVE_STATUSES.has(a.status) && (
-												<>
-													<button
-														type="button"
-														className="link-button"
-														title="Mover este turno a otra fecha u horario"
-														onClick={() => openReschedule(a)}
-													>
-														Reagendar
-													</button>
-													<button
-														type="button"
-														className="link-button"
-														title="Agendar un turno en paralelo con el mismo profesional"
-														onClick={() => openOvertime(a)}
-													>
-														Sobreturno
-													</button>
-												</>
+												<button
+													type="button"
+													className="link-button"
+													title="Mover este turno a otra fecha u horario"
+													onClick={() => openReschedule(a)}
+												>
+													Reagendar
+												</button>
 											)}
 											{NEXT_STATUS[a.status].map((s) => (
 												<button key={s} type="button" className="link-button" onClick={() => handleTransition(a.id, s)}>
@@ -457,16 +423,14 @@ export default function AppointmentsPage() {
 				onTransition={(status) => handleTransition(detailAppointment.id, status)}
 				onConfirmDeposit={() => handleConfirmDeposit(detailAppointment.id)}
 				onReschedule={() => openReschedule(detailAppointment)}
-				onOvertime={() => openOvertime(detailAppointment)}
 				error={error}
 			/>
 
 			<AppointmentFormModal
-				open={formModal.open}
+				open={formOpen}
 				onClose={closeFormModal}
 				professionals={professionals}
 				services={services}
-				replacing={formModal.replacing}
 				defaultDate={todayKey()}
 				onSaved={handleSaved}
 			/>
