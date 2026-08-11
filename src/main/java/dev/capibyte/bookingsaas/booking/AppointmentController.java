@@ -2,6 +2,7 @@ package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.AppointmentResponse;
 import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
+import dev.capibyte.bookingsaas.booking.dto.HistoryPurgeResponse;
 import dev.capibyte.bookingsaas.booking.dto.RescheduleRequest;
 import dev.capibyte.bookingsaas.booking.dto.StatusTransitionRequest;
 import dev.capibyte.bookingsaas.common.TenantContext;
@@ -16,6 +17,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -89,6 +91,18 @@ public class AppointmentController {
 		Instant startTime = toInstant(request);
 		return toResponse(appointmentService.book(request.professionalId(), request.serviceId(), startTime,
 				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram(), true));
+	}
+
+	/**
+	 * Borrado manual e irreversible de historial ("Última hora"/"Últimas 24 horas"/"Últimas 4
+	 * semanas"/"Historial entero") desde Turnos → Lista — solo dueño/admin, a diferencia del resto
+	 * de esta clase (STAFF no puede purgar historial). Ver AppointmentService#purgeHistory: la
+	 * ventana nunca incluye turnos futuros, sin importar qué window se elija.
+	 */
+	@DeleteMapping("/history")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public HistoryPurgeResponse purgeHistory(@RequestParam HistoryWindow window) {
+		return new HistoryPurgeResponse(appointmentService.purgeHistory(window));
 	}
 
 	private Instant toInstant(BookAppointmentRequest request) {

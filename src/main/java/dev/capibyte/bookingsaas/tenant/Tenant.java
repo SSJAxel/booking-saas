@@ -87,6 +87,14 @@ public class Tenant extends BaseEntity {
 	@Column(name = "top_clients_count", nullable = false)
 	private int topClientsCount = 3;
 
+	/** Cuántos meses de historial de turnos se conservan como máximo (1–12) —
+	 * AppointmentRetentionScheduler borra (DELETE real, irreversible) los turnos con startTime más
+	 * viejo que este límite, corriendo periódicamente para todos los tenants. Capeado en 12 tanto
+	 * acá (V27 CHECK) como en TenantService.updateHistoryRetentionMonths, mismo patrón de triple
+	 * validación que topClientsCount. */
+	@Column(name = "history_retention_months", nullable = false)
+	private int historyRetentionMonths = 12;
+
 	/** Set once, at creation (TenantService.create) — null for every tenant that existed before
 	 * this feature shipped, which is deliberate: TrialExpirationScheduler only ever acts on a
 	 * non-null value in the past, so old TRIAL ("Demo") tenants keep working exactly as before,

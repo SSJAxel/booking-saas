@@ -140,4 +140,16 @@ public class TenantService {
 		tenant.setTopClientsCount(topClientsCount);
 		return tenant;
 	}
+
+	/** {@code months} bounds (1–12) are also enforced by validation on the request DTO and a DB
+	 * check constraint (V27) — same three-places-deliberately pattern as updateClientRankingSettings. */
+	@Transactional
+	public Tenant updateHistoryRetentionMonths(UUID tenantId, int months) {
+		if (months < 1 || months > 12) {
+			throw new BadRequestException("historyRetentionMonths must be between 1 and 12");
+		}
+		Tenant tenant = findById(tenantId);
+		tenant.setHistoryRetentionMonths(months);
+		return tenant;
+	}
 }

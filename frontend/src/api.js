@@ -76,6 +76,8 @@ export const api = {
 			request("/api/tenant/notifications", { method: "PATCH", body: { whatsappEnabled } }),
 		updateClientRanking: (topClientsThreshold, topClientsCount) =>
 			request("/api/tenant/client-ranking", { method: "PATCH", body: { topClientsThreshold, topClientsCount } }),
+		updateHistoryRetention: (historyRetentionMonths) =>
+			request("/api/tenant/history-retention", { method: "PATCH", body: { historyRetentionMonths } }),
 	},
 	branches: {
 		list: () => request("/api/branches"),
@@ -132,6 +134,7 @@ export const api = {
 		create: (body) => request("/api/appointments", { method: "POST", body }),
 		reschedule: (id, body) => request(`/api/appointments/${id}/reschedule`, { method: "POST", body }),
 		createOvertime: (body) => request("/api/appointments/overtime", { method: "POST", body }),
+		purgeHistory: (window) => request(`/api/appointments/history${toQuery({ window })}`, { method: "DELETE" }),
 	},
 	clients: {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),

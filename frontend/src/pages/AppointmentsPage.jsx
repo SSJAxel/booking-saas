@@ -18,6 +18,12 @@ const NEXT_STATUS = {
 	NO_SHOW: [],
 };
 const ACTIVE_STATUSES = new Set(["PENDING", "CONFIRMED"]);
+const PURGE_CONFIRM_MESSAGES = {
+	LAST_HOUR: "¿Borrar los turnos de la última hora? Esta acción es permanente y no se puede deshacer.",
+	LAST_24_HOURS: "¿Borrar los turnos de las últimas 24 horas? Esta acción es permanente y no se puede deshacer.",
+	LAST_4_WEEKS: "¿Borrar los turnos de las últimas 4 semanas? Esta acción es permanente y no se puede deshacer.",
+	ALL: "¿Borrar TODO el historial de turnos pasados? Esta acción es permanente y no se puede deshacer. Los turnos futuros no se ven afectados.",
+};
 const DEFAULT_HOUR_BOUNDS = { hourStart: 9, hourEnd: 19 };
 
 const RANGE_LABEL_FORMAT = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" });
@@ -87,6 +93,10 @@ export default function AppointmentsPage() {
 	const [formOpen, setFormOpen] = useState(false);
 	const [detailAppointment, setDetailAppointment] = useState(null);
 	const [rescheduleAppointment, setRescheduleAppointment] = useState(null);
+	const [searchTerm, setSearchTerm] = useState("");
+	const [tenant, setTenant] = useState(null);
+
+	const canManageHistory = session.role === "OWNER" || session.role === "ADMIN";
 
 	useEffect(() => {
 		const dismissed = localStorage.getItem(`onboarding-dismissed-${session.tenantSlug}`) === "true";
@@ -95,6 +105,12 @@ export default function AppointmentsPage() {
 			.list()
 			.then((branches) => setShowWelcome(branches.length === 0))
 			.catch(() => {});
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	useEffect(() => {
+		if (!canManageHistory) return;
+		api.tenant.get().then(setTenant).catch((err) => setError(err.message));
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
@@ -201,6 +217,17 @@ export default function AppointmentsPage() {
 		}
 	}
 
+	async function handlePurgeHistory(purgeWindow) {
+		if (!window.confirm(PURGE_CONFIRM_MESSAGES[purgeWindow])) return;
+		setError("");
+		try {
+			await api.appointments.purgeHistory(purgeWindow);
+			await refreshList();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	function professionalName(id) {
 		return professionals.find((p) => p.id === id)?.displayName ?? "—";
 	}
@@ -237,6 +264,14 @@ export default function AppointmentsPage() {
 		base.setDate(base.getDate() + deltaDays);
 		setSelectedDate(toDateKey(base));
 	}
+
+	const filteredAppointments = useMemo(() => {
+		const term = searchTerm.trim().toLowerCase();
+		if (!term) return appointments;
+		return appointments.filter(
+			(a) => a.clientName?.toLowerCase().includes(term) || a.clientEmail?.toLowerCase().includes(term),
+		);
+	}, [appointments, searchTerm]);
 
 	const appointmentsByDay = useMemo(() => {
 		const map = {};
@@ -299,10 +334,69 @@ export default function AppointmentsPage() {
 						<button type="button" className="link-button" onClick={() => setShowFullHistory((v) => !v)}>
 							{showFullHistory ? "Ver solo últimos 30 días" : "Ver todo el historial"}
 						</button>
+						<label>
+							Buscar cliente
+							<input
+								type="text"
+								value={searchTerm}
+								onChange={(event) => setSearchTerm(event.target.value)}
+								placeholder="Nombre o email"
+							/>
+						</label>
 					</div>
+					{canManageHistory && (
+						<details className="history-settings">
+							<summary>Historial</summary>
+							<form
+								className="inline-form small"
+								onSubmit={async (event) => {
+									event.preventDefault();
+									setError("");
+									const months = Number(new FormData(event.target).get("historyRetentionMonths"));
+									try {
+										setTenant(await api.tenant.updateHistoryRetention(months));
+									} catch (err) {
+										setError(err.message);
+									}
+								}}
+							>
+								<label>
+									Guardar historial (meses, máx. 12)
+									<input
+										name="historyRetentionMonths"
+										type="number"
+										min="1"
+										max="12"
+										defaultValue={tenant?.historyRetentionMonths ?? 12}
+										style={{ width: "5rem" }}
+									/>
+								</label>
+								<button type="submit">Guardar</button>
+							</form>
+							<p className="muted">
+								Los turnos más viejos que este límite se borran automáticamente y de forma permanente.
+								También podés borrar historial reciente ahora mismo — nunca borra turnos que todavía no
+								pasaron.
+							</p>
+							<div className="filters">
+								<button type="button" className="secondary" onClick={() => handlePurgeHistory("LAST_HOUR")}>
+									Última hora
+								</button>
+								<button type="button" className="secondary" onClick={() => handlePurgeHistory("LAST_24_HOURS")}>
+									Últimas 24 horas
+								</button>
+								<button type="button" className="secondary" onClick={() => handlePurgeHistory("LAST_4_WEEKS")}>
+									Últimas 4 semanas
+								</button>
+								<button type="button" className="secondary" onClick={() => handlePurgeHistory("ALL")}>
+									Todo el historial
+								</button>
+							</div>
+						</details>
+					)}
 					{loading ? (
 						<p>Cargando...</p>
-					) : appointments.length === 0 ? (
+					) : filteredAppointments.length === 0 ? (
 						<p className="muted">
 							No hay turnos para este filtro
 							{!showFullHistory && " en los últimos 30 días"}.
@@ -319,7 +413,7 @@ export default function AppointmentsPage() {
 								</tr>
 							</thead>
 							<tbody>
-								{appointments.map((a) => (
+								{filteredAppointments.map((a) => (
 									<tr key={a.id}>
 										<td>
 											{a.clientName}

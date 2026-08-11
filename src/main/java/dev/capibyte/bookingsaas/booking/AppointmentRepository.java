@@ -12,4 +12,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
 	List<Appointment> findAllByStatusAndPaymentStatusAndCreatedAtBefore(AppointmentStatus status,
 			PaymentStatus paymentStatus, Instant cutoff);
+
+	long deleteByStartTimeBefore(Instant cutoff);
+
+	long deleteByStartTimeBetween(Instant from, Instant to);
 }

@@ -295,6 +295,42 @@ public class AppointmentService {
 	}
 
 	/**
+	 * Manual, inmediato — botones de Turnos → Lista (OWNER/ADMIN, ver
+	 * AppointmentController#purgeHistory). Real DELETE, irreversible, no toca el Client asociado
+	 * (rating/contadores quedan intactos, ver V27's ON DELETE CASCADE/SET NULL para payments/sales).
+	 *
+	 * <p>El límite superior es SIEMPRE {@code now}, sin excepción — incluido {@code ALL}, que no
+	 * borra "todo" en sentido literal, sino todo lo que ya pasó (startTime en [EPOCH, now]). Un
+	 * turno futuro nunca puede caer dentro de ese rango, así que nunca se borra con esta feature,
+	 * sin importar qué botón se apriete.
+	 */
+	@Transactional
+	public long purgeHistory(HistoryWindow window) {
+		Instant now = Instant.now();
+		Instant from = switch (window) {
+			case LAST_HOUR -> now.minus(1, ChronoUnit.HOURS);
+			case LAST_24_HOURS -> now.minus(24, ChronoUnit.HOURS);
+			case LAST_4_WEEKS -> now.minus(28, ChronoUnit.DAYS);
+			case ALL -> Instant.EPOCH;
+		};
+		return appointmentRepository.deleteByStartTimeBetween(from, now);
+	}
+
+	/**
+	 * Automatic counterpart to {@link #purgeHistory} — called by AppointmentRetentionScheduler,
+	 * once per tenant, with that tenant's own retention cutoff already computed. A separate
+	 * {@code @Transactional} method (not the scheduler calling the repository directly) for the
+	 * same reason {@link dev.capibyte.bookingsaas.booking.PendingDepositExpirationScheduler}
+	 * delegates to {@link #expireForNonPayment} instead of touching the repository itself: a
+	 * derived {@code deleteBy...} query needs an active transaction to run, which a plain
+	 * {@code @Component} scheduler method doesn't have on its own.
+	 */
+	@Transactional
+	public long purgeHistoryOlderThan(Instant cutoff) {
+		return appointmentRepository.deleteByStartTimeBefore(cutoff);
+	}
+
+	/**
 	 * Distinct from transitionStatus(CANCELLED): an abandoned checkout is nobody actively telling
 	 * anyone they're backing out, so it skips the "first cancellation is free" grace entirely and
 	 * always costs the harsher no-show-equivalent penalty — see ClientRatingService.

@@ -17,6 +17,21 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-11 — Retención y borrado de historial de turnos
+
+- **Retención configurable + borrado manual de historial.** El tenant decide cuántos meses de
+  historial de turnos conservar (1-12, default 12) desde Turnos → Lista; un job diario
+  (`AppointmentRetentionScheduler`) borra automáticamente lo que exceda ese límite, para todos los
+  tenants. Además, botones de borrado manual estilo "Borrar datos de navegación" de Chrome —
+  Última hora / Últimas 24 horas / Últimas 4 semanas / Todo el historial — cada uno borra los
+  turnos que caen DENTRO de esa ventana reciente. Es `DELETE` real e irreversible (rompe el
+  invariante que tenía `Appointment` de "nunca se borra, cancelar es solo un estado" — documentado
+  ahí mismo), pero nunca toca al `Client` asociado (rating, contadores, "cliente fijo" quedan
+  intactos) ni un turno futuro, sin importar qué botón se apriete. Se agrega también un buscador
+  por cliente (nombre/email) en Turnos → Lista, 100% client-side. Requirió arreglar dos foreign
+  keys que apuntaban a `appointments` sin `ON DELETE` (`payments` → CASCADE, `sales` → SET NULL)
+  para que el borrado no rompiera por violación de constraint.
+
 ### 2026-08-10 — Aprobación de tenants, planes, calificación de clientes, calendario
 
 - **Aprobación de tenants por el super-admin.** Todo negocio nuevo arranca "pendiente" — su sitio

@@ -21,7 +21,12 @@ import lombok.Setter;
  * {@code overtime} (see V25 migration): an owner can explicitly double-book a professional on
  * purpose, and those rows sit entirely outside the constraint. {@code endTime} is computed and
  * stored at booking time so a later edit to a service's duration can't retroactively corrupt
- * history. No hard deletes — cancellation is a status, so history is preserved.
+ * history. Cancellation is a status, not a deletion — but old history isn't kept forever: see
+ * {@link dev.capibyte.bookingsaas.booking.AppointmentService#purgeHistory} (manual, from Turnos →
+ * Lista) and {@code AppointmentRetentionScheduler} (automatic, per tenant, driven by
+ * {@link dev.capibyte.bookingsaas.tenant.Tenant#getHistoryRetentionMonths()}) for the two paths
+ * that do hard-delete rows here. Both are real DELETEs, and both only ever touch appointments
+ * whose startTime is already in the past — never a future one.
  */
 @Entity
 @Table(name = "appointments")

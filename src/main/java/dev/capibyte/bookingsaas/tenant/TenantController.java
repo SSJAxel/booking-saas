@@ -7,6 +7,7 @@ import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.ClientRankingSettingsRequest;
+import dev.capibyte.bookingsaas.tenant.dto.HistoryRetentionUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
@@ -82,6 +83,19 @@ public class TenantController {
 	public TenantResponse updateClientRanking(@Valid @RequestBody ClientRankingSettingsRequest request) {
 		return TenantResponse.from(tenantService.updateClientRankingSettings(TenantContext.getTenantId(),
 				request.topClientsThreshold(), request.topClientsCount()));
+	}
+
+	/**
+	 * Owner/admin: cuántos meses de historial de turnos se conservan (1–12) antes de que
+	 * AppointmentRetentionScheduler los borre automáticamente. Ver
+	 * AppointmentController#purgeHistory para el borrado manual inmediato (ventanas tipo "última
+	 * hora").
+	 */
+	@PatchMapping("/history-retention")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateHistoryRetention(@Valid @RequestBody HistoryRetentionUpdateRequest request) {
+		return TenantResponse.from(tenantService.updateHistoryRetentionMonths(TenantContext.getTenantId(),
+				request.historyRetentionMonths()));
 	}
 
 	/**
