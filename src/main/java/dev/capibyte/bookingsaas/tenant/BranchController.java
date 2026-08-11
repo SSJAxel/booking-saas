@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.tenant.dto.BranchHoursRequest;
 import dev.capibyte.bookingsaas.tenant.dto.BranchHoursResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BranchRequest;
 import dev.capibyte.bookingsaas.tenant.dto.BranchResponse;
+import dev.capibyte.bookingsaas.tenant.dto.BranchUpdateRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -46,8 +47,9 @@ public class BranchController {
 	}
 
 	@PutMapping("/{id}")
-	public BranchResponse update(@PathVariable UUID id, @Valid @RequestBody BranchRequest request) {
-		return BranchResponse.from(branchService.update(id, request.name(), request.address(), request.phone()));
+	public BranchResponse update(@PathVariable UUID id, @Valid @RequestBody BranchUpdateRequest request) {
+		return BranchResponse
+				.from(branchService.update(id, request.name(), request.address(), request.phone(), request.active()));
 	}
 
 	@DeleteMapping("/{id}")

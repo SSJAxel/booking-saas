@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel, subscriptionStatusLabel } from "../labels.js";
 
-const PLAN_TIERS = ["TRIAL", "BASIC", "PRO", "MAX"];
+const PLAN_TIERS = ["TRIAL", "PERSONAL", "BASIC", "PRO", "MAX"];
 
 function statusChip(tenant) {
 	if (tenant.planTier === "TRIAL") return { label: "Demo", className: "badge-pending" };

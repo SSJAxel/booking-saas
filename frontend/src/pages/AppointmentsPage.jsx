@@ -8,6 +8,7 @@ import AppointmentDetailModal from "../components/AppointmentDetailModal.jsx";
 import RescheduleModal from "../components/RescheduleModal.jsx";
 import ClientInsights from "../components/ClientInsights.jsx";
 import { paymentStatusLabel, statusLabel } from "../labels.js";
+import { tenantDateKey, tenantDateTimeLabel, tenantMinutesOfDay } from "../tenantTime.js";
 
 const STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"];
 const NEXT_STATUS = {
@@ -27,13 +28,6 @@ const PURGE_CONFIRM_MESSAGES = {
 const DEFAULT_HOUR_BOUNDS = { hourStart: 9, hourEnd: 19 };
 
 const RANGE_LABEL_FORMAT = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short" });
-const APPOINTMENT_DATETIME_FORMAT = new Intl.DateTimeFormat("es-AR", {
-	day: "numeric",
-	month: "numeric",
-	year: "numeric",
-	hour: "2-digit",
-	minute: "2-digit",
-});
 
 function todayKey() {
 	return toDateKey(new Date());
@@ -70,6 +64,27 @@ function computeBusinessHourBounds(availabilityEntries) {
 	return { hourStart: Math.floor(min / 60), hourEnd: Math.ceil(max / 60) };
 }
 
+/**
+ * Appointments aren't validated against a professional's declared weekly hours when booked
+ * manually or as "sobreturno" (AppointmentController#createOvertime skips that check on purpose —
+ * see its own Javadoc) — so one can legitimately start or end outside the availability-derived
+ * bounds above. Left alone, that appointment's block would position itself past the grid's bottom
+ * (or above its top) with no hour line anywhere near it — "floating," visually cut off, nothing
+ * wrong with the block's own math, just no room in the grid for it. This widens the bounds just
+ * enough to fit whatever's actually on screen this week, so the "fixed size" grid above only grows
+ * for the (rare) week that actually needs it.
+ */
+function widenBoundsForAppointments(bounds, appointments, timezone) {
+	let { hourStart, hourEnd } = bounds;
+	for (const a of appointments) {
+		const startHour = Math.floor(tenantMinutesOfDay(a.startTime, timezone) / 60);
+		const endHour = Math.ceil(tenantMinutesOfDay(a.endTime, timezone) / 60);
+		if (startHour < hourStart) hourStart = startHour;
+		if (endHour > hourEnd) hourEnd = endHour;
+	}
+	return { hourStart, hourEnd };
+}
+
 export default function AppointmentsPage() {
 	const { session } = useAuth();
 	const [view, setView] = useState("calendario");
@@ -78,12 +93,16 @@ export default function AppointmentsPage() {
 	const [appointments, setAppointments] = useState([]);
 	const [statusFilter, setStatusFilter] = useState("");
 	const [showFullHistory, setShowFullHistory] = useState(false);
+	const [historySettingsOpen, setHistorySettingsOpen] = useState(false);
 	const [calendarAppointments, setCalendarAppointments] = useState([]);
 	const [professionals, setProfessionals] = useState([]);
 	const [services, setServices] = useState([]);
 	const [branches, setBranches] = useState([]);
 	const [selectedBranchId, setSelectedBranchId] = useState(
 		() => localStorage.getItem(`selected-branch-${session.tenantSlug}`) || "",
+	);
+	const [selectedProfessionalId, setSelectedProfessionalId] = useState(
+		() => localStorage.getItem(`selected-professional-${session.tenantSlug}`) || "",
 	);
 	const [hourBounds, setHourBounds] = useState(DEFAULT_HOUR_BOUNDS);
 
@@ -109,9 +128,9 @@ export default function AppointmentsPage() {
 	}, []);
 
 	useEffect(() => {
-		if (!canManageHistory) return;
+		// Every role needs tenant.timezone to render appointment times correctly (see tenantTime.js)
+		// — not just OWNER/ADMIN, who additionally use the rest of this object for history retention.
 		api.tenant.get().then(setTenant).catch((err) => setError(err.message));
-		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, []);
 
 	useEffect(() => {
@@ -127,6 +146,11 @@ export default function AppointmentsPage() {
 	function selectBranch(branchId) {
 		setSelectedBranchId(branchId);
 		localStorage.setItem(`selected-branch-${session.tenantSlug}`, branchId);
+	}
+
+	function selectProfessional(professionalId) {
+		setSelectedProfessionalId(professionalId);
+		localStorage.setItem(`selected-professional-${session.tenantSlug}`, professionalId);
 	}
 
 	useEffect(() => {
@@ -146,6 +170,16 @@ export default function AppointmentsPage() {
 			? activeBranches.find((b) => b.id === selectedBranchId)?.id ?? activeBranches[0]?.id
 			: undefined;
 
+	// "Todos" (no filter) is the default here, unlike the branch dropdown — a tenant with one
+	// professional never sees this at all, and switching branch silently drops a selection that
+	// belongs to a professional from the branch just left instead of leaving a stale filter applied.
+	const activeProfessionals = professionals
+		.filter((p) => p.active)
+		.filter((p) => effectiveBranchId === undefined || p.branchId === effectiveBranchId);
+	const effectiveProfessionalId = activeProfessionals.some((p) => p.id === selectedProfessionalId)
+		? selectedProfessionalId
+		: undefined;
+
 	async function refreshList() {
 		setLoading(true);
 		try {
@@ -154,7 +188,12 @@ export default function AppointmentsPage() {
 			// No upper bound, so a turno booked weeks ahead never disappears from the default view.
 			const from = showFullHistory ? undefined : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 			setAppointments(
-				await api.appointments.list({ status: statusFilter || undefined, from, branchId: effectiveBranchId }),
+				await api.appointments.list({
+					status: statusFilter || undefined,
+					from,
+					branchId: effectiveBranchId,
+					professionalId: effectiveProfessionalId,
+				}),
 			);
 		} catch (err) {
 			setError(err.message);
@@ -167,7 +206,7 @@ export default function AppointmentsPage() {
 		if (view !== "lista") return;
 		refreshList();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [view, statusFilter, showFullHistory, effectiveBranchId]);
+	}, [view, statusFilter, showFullHistory, effectiveBranchId, effectiveProfessionalId]);
 
 	async function refreshCalendar() {
 		setLoading(true);
@@ -176,7 +215,12 @@ export default function AppointmentsPage() {
 			const to = new Date(from);
 			to.setDate(to.getDate() + 7);
 			setCalendarAppointments(
-				await api.appointments.list({ from: from.toISOString(), to: to.toISOString(), branchId: effectiveBranchId }),
+				await api.appointments.list({
+					from: from.toISOString(),
+					to: to.toISOString(),
+					branchId: effectiveBranchId,
+					professionalId: effectiveProfessionalId,
+				}),
 			);
 		} catch (err) {
 			setError(err.message);
@@ -189,7 +233,7 @@ export default function AppointmentsPage() {
 		if (view !== "calendario") return;
 		refreshCalendar();
 		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [view, selectedDate, effectiveBranchId]);
+	}, [view, selectedDate, effectiveBranchId, effectiveProfessionalId]);
 
 	function refresh() {
 		return view === "lista" ? refreshList() : refreshCalendar();
@@ -210,6 +254,24 @@ export default function AppointmentsPage() {
 		setError("");
 		try {
 			await api.appointments.confirmDeposit(id);
+			setDetailAppointment(null);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleDeleteAppointment(id) {
+		if (
+			!window.confirm(
+				"¿Eliminar este turno? Esta acción es permanente e irreversible. No afecta la calificación del " +
+					"cliente ni sus contadores — usalo para turnos de prueba o cargados por error.",
+			)
+		)
+			return;
+		setError("");
+		try {
+			await api.appointments.delete(id);
 			setDetailAppointment(null);
 			refresh();
 		} catch (err) {
@@ -276,11 +338,16 @@ export default function AppointmentsPage() {
 	const appointmentsByDay = useMemo(() => {
 		const map = {};
 		for (const a of calendarAppointments) {
-			const key = toDateKey(new Date(a.startTime));
+			const key = tenantDateKey(a.startTime, tenant?.timezone);
 			(map[key] ??= []).push(a);
 		}
 		return map;
-	}, [calendarAppointments]);
+	}, [calendarAppointments, tenant]);
+
+	const effectiveHourBounds = useMemo(
+		() => widenBoundsForAppointments(hourBounds, calendarAppointments, tenant?.timezone),
+		[hourBounds, calendarAppointments, tenant],
+	);
 
 	const calendarDays = useMemo(() => {
 		const monday = mondayOf(selectedDate);
@@ -298,7 +365,7 @@ export default function AppointmentsPage() {
 			<div className="card-header">
 				<h1>Turnos</h1>
 				<button type="button" onClick={openCreate}>
-					+ Nuevo turno
+					Nuevo turno
 				</button>
 			</div>
 			{showWelcome && <WelcomeBanner onDismiss={() => setShowWelcome(false)} />}
@@ -331,6 +398,22 @@ export default function AppointmentsPage() {
 								))}
 							</select>
 						</label>
+						{activeProfessionals.length > 1 && (
+							<label>
+								Profesional
+								<select
+									value={effectiveProfessionalId ?? ""}
+									onChange={(event) => selectProfessional(event.target.value)}
+								>
+									<option value="">Todos</option>
+									{activeProfessionals.map((p) => (
+										<option key={p.id} value={p.id}>
+											{p.displayName}
+										</option>
+									))}
+								</select>
+							</label>
+						)}
 						<button type="button" className="link-button" onClick={() => setShowFullHistory((v) => !v)}>
 							{showFullHistory ? "Ver solo últimos 30 días" : "Ver todo el historial"}
 						</button>
@@ -343,10 +426,21 @@ export default function AppointmentsPage() {
 								placeholder="Nombre o email"
 							/>
 						</label>
+						{canManageHistory && (
+							<button
+								type="button"
+								className="link-button"
+								onClick={() => setHistorySettingsOpen((v) => !v)}
+							>
+								{historySettingsOpen ? "Ocultar retención y borrado" : "Retención y borrado de historial"}
+							</button>
+						)}
 					</div>
-					{canManageHistory && (
-						<details className="history-settings">
-							<summary>Historial</summary>
+					{canManageHistory && historySettingsOpen && (
+						<div className="history-settings">
+							<p className="label" style={{ marginTop: 0 }}>
+								Retención y borrado de historial
+							</p>
 							<form
 								className="inline-form small"
 								onSubmit={async (event) => {
@@ -392,7 +486,7 @@ export default function AppointmentsPage() {
 									Todo el historial
 								</button>
 							</div>
-						</details>
+						</div>
 					)}
 					{loading ? (
 						<p>Cargando...</p>
@@ -402,6 +496,7 @@ export default function AppointmentsPage() {
 							{!showFullHistory && " en los últimos 30 días"}.
 						</p>
 					) : (
+						<div className="table-scroll">
 						<table>
 							<thead>
 								<tr>
@@ -420,13 +515,13 @@ export default function AppointmentsPage() {
 											<br />
 											<span className="muted">{a.clientEmail}</span>
 										</td>
-										<td>{APPOINTMENT_DATETIME_FORMAT.format(new Date(a.startTime))}</td>
+										<td>{tenantDateTimeLabel(a.startTime, tenant?.timezone)}</td>
 										<td>
 											<span className={`badge badge-${a.status.toLowerCase()}`}>{statusLabel(a.status)}</span>
 										</td>
 										<td>{paymentStatusLabel(a.paymentStatus)}</td>
 										<td>
-											{a.paymentStatus === "PENDING" && (
+											{a.paymentStatus === "PENDING" && ACTIVE_STATUSES.has(a.status) && (
 												<button
 													type="button"
 													className="link-button"
@@ -451,11 +546,21 @@ export default function AppointmentsPage() {
 													{statusLabel(s)}
 												</button>
 											))}
+											{canManageHistory && (
+												<button
+													type="button"
+													className="link-button danger-text"
+													onClick={() => handleDeleteAppointment(a.id)}
+												>
+													Eliminar
+												</button>
+											)}
 										</td>
 									</tr>
 								))}
 							</tbody>
 						</table>
+						</div>
 					)}
 					</section>
 				</>
@@ -480,17 +585,37 @@ export default function AppointmentsPage() {
 								aria-label="Ir a una fecha"
 							/>
 						</div>
-						{activeBranches.length > 1 && (
-							<label>
-								Sucursal
-								<select value={effectiveBranchId} onChange={(event) => selectBranch(event.target.value)}>
-									{activeBranches.map((b) => (
-										<option key={b.id} value={b.id}>
-											{b.name}
-										</option>
-									))}
-								</select>
-							</label>
+						{(activeBranches.length > 1 || activeProfessionals.length > 1) && (
+							<div className="calendar-toolbar-filters">
+								{activeBranches.length > 1 && (
+									<label>
+										Sucursal
+										<select value={effectiveBranchId} onChange={(event) => selectBranch(event.target.value)}>
+											{activeBranches.map((b) => (
+												<option key={b.id} value={b.id}>
+													{b.name}
+												</option>
+											))}
+										</select>
+									</label>
+								)}
+								{activeProfessionals.length > 1 && (
+									<label>
+										Profesional
+										<select
+											value={effectiveProfessionalId ?? ""}
+											onChange={(event) => selectProfessional(event.target.value)}
+										>
+											<option value="">Todos</option>
+											{activeProfessionals.map((p) => (
+												<option key={p.id} value={p.id}>
+													{p.displayName}
+												</option>
+											))}
+										</select>
+									</label>
+								)}
+							</div>
 						)}
 					</div>
 
@@ -501,9 +626,10 @@ export default function AppointmentsPage() {
 							days={calendarDays}
 							appointmentsByDay={appointmentsByDay}
 							onSelect={setDetailAppointment}
-							hourStart={hourBounds.hourStart}
-							hourEnd={hourBounds.hourEnd}
+							hourStart={effectiveHourBounds.hourStart}
+							hourEnd={effectiveHourBounds.hourEnd}
 							professionalName={professionalName}
+							timezone={tenant?.timezone}
 						/>
 					)}
 				</>
@@ -517,7 +643,9 @@ export default function AppointmentsPage() {
 				onTransition={(status) => handleTransition(detailAppointment.id, status)}
 				onConfirmDeposit={() => handleConfirmDeposit(detailAppointment.id)}
 				onReschedule={() => openReschedule(detailAppointment)}
+				onDelete={canManageHistory ? () => handleDeleteAppointment(detailAppointment.id) : undefined}
 				error={error}
+				timezone={tenant?.timezone}
 			/>
 
 			<AppointmentFormModal
@@ -533,6 +661,7 @@ export default function AppointmentsPage() {
 				appointment={rescheduleAppointment}
 				onClose={() => setRescheduleAppointment(null)}
 				onSaved={handleRescheduleSaved}
+				timezone={tenant?.timezone}
 			/>
 		</div>
 	);

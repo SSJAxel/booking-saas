@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api } from "../api.js";
 import Calendar from "../components/Calendar.jsx";
@@ -36,6 +36,11 @@ export default function BookingPage() {
 	const [loading, setLoading] = useState(false);
 	const [slotsLoading, setSlotsLoading] = useState(false);
 	const [error, setError] = useState("");
+	// Bumped on every availability fetch so a slow response for a professional/date the client has
+	// since navigated away from can't land after a newer one and silently overwrite it — without
+	// this, picking Emanuel's date then quickly switching to Lautaro can leave Lautaro's slot grid
+	// showing Emanuel's busy times if Emanuel's request happens to resolve second.
+	const slotsRequestRef = useRef(0);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -109,12 +114,16 @@ export default function BookingPage() {
 		setSlots([]);
 		setSlotsLoading(true);
 		setError("");
+		const requestId = ++slotsRequestRef.current;
 		try {
-			setSlots(await api.public.availability(tenantSlug, professional.id, service.id, dateKey));
+			const result = await api.public.availability(tenantSlug, professional.id, service.id, dateKey);
+			if (requestId !== slotsRequestRef.current) return; // a newer pick has since fired — discard
+			setSlots(result);
 		} catch (err) {
+			if (requestId !== slotsRequestRef.current) return;
 			setError(err.message);
 		} finally {
-			setSlotsLoading(false);
+			if (requestId === slotsRequestRef.current) setSlotsLoading(false);
 		}
 	}
 

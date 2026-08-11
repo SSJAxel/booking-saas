@@ -16,4 +16,7 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 	long deleteByStartTimeBefore(Instant cutoff);
 
 	long deleteByStartTimeBetween(Instant from, Instant to);
+
+	long countByStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNotIn(Instant from, Instant to,
+			List<AppointmentStatus> excludedStatuses);
 }

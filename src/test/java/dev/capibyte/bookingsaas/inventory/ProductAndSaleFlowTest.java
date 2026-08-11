@@ -52,8 +52,8 @@ class ProductAndSaleFlowTest extends IntegrationTestBase {
 	void basicPlanRejectsTheSixthActiveProduct() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
-		// Tenants now start on TRIAL (unlimited products) — this test cares about BASIC's cap
-		// specifically, so it sets the tier directly, same shortcut as proPlanHasNoProductLimit below.
+		// Tenants start on TRIAL by default — this test cares about BASIC's cap specifically, so it
+		// sets the tier directly, same shortcut as proPlanRejectsTheEleventhActiveProduct below.
 		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'BASIC' WHERE slug = ?", tenant.slug());
 
 		for (int i = 0; i < 5; i++) {
@@ -68,18 +68,33 @@ class ProductAndSaleFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void proPlanHasNoProductLimit() {
+	void proPlanRejectsTheEleventhActiveProduct() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
 		// Getting to PRO for real now means a MercadoPago subscription (see TenantPlanFlowTest and
 		// SubscriptionServiceTest) — not what this test cares about, so it sets the tier directly.
 		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
 
-		for (int i = 0; i < 6; i++) {
+		for (int i = 0; i < 10; i++) {
 			ResponseEntity<Map> response = restTemplate.exchange("/api/products", HttpMethod.POST,
 					new HttpEntity<>(Map.of("name", "Product " + i, "price", 10.0, "stock", 1), headers), Map.class);
 			assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 		}
+
+		ResponseEntity<Map> eleventh = restTemplate.exchange("/api/products", HttpMethod.POST,
+				new HttpEntity<>(Map.of("name", "Product 10", "price", 10.0, "stock", 1), headers), Map.class);
+		assertThat(eleventh.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
+	void personalPlanRejectsTheFirstProduct() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PERSONAL' WHERE slug = ?", tenant.slug());
+
+		ResponseEntity<Map> response = restTemplate.exchange("/api/products", HttpMethod.POST,
+				new HttpEntity<>(Map.of("name", "Product", "price", 10.0, "stock", 1), headers), Map.class);
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 	}
 
 	private Map createProduct(HttpHeaders headers, String name, double price, int stock) {

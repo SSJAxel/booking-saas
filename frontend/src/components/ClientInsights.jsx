@@ -1,7 +1,24 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
-const TOP_N = 5;
+const TOP_N = 10;
+
+/**
+ * Ranks by `metricKey` (completedCount/cancelledCount/noShowCount) and always fills up to TOP_N
+ * rows so the card isn't left half-empty on a young tenant — clients that don't qualify (metric
+ * is 0) are used as filler, worst-rated first, since these are all "keep an eye on" lists where a
+ * low rating is relevant context even without a completed/cancelled/no-show event yet.
+ */
+function topByMetric(stats, metricKey) {
+	const qualifying = [...stats].filter((c) => c[metricKey] > 0).sort((a, b) => b[metricKey] - a[metricKey]);
+	if (qualifying.length >= TOP_N) return qualifying.slice(0, TOP_N);
+	const usedIds = new Set(qualifying.map((c) => c.clientId));
+	const filler = [...stats]
+		.filter((c) => !usedIds.has(c.clientId))
+		.sort((a, b) => a.rating - b.rating)
+		.slice(0, TOP_N - qualifying.length);
+	return [...qualifying, ...filler];
+}
 
 /**
  * "Clientes" section of Turnos → Lista: the loyalty ranking, who comes back, who cancels a lot,
@@ -56,18 +73,9 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 		.slice(0, Math.max(0, tenant.topClientsCount - pinnedClients.length));
 	const topRated = [...pinnedClients, ...naturallyRanked];
 
-	const topFrequent = [...stats]
-		.filter((c) => c.completedCount > 0)
-		.sort((a, b) => b.completedCount - a.completedCount)
-		.slice(0, TOP_N);
-	const topCancellers = [...stats]
-		.filter((c) => c.cancelledCount > 0)
-		.sort((a, b) => b.cancelledCount - a.cancelledCount)
-		.slice(0, TOP_N);
-	const topNoShows = [...stats]
-		.filter((c) => c.noShowCount > 0)
-		.sort((a, b) => b.noShowCount - a.noShowCount)
-		.slice(0, TOP_N);
+	const topFrequent = topByMetric(stats, "completedCount");
+	const topCancellers = topByMetric(stats, "cancelledCount");
+	const topNoShows = topByMetric(stats, "noShowCount");
 
 	return (
 		<div className="cards">
@@ -89,32 +97,28 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 						"Completado"), y no fijaste ningún cliente a mano.
 					</p>
 				) : (
-					<ClientList clients={topRated} countKey="rating" countLabel="puntos" showPinned />
+					<div className="client-insight-scroll">
+						<ClientList clients={topRated} countKey="rating" countLabel="puntos" showPinned />
+					</div>
 				)}
 			</div>
 			<div className="card">
 				<p className="label">Clientes frecuentes</p>
-				{topFrequent.length === 0 ? (
-					<p className="muted">Todavía no hay turnos completados.</p>
-				) : (
+				<div className="client-insight-scroll">
 					<ClientList clients={topFrequent} countKey="completedCount" countLabel="completados" />
-				)}
+				</div>
 			</div>
 			<div className="card">
 				<p className="label">Cancelan seguido</p>
-				{topCancellers.length === 0 ? (
-					<p className="muted">Nadie canceló turnos todavía.</p>
-				) : (
+				<div className="client-insight-scroll">
 					<ClientList clients={topCancellers} countKey="cancelledCount" countLabel="cancelados" />
-				)}
+				</div>
 			</div>
 			<div className="card">
 				<p className="label">No aparecen</p>
-				{topNoShows.length === 0 ? (
-					<p className="muted">Nadie faltó sin avisar todavía.</p>
-				) : (
+				<div className="client-insight-scroll">
 					<ClientList clients={topNoShows} countKey="noShowCount" countLabel="ausencias" tone="danger" />
-				)}
+				</div>
 			</div>
 		</div>
 	);

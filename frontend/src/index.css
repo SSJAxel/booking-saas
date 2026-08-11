@@ -383,6 +383,199 @@ h3 {
 	max-width: 1100px;
 }
 
+/* Top nav shell (DashboardLayout) — everything operative (Turnos, Sucursales...) sits in one
+   horizontal bar instead of a side rail; AdminLayout keeps the plain row .shell/.sidebar, so this
+   only applies where .shell-top opts in. */
+.shell-top {
+	flex-direction: column;
+}
+
+.shell-top .content {
+	max-width: 1100px;
+	margin: 0 auto;
+	width: 100%;
+}
+
+.topbar {
+	position: sticky;
+	top: 0;
+	z-index: 40;
+	display: flex;
+	align-items: center;
+	gap: 1.5rem;
+	padding: 0.75rem 1.5rem;
+	background: color-mix(in srgb, var(--surface) 72%, transparent);
+	backdrop-filter: saturate(180%) blur(20px);
+	-webkit-backdrop-filter: saturate(180%) blur(20px);
+	border-bottom: 1px solid var(--border);
+}
+
+.topbar-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	flex: none;
+}
+
+.topbar-nav {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 0.2rem;
+	flex: 1;
+}
+
+.topbar-nav a {
+	padding: 0.5rem 0.85rem;
+	border-radius: var(--r-sm);
+	color: var(--text);
+	text-decoration: none;
+	font-size: 0.88rem;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	white-space: nowrap;
+	transition: background var(--transition), color var(--transition);
+}
+
+.topbar-nav a:hover {
+	background: var(--surface-2);
+}
+
+.topbar-nav a.active {
+	background: var(--text-h);
+	color: var(--bg);
+	font-weight: 600;
+}
+
+:root[data-theme="dark"] .topbar-nav a.active {
+	color: #000000;
+}
+
+.topbar-actions {
+	position: relative;
+	flex: none;
+	margin-left: auto;
+}
+
+.menu-trigger {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 38px;
+	height: 38px;
+	padding: 0;
+	background: transparent;
+	color: var(--text);
+	border: 1px solid var(--border);
+	border-radius: var(--r-sm);
+	box-shadow: none;
+}
+
+.menu-trigger:hover {
+	background: var(--surface-2);
+	box-shadow: none;
+}
+
+.topbar-menu {
+	position: absolute;
+	top: calc(100% + 0.6rem);
+	right: 0;
+	width: 260px;
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-md);
+	box-shadow: var(--shadow-hover);
+	padding: 0.5rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+	z-index: 50;
+}
+
+.topbar-menu-header {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	padding: 0.4rem 0.6rem 0.7rem;
+	margin-bottom: 0.3rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.topbar-menu-name {
+	font-size: 0.88rem;
+	font-weight: 600;
+	color: var(--text-h);
+	word-break: break-word;
+}
+
+.topbar-menu-role {
+	font-size: 0.78rem;
+	color: var(--text-dim);
+}
+
+.topbar-menu-item {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+	width: 100%;
+	padding: 0.55rem 0.6rem;
+	border: none;
+	border-radius: var(--r-sm);
+	background: none;
+	color: var(--text);
+	text-decoration: none;
+	font-size: 0.88rem;
+	font-weight: 500;
+	text-align: left;
+	box-shadow: none;
+	cursor: pointer;
+}
+
+.topbar-menu-item:hover {
+	background: var(--surface-2);
+	box-shadow: none;
+	color: var(--text-h);
+}
+
+.topbar-menu-item.active {
+	background: var(--surface-2);
+	color: var(--text-h);
+	font-weight: 600;
+}
+
+.topbar-menu-danger:hover {
+	background: var(--danger-bg);
+	color: var(--danger);
+}
+
+.topbar-menu-theme {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.6rem;
+	padding: 0.4rem 0.6rem;
+	font-size: 0.88rem;
+	font-weight: 500;
+}
+
+.topbar-menu-theme .theme-toggle {
+	margin-bottom: 0;
+	width: 140px;
+}
+
+@media (max-width: 860px) {
+	.topbar {
+		flex-wrap: wrap;
+		row-gap: 0.6rem;
+	}
+
+	.topbar-nav {
+		order: 3;
+		width: 100%;
+		justify-content: flex-start;
+	}
+}
+
 /* Shown on every page while TenantStatus is PENDING_APPROVAL (DashboardLayout.jsx). */
 .pending-approval-banner {
 	background: var(--warning-bg);
@@ -573,6 +766,10 @@ button.link-button:hover:not(:disabled) {
 	text-decoration: underline;
 }
 
+button.link-button.danger-text {
+	color: var(--danger);
+}
+
 /* Tables */
 table {
 	width: 100%;
@@ -583,6 +780,44 @@ table {
 	overflow: hidden;
 	box-shadow: var(--shadow-resting);
 	font-variant-numeric: tabular-nums;
+}
+
+/* Turnos → Lista: caps the appointments table to a fixed viewport height with its own scrollbar
+   (sticky header included) instead of letting a long history stretch the whole page taller —
+   same "stop scrolling the page itself" goal as .client-insight-scroll. */
+.table-scroll {
+	max-height: 60vh;
+	overflow: auto;
+	border: 1px solid var(--border);
+	border-radius: var(--r-xl);
+	box-shadow: var(--shadow-resting);
+}
+
+.table-scroll table {
+	border: none;
+	border-radius: 0;
+	box-shadow: none;
+	/* border-collapse mixed with position:sticky th makes the header's border visibly detach and
+	   "jump" while scrolling in Chrome/Edge — border-spacing:0 keeps cells touching without collapse. */
+	border-collapse: separate;
+	border-spacing: 0;
+	/* The base `table` rule sets overflow:hidden to clip its own rounded corners. That alone makes
+	   the table itself the sticky th's nearest "scroll container" (per spec, overflow:hidden still
+	   counts, even though the table itself never actually scrolls) instead of .table-scroll, which
+	   is the element that actually scrolls — so the header just scrolled away with everything else,
+	   never sticking. .table-scroll already clips to its own rounded corners, so the table doesn't
+	   need to. */
+	overflow: visible;
+}
+
+.table-scroll thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	/* Replaces the inherited border-bottom, which is what glitches under sticky+scroll — a
+	   box-shadow paints identically but isn't part of the collapse/scroll interaction. */
+	border-bottom: none;
+	box-shadow: inset 0 -1px 0 var(--border);
 }
 
 th,
@@ -848,6 +1083,21 @@ tr:last-child td {
 .badge-pro {
 	background: var(--accent-soft);
 	color: var(--accent);
+}
+
+.badge-trial {
+	background: var(--ok-bg);
+	color: var(--ok-text);
+}
+
+.badge-personal {
+	background: var(--warning-bg);
+	color: var(--warning);
+}
+
+.badge-max {
+	background: var(--accent);
+	color: var(--accent-contrast);
 }
 
 .filters {
@@ -1419,35 +1669,63 @@ button.danger:hover:not(:disabled) {
    AppointmentDetailModal for the full-size, legible view. */
 .calendar-toolbar {
 	display: flex;
+	flex-direction: column;
 	align-items: center;
-	justify-content: center;
-	flex-wrap: wrap;
-	gap: 0.8rem;
-	margin-bottom: 1rem;
+	gap: 0.5rem;
+	margin-bottom: 0.8rem;
 }
 
 .calendar-nav {
 	display: flex;
 	align-items: center;
-	gap: 0.5rem;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.35rem;
 }
 
 .calendar-nav button {
-	padding: 0.35rem 0.7rem;
+	padding: 0.25rem 0.6rem;
+	font-size: 0.8rem;
 }
 
 .calendar-nav-label {
 	font-family: var(--font-display);
+	font-size: 0.85rem;
 	font-weight: 600;
 	letter-spacing: -0.01em;
 	color: var(--text-h);
-	min-width: 11rem;
+	min-width: 8rem;
 	text-align: center;
 }
 
 .calendar-nav input[type="date"] {
-	padding: 0.35rem 0.5rem;
+	padding: 0.25rem 0.5rem;
 	width: auto;
+	font-size: 0.8rem;
+}
+
+.calendar-toolbar-filters {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 0.9rem;
+}
+
+.calendar-toolbar-filters label {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	gap: 0.4rem;
+	font-size: 0.78rem;
+	color: var(--text-dim);
+	font-weight: 600;
+}
+
+.calendar-toolbar-filters select {
+	padding: 0.25rem 0.5rem;
+	width: auto;
+	font-size: 0.8rem;
 }
 
 .time-grid {
@@ -1460,6 +1738,7 @@ button.danger:hover:not(:disabled) {
 
 .time-grid-header {
 	display: flex;
+	background: var(--surface-2);
 	border-bottom: 1px solid var(--border);
 }
 
@@ -1476,6 +1755,10 @@ button.danger:hover:not(:disabled) {
 	display: flex;
 	flex-direction: column;
 	gap: 0.1rem;
+}
+
+.time-grid-day-header.is-today {
+	background: var(--accent-soft);
 }
 
 .time-grid-day-header.is-today .time-grid-day-num {
@@ -1527,6 +1810,19 @@ button.danger:hover:not(:disabled) {
 	border-left: 1px solid var(--border);
 }
 
+.time-grid-day-col.is-weekend {
+	background: var(--surface-2);
+}
+
+/* NOT a background wash like .is-weekend above: cancelled/no-show appointment blocks are
+   deliberately translucent (opacity: 0.7, see .appt-block.status-cancelled below), so a tinted
+   column background sitting underneath them blends into their own color — a pink cancelled block
+   over this column's accent-blue tint rendered visibly purple, corrupting the status color it's
+   there to communicate. An inset left stripe marks "today" without ever sitting under a block. */
+.time-grid-day-col.is-today {
+	box-shadow: inset 3px 0 0 var(--accent);
+}
+
 .time-grid-hour-line {
 	position: absolute;
 	left: 0;
@@ -1539,18 +1835,27 @@ button.danger:hover:not(:disabled) {
 	position: absolute;
 	overflow: hidden;
 	text-align: left;
-	border-radius: 6px;
-	padding: 0.15rem 0.4rem;
+	border-radius: 8px;
+	padding: 0.15rem 0.45rem;
 	font-size: 0.72rem;
 	line-height: 1.25;
 	box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
 	border: 1px solid transparent;
 	cursor: pointer;
 	z-index: 1;
+	transition: box-shadow var(--transition), filter var(--transition);
 }
 
 .appt-block-time {
 	font-weight: 700;
+}
+
+.appt-color-dot {
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	flex-shrink: 0;
 }
 
 /* Forced to one line — without this, a long client name wraps inside a narrow (multi-professional)
@@ -1610,6 +1915,7 @@ button.danger:hover:not(:disabled) {
 .appt-block:hover {
 	filter: brightness(0.96);
 	transform: none;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
 /* Turnos → Lista: two clearly separated sections, "Clientes" then "Turnos", instead of the
@@ -1638,10 +1944,19 @@ button.danger:hover:not(:disabled) {
    Name+email and the count badge are stacked, not squeezed onto one row: these cards sit 3-up in
    a narrow grid, and a long email next to a badge like "4 completados" doesn't fit on one line —
    forcing it did (the badge text got cut off, visually painted over by the next card). */
+/* Caps every client ranking card (Mejores clientes, Frecuentes, Cancelan seguido, No aparecen)
+   to about 3 visible rows with an internal scrollbar for the rest — a "Máximo a mostrar" of 10-15
+   entries used to stretch the whole page taller per card, forcing the page itself to scroll just
+   to get past the client cards and reach the turnos table below. */
+.client-insight-scroll {
+	max-height: 11.5rem;
+	overflow-y: auto;
+}
+
 .client-insight-list {
 	list-style: none;
 	margin: 0;
-	padding: 0;
+	padding: 0 0.4rem 0 0;
 	display: flex;
 	flex-direction: column;
 	gap: 0.7rem;
@@ -1680,6 +1995,16 @@ button.danger:hover:not(:disabled) {
 	border-radius: var(--r-md);
 	padding: 0.9rem 1rem;
 	margin: 0.8rem 0 1.1rem;
+}
+
+/* Turnos → Lista: the retention/purge box, toggled by its own "Retención y borrado de historial"
+   link in .filters — boxed off with its own heading so it doesn't read as a caption for the
+   appointments table sitting right below it. */
+.history-settings {
+	background: var(--surface-2);
+	border-radius: var(--r-md);
+	padding: 1rem 1.1rem;
+	margin-bottom: 1.1rem;
 }
 
 /* Appointment detail popup (AppointmentDetailModal) */

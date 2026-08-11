@@ -46,7 +46,7 @@ class SubscriptionServiceTest {
 
 	@Test
 	void subscribeRejectsAFreeTier() {
-		assertThatThrownBy(() -> subscriptionService.subscribe(UUID.randomUUID(), PlanTier.BASIC))
+		assertThatThrownBy(() -> subscriptionService.subscribe(UUID.randomUUID(), PlanTier.TRIAL))
 				.isInstanceOf(BadRequestException.class);
 	}
 
@@ -137,7 +137,7 @@ class SubscriptionServiceTest {
 		subscriptionService.handleWebhook("preapproval-1", "req-1", "valid-signature");
 
 		assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.CANCELLED);
-		assertThat(tenant.getPlanTier()).isEqualTo(PlanTier.BASIC);
+		assertThat(tenant.getPlanTier()).isEqualTo(PlanTier.PERSONAL);
 	}
 
 	@Test

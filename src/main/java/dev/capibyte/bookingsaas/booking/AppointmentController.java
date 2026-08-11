@@ -105,6 +105,18 @@ public class AppointmentController {
 		return new HistoryPurgeResponse(appointmentService.purgeHistory(window));
 	}
 
+	/**
+	 * Borrado manual e irreversible de un turno puntual — mismo espíritu que {@link #purgeHistory}
+	 * (solo dueño/admin, no toca la calificación del cliente) pero sin restricción de fecha: para
+	 * sacarse de encima un turno de prueba o cargado por error, sea pasado o futuro.
+	 */
+	@DeleteMapping("/{id}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public void delete(@PathVariable UUID id) {
+		appointmentService.delete(id);
+	}
+
 	private Instant toInstant(BookAppointmentRequest request) {
 		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
 		return ZonedDateTime.of(request.date(), request.startTime(), zone).toInstant();

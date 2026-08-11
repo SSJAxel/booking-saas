@@ -12,6 +12,8 @@ import dev.capibyte.bookingsaas.common.UnauthorizedException;
 import dev.capibyte.bookingsaas.payment.dto.CheckoutResponse;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
+import dev.capibyte.bookingsaas.tenant.PlanTier;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -26,18 +28,20 @@ public class PaymentService {
 	private final MercadoPagoClient mercadoPagoClient;
 	private final MercadoPagoAccountService mercadoPagoAccountService;
 	private final WebhookSignatureVerifier signatureVerifier;
+	private final TenantService tenantService;
 	private final String webhookSecret;
 
 	public PaymentService(PaymentRepository paymentRepository, AppointmentService appointmentService,
 			ServiceOfferingService serviceOfferingService, MercadoPagoClient mercadoPagoClient,
 			MercadoPagoAccountService mercadoPagoAccountService, WebhookSignatureVerifier signatureVerifier,
-			@Value("${app.mercadopago.webhook-secret}") String webhookSecret) {
+			TenantService tenantService, @Value("${app.mercadopago.webhook-secret}") String webhookSecret) {
 		this.paymentRepository = paymentRepository;
 		this.appointmentService = appointmentService;
 		this.serviceOfferingService = serviceOfferingService;
 		this.mercadoPagoClient = mercadoPagoClient;
 		this.mercadoPagoAccountService = mercadoPagoAccountService;
 		this.signatureVerifier = signatureVerifier;
+		this.tenantService = tenantService;
 		this.webhookSecret = webhookSecret;
 	}
 
@@ -53,6 +57,12 @@ public class PaymentService {
 			throw new BadRequestException(
 					"This appointment doesn't require a deposit, or its deposit was already handled");
 		}
+		UUID tenantId = TenantContext.getTenantId();
+		PlanTier tier = tenantService.findById(tenantId).getPlanTier();
+		if (!tier.isMercadoPagoEnabled()) {
+			throw new BadRequestException("Plan " + tier + " doesn't include Mercado Pago deposits — "
+					+ "confirm the deposit manually instead (transfer + confirm-deposit)");
+		}
 		ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
 
 		Payment payment = new Payment();
@@ -61,7 +71,6 @@ public class PaymentService {
 		payment.setStatus(PaymentStatus.PENDING);
 		payment = paymentRepository.save(payment);
 
-		UUID tenantId = TenantContext.getTenantId();
 		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
 		MercadoPagoPreference preference = mercadoPagoClient.createPreference(accessToken, tenantId, payment.getId(),
 				"Deposit for " + service.getName(), service.getDepositAmount());

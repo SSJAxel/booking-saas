@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { planLabel } from "../labels.js";
+import { PLAN_LIMITS } from "../planLimits.js";
 
 const EMPTY_DRAFT = { name: "", description: "", durationMinutes: "", price: "", depositAmount: "", active: true };
 
@@ -7,6 +9,7 @@ export default function ServicesPage() {
 	const [services, setServices] = useState([]);
 	const [professionals, setProfessionals] = useState([]);
 	const [assignments, setAssignments] = useState({});
+	const [tenant, setTenant] = useState(null);
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -22,9 +25,10 @@ export default function ServicesPage() {
 	async function refresh() {
 		setLoading(true);
 		try {
-			const [s, p] = await Promise.all([api.services.list(), api.professionals.list()]);
+			const [s, p, t] = await Promise.all([api.services.list(), api.professionals.list(), api.tenant.get()]);
 			setServices(s);
 			setProfessionals(p);
+			setTenant(t);
 			const entries = await Promise.all(s.map(async (svc) => [svc.id, await api.services.listProfessionals(svc.id)]));
 			setAssignments(Object.fromEntries(entries));
 		} catch (err) {
@@ -119,19 +123,31 @@ export default function ServicesPage() {
 
 	if (loading) return <p>Cargando...</p>;
 
+	const limit = tenant && PLAN_LIMITS[tenant.planTier]?.maxServices;
+	const atLimit = limit != null && services.length >= limit;
+
 	return (
 		<div>
 			<h1>Servicios</h1>
+			{tenant && (
+				<p className="muted">
+					Plan {planLabel(tenant.planTier)} · {services.length}/{limit} servicios
+				</p>
+			)}
 			{error && <p className="error">{error}</p>}
 			{notice && <p className="notice">{notice}</p>}
-			<form className="inline-form" onSubmit={handleCreate}>
-				<input name="name" placeholder="Nombre" required />
-				<input name="description" placeholder="Descripción" />
-				<input name="durationMinutes" type="number" min="1" placeholder="Duración (min)" required />
-				<input name="price" type="number" step="0.01" min="0" placeholder="Precio" required />
-				<input name="depositAmount" type="number" step="0.01" min="0" placeholder="Seña (opcional)" />
-				<button type="submit">Agregar</button>
-			</form>
+			{atLimit ? (
+				<p className="muted">Llegaste al límite de servicios de tu plan {planLabel(tenant.planTier)}.</p>
+			) : (
+				<form className="inline-form" onSubmit={handleCreate}>
+					<input name="name" placeholder="Nombre" required />
+					<input name="description" placeholder="Descripción" />
+					<input name="durationMinutes" type="number" min="1" placeholder="Duración (min)" required />
+					<input name="price" type="number" step="0.01" min="0" placeholder="Precio" required />
+					<input name="depositAmount" type="number" step="0.01" min="0" placeholder="Seña (opcional)" />
+					<button type="submit">Agregar</button>
+				</form>
+			)}
 
 			<div className="cards">
 				{services.map((s) =>

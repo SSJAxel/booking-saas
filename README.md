@@ -17,6 +17,56 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-11 — Plan PERSONAL, borrado en cascada, calendario rediseñado, eliminar turno
+
+- **Plan PERSONAL + matriz de límites completa.** Nuevo escalón de entrada (1 profesional, sin
+  stock, 1 sucursal, 3 servicios, tope de 20 turnos/semana — el único plan con ese tope — sin
+  Mercado Pago ni WhatsApp). Los 5 planes (`TRIAL`/Demo, `PERSONAL`, `BASIC`, `PRO`, `MAX`) ahora
+  tienen una matriz de límites uniforme (profesionales, productos, sucursales, servicios,
+  turnos/semana, Mercado Pago, WhatsApp) aplicada en el backend (`ProfessionalLimitExceededException`,
+  `ServiceLimitExceededException`, `WeeklyAppointmentLimitExceededException`, sumadas a las ya
+  existentes de sucursales/productos) y mostrada completa en Mi Plan. TRIAL vencido ahora cae a
+  `PERSONAL` (antes `BASIC`), igual que una suscripción de Mercado Pago cancelada. El toggle de
+  WhatsApp se revisa contra el plan actual al momento de notificar (no solo al tildarlo), para que
+  una baja de plan no deje mandando WhatsApp con un toggle viejo en `true`.
+- **Eliminar sucursal/profesional ya no falla con historial real.** Antes, borrar una sucursal o
+  profesional con cualquier turno/horario/asignación cargada rompía por violación de foreign key —
+  en la práctica, "Eliminar" no tenía ningún camino que funcionara. Migración `V28` agrega
+  `ON DELETE CASCADE` para que borrar una sucursal/profesional se lleve puesto todo lo que solo
+  tiene sentido bajo ella/él (horarios, disponibilidad, bloqueos, asignaciones de servicio, lista de
+  espera, turnos — con sus payments/sales siguiendo las reglas ya establecidas en V27).
+- **Botón "Eliminar turno".** Borrado manual e inmediato de un turno puntual (Lista y Calendario),
+  sin restricción de fecha/estado (a diferencia de los borrados de historial, que solo tocan turnos
+  ya pasados) — para sacarse de encima un turno de prueba o cargado por error. No toca la
+  calificación del cliente ni sus contadores.
+- **Calendario semanal: rediseño y varios bugs de alineación reales.** Punto de color por
+  profesional en cada turno (color estable por `professionalId`, sin campo nuevo en la base) y en
+  la lista de Profesionales. Barra de navegación más chica y liviana. Se encontraron y corrigieron
+  cuatro bugs de layout: (1) un turno fuera del horario declarado del profesional (agendado manual o
+  "sobreturno") se renderizaba más allá del borde de la grilla sin línea de hora que lo contuviera —
+  ahora el rango de horas se ensancha para cubrir lo que esté efectivamente en pantalla; (2) el
+  header de la tabla de Turnos → Lista no quedaba fijo al scrollear (el `<table>` tenía
+  `overflow: hidden` heredado, lo que lo convertía a él —no al contenedor con scroll— en el
+  "contenedor de scroll" del `<th>` sticky); (3) el resaltado de la columna "hoy" (fondo celeste)
+  se mezclaba con el color semitransparente de los turnos cancelados/no-show y los mostraba
+  violeta — se reemplazó por una línea de acento en el borde izquierdo, que no se superpone a
+  ningún turno; (4) cuando el cuerpo del calendario necesita scroll interno, el navegador le resta
+  ancho a sus columnas para la barra de scroll pero no al header (que no scrollea), desalineando
+  columnas — se mide el ancho real de la scrollbar y se reserva el mismo espacio en el header.
+- **Turnos → Lista: menos scroll de página.** Las tarjetas de clientes (Mejores clientes,
+  Frecuentes, Cancelan seguido, No aparecen) muestran 3 filas visibles con scroll interno sobre un
+  pool de hasta 10 (relleno por peor calificación si no hay suficientes candidatos reales); la
+  tabla de turnos tiene su propio scroll con header fijo. El botón de configuración de historial se
+  renombró y reubicó junto a los demás filtros (antes un `<details>` con flecha nativa, ambiguo).
+  Turnos → Lista ahora ordena por más reciente primero.
+- **Reorganización de la navegación.** "Mi Plan" y "Mi cuenta" se movieron del nav principal a un
+  menú "⋯ más opciones", junto a un nuevo manual de ayuda in-app (`HelpManual`) y tema
+  claro/oscuro. "Productos" solo aparece en el nav si el plan del tenant lo incluye.
+- **Fix de condición de carrera en el sitio público de reserva.** Elegir un profesional/fecha y
+  cambiar rápido a otro antes de que responda el primer pedido de disponibilidad podía dejar en
+  pantalla los horarios del profesional equivocado si esa respuesta vieja llegaba después que la
+  nueva — se descarta cualquier respuesta que no sea la del último pedido.
+
 ### 2026-08-11 — Retención y borrado de historial de turnos
 
 - **Retención configurable + borrado manual de historial.** El tenant decide cuántos meses de

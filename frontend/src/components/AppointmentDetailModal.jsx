@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { paymentStatusLabel, statusLabel } from "../labels.js";
+import { tenantLongDateTimeLabel } from "../tenantTime.js";
 
 const NEXT_STATUS = {
 	PENDING: ["CONFIRMED", "CANCELLED"],
@@ -10,21 +11,13 @@ const NEXT_STATUS = {
 };
 const ACTIVE_STATUSES = new Set(["PENDING", "CONFIRMED"]);
 
-const DATE_FORMAT = new Intl.DateTimeFormat("es-AR", {
-	weekday: "long",
-	day: "numeric",
-	month: "long",
-	hour: "2-digit",
-	minute: "2-digit",
-});
-
 /**
  * Full-detail popup for a single appointment, opened by tapping a block in WeekCalendar — the
  * grid blocks are deliberately small ("nada grande"), so anything the owner needs to read or act
  * on (client contact, service, payment, status actions) lives here instead.
  */
 export default function AppointmentDetailModal({ appointment, onClose, professionalName, serviceName, onTransition,
-	onConfirmDeposit, onReschedule, error }) {
+	onConfirmDeposit, onReschedule, onDelete, error, timezone }) {
 	useEffect(() => {
 		if (!appointment) return;
 		function onKeyDown(event) {
@@ -35,8 +28,6 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 	}, [appointment, onClose]);
 
 	if (!appointment) return null;
-
-	const start = new Date(appointment.startTime);
 
 	return (
 		<div className="modal-backdrop" onClick={onClose}>
@@ -52,7 +43,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 
 					<div className="detail-grid">
 						<span className="label">Fecha</span>
-						<span>{capitalize(DATE_FORMAT.format(start))}</span>
+						<span>{tenantLongDateTimeLabel(appointment.startTime, timezone)}</span>
 						<span className="label">Servicio</span>
 						<span>{serviceName}</span>
 						<span className="label">Profesional</span>
@@ -69,7 +60,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 					{error && <p className="error">{error}</p>}
 
 					<div className="button-row" style={{ marginTop: "1.2rem", flexWrap: "wrap" }}>
-						{appointment.paymentStatus === "PENDING" && (
+						{appointment.paymentStatus === "PENDING" && ACTIVE_STATUSES.has(appointment.status) && (
 							<button type="button" onClick={onConfirmDeposit}>
 								Confirmar seña
 							</button>
@@ -84,13 +75,14 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 								Reagendar
 							</button>
 						)}
+						{onDelete && (
+							<button type="button" className="danger" onClick={onDelete} title="Borrado permanente, no afecta al cliente">
+								Eliminar turno
+							</button>
+						)}
 					</div>
 				</div>
 			</div>
 		</div>
 	);
-}
-
-function capitalize(text) {
-	return text.charAt(0).toUpperCase() + text.slice(1);
 }

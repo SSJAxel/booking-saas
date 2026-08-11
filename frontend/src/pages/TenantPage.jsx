@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import HelpManual from "../components/HelpManual.jsx";
 import { planLabel } from "../labels.js";
+import { planHasWhatsApp } from "../planLimits.js";
 
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
@@ -251,8 +252,28 @@ export default function TenantPage() {
 								</h3>
 								<p className="muted">{priceLabel}</p>
 								<p className="muted">
-									{plan.maxProducts ? `Hasta ${plan.maxProducts} productos` : "Productos ilimitados"}
+									{plan.maxProducts === 0
+										? "Sin stock/productos"
+										: plan.maxProducts
+											? `Hasta ${plan.maxProducts} productos`
+											: "Productos ilimitados"}
 								</p>
+								<p className="muted">
+									Hasta {plan.maxProfessionals} profesional{plan.maxProfessionals === 1 ? "" : "es"}
+								</p>
+								<p className="muted">
+									Hasta {plan.maxBranches} sucursal{plan.maxBranches === 1 ? "" : "es"}
+								</p>
+								<p className="muted">Hasta {plan.maxServices} servicios</p>
+								<p className="muted">
+									{plan.maxAppointmentsPerWeek
+										? `Hasta ${plan.maxAppointmentsPerWeek} turnos por semana`
+										: "Turnos ilimitados"}
+								</p>
+								<p className="muted">
+									{plan.mercadoPagoEnabled ? "Cobrá señas con Mercado Pago" : "Señas solo por transferencia"}
+								</p>
+								<p className="muted">{plan.whatsappEnabled ? "Avisos por WhatsApp" : "Solo avisos por mail"}</p>
 								{session.role === "OWNER" ? (
 									<button
 										type="button"
@@ -385,25 +406,29 @@ export default function TenantPage() {
 				)}
 			</div>
 
-			<p className="label">Notificaciones</p>
-			<div className="card">
-				<p className="muted">
-					El mail se envía siempre que alguien agenda, confirma o cancela un turno — esto es un canal extra, no un
-					reemplazo. Requiere que el cliente haya dejado su teléfono al reservar.
-				</p>
-				{canManage ? (
-					<label className="inline-form" style={{ alignItems: "center", gap: "0.5rem" }}>
-						<input type="checkbox" checked={tenant.whatsappEnabled} onChange={handleToggleWhatsApp} />
-						Avisar también por WhatsApp
-						{notificationsNotice && <span className="notice">{notificationsNotice}</span>}
-					</label>
-				) : (
-					<p className="muted">
-						WhatsApp está {tenant.whatsappEnabled ? "activado" : "desactivado"}. Solo el dueño o un admin pueden
-						cambiarlo.
-					</p>
-				)}
-			</div>
+			{planHasWhatsApp(tenant.planTier) && (
+				<>
+					<p className="label">Notificaciones</p>
+					<div className="card">
+						<p className="muted">
+							El mail se envía siempre que alguien agenda, confirma o cancela un turno — esto es un canal
+							extra, no un reemplazo. Requiere que el cliente haya dejado su teléfono al reservar.
+						</p>
+						{canManage ? (
+							<label className="inline-form" style={{ alignItems: "center", gap: "0.5rem" }}>
+								<input type="checkbox" checked={tenant.whatsappEnabled} onChange={handleToggleWhatsApp} />
+								Avisar también por WhatsApp
+								{notificationsNotice && <span className="notice">{notificationsNotice}</span>}
+							</label>
+						) : (
+							<p className="muted">
+								WhatsApp está {tenant.whatsappEnabled ? "activado" : "desactivado"}. Solo el dueño o un admin
+								pueden cambiarlo.
+							</p>
+						)}
+					</div>
+				</>
+			)}
 
 			<p className="label">Ranking de clientes</p>
 			<div className="card">

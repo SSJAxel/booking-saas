@@ -121,6 +121,9 @@ public class TenantService {
 	@Transactional
 	public Tenant updateWhatsAppEnabled(UUID tenantId, boolean enabled) {
 		Tenant tenant = findById(tenantId);
+		if (enabled && !tenant.getPlanTier().isWhatsappEnabled()) {
+			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include WhatsApp notifications");
+		}
 		tenant.setWhatsappEnabled(enabled);
 		return tenant;
 	}

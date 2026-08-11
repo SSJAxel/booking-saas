@@ -19,6 +19,19 @@ class BranchLimitFlowTest extends IntegrationTestBase {
 	private JdbcTemplate jdbcTemplate;
 
 	@Test
+	void personalPlanRejectsTheSecondBranch() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PERSONAL' WHERE slug = ?", tenant.slug());
+
+		createBranch(headers, "Branch 0");
+
+		ResponseEntity<Map> second = restTemplate.exchange("/api/branches", HttpMethod.POST,
+				new HttpEntity<>(Map.of("name", "Branch 1"), headers), Map.class);
+		assertThat(second.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
 	void trialPlanRejectsTheThirdBranch() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
@@ -34,23 +47,10 @@ class BranchLimitFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void basicPlanRejectsTheSecondBranch() {
+	void basicPlanRejectsTheThirdBranch() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
 		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'BASIC' WHERE slug = ?", tenant.slug());
-
-		createBranch(headers, "Branch 0");
-
-		ResponseEntity<Map> second = restTemplate.exchange("/api/branches", HttpMethod.POST,
-				new HttpEntity<>(Map.of("name", "Branch 1"), headers), Map.class);
-		assertThat(second.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-	}
-
-	@Test
-	void proPlanRejectsTheThirdBranch() {
-		RegisteredTenant tenant = registerTenant();
-		HttpHeaders headers = authHeaders(tenant.token());
-		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
 
 		createBranch(headers, "Branch 0");
 		createBranch(headers, "Branch 1");
@@ -61,10 +61,10 @@ class BranchLimitFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void maxPlanRejectsTheFifthBranch() {
+	void proPlanRejectsTheFifthBranch() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
-		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'MAX' WHERE slug = ?", tenant.slug());
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
 
 		for (int i = 0; i < 4; i++) {
 			createBranch(headers, "Branch " + i);
@@ -73,6 +73,21 @@ class BranchLimitFlowTest extends IntegrationTestBase {
 		ResponseEntity<Map> fifth = restTemplate.exchange("/api/branches", HttpMethod.POST,
 				new HttpEntity<>(Map.of("name", "Branch 4"), headers), Map.class);
 		assertThat(fifth.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
+	void maxPlanRejectsTheNinthBranch() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'MAX' WHERE slug = ?", tenant.slug());
+
+		for (int i = 0; i < 8; i++) {
+			createBranch(headers, "Branch " + i);
+		}
+
+		ResponseEntity<Map> ninth = restTemplate.exchange("/api/branches", HttpMethod.POST,
+				new HttpEntity<>(Map.of("name", "Branch 8"), headers), Map.class);
+		assertThat(ninth.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 	}
 
 	private void createBranch(HttpHeaders headers, String name) {

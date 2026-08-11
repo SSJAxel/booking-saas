@@ -1,7 +1,10 @@
 package dev.capibyte.bookingsaas.catalog;
 
 import dev.capibyte.bookingsaas.common.NotFoundException;
+import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.PlanTier;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -16,10 +19,15 @@ public class ServiceOfferingService {
 	private final ServiceOfferingRepository serviceOfferingRepository;
 	private final ProfessionalServiceAssignmentRepository assignmentRepository;
 	private final ProfessionalService professionalService;
+	private final TenantService tenantService;
 
 	@Transactional
 	public ServiceOffering create(String name, String description, int durationMinutes, BigDecimal price,
 			BigDecimal depositAmount) {
+		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
+		if (serviceOfferingRepository.countByActiveTrue() >= tier.getMaxServices()) {
+			throw new ServiceLimitExceededException(tier);
+		}
 		ServiceOffering service = new ServiceOffering();
 		service.setName(name);
 		service.setDescription(description);

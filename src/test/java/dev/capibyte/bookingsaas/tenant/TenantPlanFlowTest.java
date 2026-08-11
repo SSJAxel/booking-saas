@@ -47,13 +47,24 @@ class TenantPlanFlowTest extends IntegrationTestBase {
 		HttpHeaders headers = authHeaders(tenant.token());
 
 		ResponseEntity<Map> firstPatch = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
-				new HttpEntity<>(Map.of("planTier", "BASIC"), headers), Map.class);
+				new HttpEntity<>(Map.of("planTier", "TRIAL"), headers), Map.class);
 		assertThat(firstPatch.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(firstPatch.getBody().get("planTier")).isEqualTo("BASIC");
+		assertThat(firstPatch.getBody().get("planTier")).isEqualTo("TRIAL");
 
 		ResponseEntity<Map> secondPatch = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
-				new HttpEntity<>(Map.of("planTier", "BASIC"), headers), Map.class);
+				new HttpEntity<>(Map.of("planTier", "TRIAL"), headers), Map.class);
 		assertThat(secondPatch.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(secondPatch.getBody().get("planTier")).isEqualTo("BASIC");
+		assertThat(secondPatch.getBody().get("planTier")).isEqualTo("TRIAL");
+	}
+
+	@Test
+	void patchingToBasicIsRejectedNowThatItIsNotFree() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+
+		ResponseEntity<Map> response = restTemplate.exchange("/api/tenant/plan", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("planTier", "BASIC"), headers), Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 	}
 }

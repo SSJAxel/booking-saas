@@ -7,4 +7,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface ProfessionalRepository extends JpaRepository<Professional, UUID> {
 
 	List<Professional> findAllByBranchId(UUID branchId);
+
+	long countByActiveTrue();
 }

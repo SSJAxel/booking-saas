@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel } from "../labels.js";
+import { PLAN_LIMITS, planHasProducts } from "../planLimits.js";
 
 export default function ProductsPage() {
 	const [products, setProducts] = useState([]);
@@ -102,7 +103,19 @@ export default function ProductsPage() {
 
 	if (loading) return <p>Cargando...</p>;
 
-	const limit = tenant?.planTier === "BASIC" ? 5 : null;
+	if (tenant && !planHasProducts(tenant.planTier)) {
+		return (
+			<div>
+				<h1>Productos</h1>
+				<p className="muted">
+					Tu plan {planLabel(tenant.planTier)} no incluye venta de productos/stock. Mejorá tu plan desde
+					"Mi Plan" para habilitar esta sección.
+				</p>
+			</div>
+		);
+	}
+
+	const limit = tenant && PLAN_LIMITS[tenant.planTier]?.maxProducts;
 
 	return (
 		<div>

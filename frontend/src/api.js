@@ -135,6 +135,7 @@ export const api = {
 		reschedule: (id, body) => request(`/api/appointments/${id}/reschedule`, { method: "POST", body }),
 		createOvertime: (body) => request("/api/appointments/overtime", { method: "POST", body }),
 		purgeHistory: (window) => request(`/api/appointments/history${toQuery({ window })}`, { method: "DELETE" }),
+		delete: (id) => request(`/api/appointments/${id}`, { method: "DELETE" }),
 	},
 	clients: {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),

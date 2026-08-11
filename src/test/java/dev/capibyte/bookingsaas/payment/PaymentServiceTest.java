@@ -22,6 +22,9 @@ import dev.capibyte.bookingsaas.common.UnauthorizedException;
 import dev.capibyte.bookingsaas.payment.dto.CheckoutResponse;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
+import dev.capibyte.bookingsaas.tenant.PlanTier;
+import dev.capibyte.bookingsaas.tenant.Tenant;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.math.BigDecimal;
 import java.util.Optional;
 import java.util.UUID;
@@ -36,8 +39,9 @@ class PaymentServiceTest {
 	private final MercadoPagoClient mercadoPagoClient = mock(MercadoPagoClient.class);
 	private final MercadoPagoAccountService mercadoPagoAccountService = mock(MercadoPagoAccountService.class);
 	private final WebhookSignatureVerifier signatureVerifier = mock(WebhookSignatureVerifier.class);
+	private final TenantService tenantService = mock(TenantService.class);
 	private final PaymentService paymentService = new PaymentService(paymentRepository, appointmentService,
-			serviceOfferingService, mercadoPagoClient, mercadoPagoAccountService, signatureVerifier,
+			serviceOfferingService, mercadoPagoClient, mercadoPagoAccountService, signatureVerifier, tenantService,
 			"test-webhook-secret");
 
 	@AfterEach
@@ -81,11 +85,32 @@ class PaymentServiceTest {
 				eq(new BigDecimal("20.00"))))
 				.thenReturn(new MercadoPagoPreference("pref-1", "https://mp.example/checkout/pref-1"));
 
+		Tenant tenant = new Tenant();
+		tenant.setPlanTier(PlanTier.PRO);
+		when(tenantService.findById(any())).thenReturn(tenant);
+
 		TenantContext.setTenantId(UUID.randomUUID());
 		CheckoutResponse response = paymentService.createCheckout(appointmentId);
 
 		assertThat(response.checkoutUrl()).isEqualTo("https://mp.example/checkout/pref-1");
 		assertThat(response.paymentId()).isNotNull();
+	}
+
+	@Test
+	void createCheckoutRejectsWhenThePlanDoesNotIncludeMercadoPago() {
+		UUID appointmentId = UUID.randomUUID();
+		Appointment appointment = new Appointment();
+		appointment.setPaymentStatus(PaymentStatus.PENDING);
+		when(appointmentService.findById(appointmentId)).thenReturn(appointment);
+
+		UUID tenantId = UUID.randomUUID();
+		Tenant tenant = new Tenant();
+		tenant.setPlanTier(PlanTier.PERSONAL);
+		when(tenantService.findById(tenantId)).thenReturn(tenant);
+
+		TenantContext.setTenantId(tenantId);
+		assertThatThrownBy(() -> paymentService.createCheckout(appointmentId)).isInstanceOf(BadRequestException.class);
+		verify(mercadoPagoClient, never()).createPreference(any(), any(), any(), anyString(), any());
 	}
 
 	@Test

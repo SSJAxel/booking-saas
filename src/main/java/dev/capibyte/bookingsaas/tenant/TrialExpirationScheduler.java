@@ -9,13 +9,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * Auto-downgrades a TRIAL ("Demo" in the UI) tenant to BASIC once {@link Tenant#getTrialExpiresAt}
- * has passed — the tenant keeps working (BASIC is free, just capped at 5 products), nothing is
- * blocked. Only ever touches tenants with a non-null, past {@code trialExpiresAt} — see that
- * field's Javadoc for why every tenant that existed before this feature shipped is naturally
- * exempt. Doesn't need TenantContext/per-tenant looping like PendingDepositExpirationScheduler:
- * {@link Tenant} isn't {@code @TenantId}-scoped (see its own Javadoc), so a normal repository
- * query already reads across every tenant in one go.
+ * Auto-downgrades a TRIAL ("Demo" in the UI) tenant to PERSONAL once
+ * {@link Tenant#getTrialExpiresAt} has passed — the tenant keeps working (PERSONAL is the one paid
+ * tier a tenant lands on without an active subscription, same fallback SubscriptionService uses on
+ * cancellation), nothing is blocked. Only ever touches tenants with a non-null, past
+ * {@code trialExpiresAt} — see that field's Javadoc for why every tenant that existed before this
+ * feature shipped is naturally exempt. Doesn't need TenantContext/per-tenant looping like
+ * PendingDepositExpirationScheduler: {@link Tenant} isn't {@code @TenantId}-scoped (see its own
+ * Javadoc), so a normal repository query already reads across every tenant in one go.
  */
 @Component
 public class TrialExpirationScheduler {
@@ -33,8 +34,8 @@ public class TrialExpirationScheduler {
 	public void expireTrials() {
 		List<Tenant> expired = tenantRepository.findByPlanTierAndTrialExpiresAtBefore(PlanTier.TRIAL, Instant.now());
 		for (Tenant tenant : expired) {
-			log.info("Demo expired for tenant {} ({}): downgrading TRIAL -> BASIC", tenant.getId(), tenant.getSlug());
-			tenant.setPlanTier(PlanTier.BASIC);
+			log.info("Demo expired for tenant {} ({}): downgrading TRIAL -> PERSONAL", tenant.getId(), tenant.getSlug());
+			tenant.setPlanTier(PlanTier.PERSONAL);
 		}
 	}
 }

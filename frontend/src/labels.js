@@ -25,10 +25,15 @@ export function paymentStatusLabel(status) {
 	return PAYMENT_STATUS_LABELS[status] ?? status;
 }
 
-// TRIAL mantiene su nombre interno (columna de DB, enum, contrato de API) — solo lo que ve el
-// tenant/founder en pantalla dice "Demo". Ver el Javadoc de TenantService.create.
+// TRIAL/PERSONAL mantienen su nombre interno (columna de DB, enum, contrato de API) — solo lo que
+// ve el tenant/founder en pantalla dice "Demo"/"Personal". Ver el Javadoc de TenantService.create.
+const PLAN_LABELS = {
+	TRIAL: "Demo",
+	PERSONAL: "Personal",
+};
+
 export function planLabel(tier) {
-	return tier === "TRIAL" ? "Demo" : tier;
+	return PLAN_LABELS[tier] ?? tier;
 }
 
 const SUBSCRIPTION_STATUS_LABELS = {

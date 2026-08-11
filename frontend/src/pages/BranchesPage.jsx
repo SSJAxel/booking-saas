@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel } from "../labels.js";
+import { PLAN_LIMITS } from "../planLimits.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
-
-const BRANCH_LIMITS = { TRIAL: 2, BASIC: 1, PRO: 2, MAX: 4 };
 
 export default function BranchesPage() {
 	const [branches, setBranches] = useState([]);
@@ -14,7 +13,7 @@ export default function BranchesPage() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [editingId, setEditingId] = useState(null);
-	const [editDraft, setEditDraft] = useState({ name: "", address: "", phone: "" });
+	const [editDraft, setEditDraft] = useState({ name: "", address: "", phone: "", active: true });
 
 	function flashNotice(message) {
 		setNotice(message);
@@ -59,7 +58,7 @@ export default function BranchesPage() {
 
 	function startEdit(branch) {
 		setEditingId(branch.id);
-		setEditDraft({ name: branch.name, address: branch.address ?? "", phone: branch.phone ?? "" });
+		setEditDraft({ name: branch.name, address: branch.address ?? "", phone: branch.phone ?? "", active: branch.active });
 	}
 
 	async function handleSaveEdit(id) {
@@ -70,6 +69,7 @@ export default function BranchesPage() {
 				name: editDraft.name,
 				address: editDraft.address || null,
 				phone: editDraft.phone || null,
+				active: editDraft.active,
 			});
 			setEditingId(null);
 			await refresh();
@@ -82,7 +82,15 @@ export default function BranchesPage() {
 	}
 
 	async function handleDelete(id) {
-		if (!window.confirm("¿Eliminar esta sucursal?")) return;
+		if (
+			!window.confirm(
+				"¿Eliminar esta sucursal? Esta acción es permanente: también se borran sus profesionales (con sus " +
+					"horarios, bloqueos y asignaciones de servicio), sus horarios propios, y TODOS los turnos (pasados y " +
+					"futuros) reservados ahí. No se puede deshacer. Si preferís conservar el historial, usá Editar → Activa " +
+					"para desactivarla en vez de eliminarla.",
+			)
+		)
+			return;
 		setError("");
 		try {
 			await api.branches.delete(id);
@@ -94,7 +102,7 @@ export default function BranchesPage() {
 
 	if (loading) return <p>Cargando...</p>;
 
-	const limit = tenant && BRANCH_LIMITS[tenant.planTier];
+	const limit = tenant && PLAN_LIMITS[tenant.planTier]?.maxBranches;
 	const atLimit = limit != null && branches.length >= limit;
 
 	return (
@@ -149,18 +157,28 @@ export default function BranchesPage() {
 											/>
 										</label>
 									</div>
-									<div className="button-row" style={{ marginTop: "0.8rem", justifyContent: "flex-end" }}>
-										<button type="button" disabled={saving} onClick={() => handleSaveEdit(b.id)}>
-											{saving ? "Guardando..." : "Guardar"}
-										</button>
-										<button
-											type="button"
-											className="secondary"
-											disabled={saving}
-											onClick={() => setEditingId(null)}
-										>
-											Cancelar
-										</button>
+									<div className="card-header" style={{ marginTop: "0.8rem" }}>
+										<label className="form-check">
+											<input
+												type="checkbox"
+												checked={editDraft.active}
+												onChange={(e) => setEditDraft({ ...editDraft, active: e.target.checked })}
+											/>
+											Activa
+										</label>
+										<div className="button-row">
+											<button type="button" disabled={saving} onClick={() => handleSaveEdit(b.id)}>
+												{saving ? "Guardando..." : "Guardar"}
+											</button>
+											<button
+												type="button"
+												className="secondary"
+												disabled={saving}
+												onClick={() => setEditingId(null)}
+											>
+												Cancelar
+											</button>
+										</div>
 									</div>
 								</>
 							) : (

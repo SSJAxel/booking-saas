@@ -1,10 +1,12 @@
 package dev.capibyte.bookingsaas.tenant;
 
+import dev.capibyte.bookingsaas.common.ConflictException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,19 +42,33 @@ public class BranchService {
 	}
 
 	@Transactional
-	public Branch update(UUID id, String name, String address, String phone) {
+	public Branch update(UUID id, String name, String address, String phone, boolean active) {
 		Branch branch = findById(id);
 		branch.setName(name);
 		branch.setAddress(address);
 		branch.setPhone(phone);
+		branch.setActive(active);
 		return branch;
 	}
 
+	/**
+	 * Deletes the branch and, via ON DELETE CASCADE (see V28 migration), everything that only makes
+	 * sense scoped to it: its professionals (and in turn each professional's own weekly hours,
+	 * time-off, service assignments, waitlist entries), its own branch hours, and every appointment
+	 * ever booked there (payments cascade with their appointment, sales just lose the appointment
+	 * link — both per the V27 rules already in place). Irreversible — the confirmation the frontend
+	 * shows before calling this is the only guard.
+	 */
 	@Transactional
 	public void delete(UUID id) {
 		if (!branchRepository.existsById(id)) {
 			throw new NotFoundException("Branch not found: " + id);
 		}
-		branchRepository.deleteById(id);
+		try {
+			branchRepository.deleteById(id);
+			branchRepository.flush();
+		} catch (DataIntegrityViolationException ex) {
+			throw new ConflictException("No se pudo eliminar la sucursal. Probá de nuevo en unos segundos.");
+		}
 	}
 }

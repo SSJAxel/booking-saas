@@ -8,6 +8,7 @@ import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.notification.AppointmentNotificationEvent;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import dev.capibyte.bookingsaas.waitlist.WaitlistService;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.CannotAcquireLockException;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,6 +62,23 @@ public class AppointmentService {
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
 			String clientEmail, String clientPhone, String clientInstagram, boolean overtime) {
+		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+		PlanTier tier = tenant.getPlanTier();
+		if (tier.getMaxAppointmentsPerWeek() != null) {
+			ZoneId zone = ZoneId.of(tenant.getTimezone());
+			LocalDate localDate = startTime.atZone(zone).toLocalDate();
+			// minusDays sobre getDayOfWeek().getValue() en vez de LocalDate.with(DayOfWeek.MONDAY):
+			// inequívoco, no depende de la semántica de TemporalAdjuster de DayOfWeek.
+			LocalDate weekStart = localDate.minusDays(localDate.getDayOfWeek().getValue() - 1L);
+			Instant weekFrom = weekStart.atStartOfDay(zone).toInstant();
+			Instant weekTo = weekStart.plusWeeks(1).atStartOfDay(zone).toInstant();
+			long activeThisWeek = appointmentRepository
+					.countByStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNotIn(weekFrom, weekTo,
+							INACTIVE_STATUSES);
+			if (activeThisWeek >= tier.getMaxAppointmentsPerWeek()) {
+				throw new WeeklyAppointmentLimitExceededException(tier);
+			}
+		}
 		ServiceOffering service = serviceOfferingService.findById(serviceId);
 		List<UUID> eligible = serviceOfferingService.findProfessionalIdsForService(serviceId);
 		if (!eligible.contains(professionalId)) {
@@ -158,7 +177,10 @@ public class AppointmentService {
 	@Transactional(readOnly = true)
 	public List<Appointment> search(UUID branchId, UUID professionalId, Instant from, Instant to,
 			AppointmentStatus status) {
-		return appointmentRepository.findAll().stream()
+		// Most recent first (by startTime) — the "Turnos" list is otherwise left in whatever order
+		// the DB happens to return rows in, which reads as oldest-on-top, newest-on-bottom to anyone
+		// scanning it.
+		return appointmentRepository.findAll(Sort.by(Sort.Direction.DESC, "startTime")).stream()
 				.filter(a -> branchId == null || a.getBranchId().equals(branchId))
 				.filter(a -> professionalId == null || a.getProfessionalId().equals(professionalId))
 				.filter(a -> from == null || !a.getStartTime().isBefore(from))
@@ -247,6 +269,10 @@ public class AppointmentService {
 	 * If forfeiting a deposit knocks the appointment out of CONFIRMED (i.e. it was CONFIRMED only
 	 * because the deposit was PAID), its status drops back to PENDING too — mirroring exactly what
 	 * {@link #book} does for a fresh booking whose deposit isn't resolved yet.
+	 *
+	 * <p>Deliberately does NOT check {@link PlanTier#getMaxAppointmentsPerWeek()} — out of scope by
+	 * design: this only moves an appointment that already counted against some past week, it never
+	 * creates a new one, so a PERSONAL tenant right at their weekly cap can still reschedule.
 	 */
 	@Transactional
 	public Appointment reschedule(UUID appointmentId, Instant newStartTime, RescheduleReason reason) {
@@ -317,6 +343,22 @@ public class AppointmentService {
 	}
 
 	/**
+	 * Borrado manual de UN turno puntual (botón "Eliminar turno" en Turnos → Lista/Calendario) — a
+	 * diferencia de {@link #purgeHistory}, no está limitado a turnos ya pasados: sirve para sacarse
+	 * de encima un turno de prueba o cargado por error, sin importar su fecha o estado. Mismo
+	 * contrato que purgeHistory: no toca el Client asociado (rating/contadores intactos), y
+	 * payments/sales del turno siguen las reglas de V27 (payments se borra en cascada, sales solo
+	 * pierde la referencia).
+	 */
+	@Transactional
+	public void delete(UUID id) {
+		if (!appointmentRepository.existsById(id)) {
+			throw new NotFoundException("Appointment not found: " + id);
+		}
+		appointmentRepository.deleteById(id);
+	}
+
+	/**
 	 * Automatic counterpart to {@link #purgeHistory} — called by AppointmentRetentionScheduler,
 	 * once per tenant, with that tenant's own retention cutoff already computed. A separate
 	 * {@code @Transactional} method (not the scheduler calling the repository directly) for the
@@ -371,9 +413,14 @@ public class AppointmentService {
 			ServiceOffering service, AppointmentStatus status) {
 		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
 		ZoneId zone = ZoneId.of(tenant.getTimezone());
+		// isWhatsappEnabled() is a saved toggle that can outlive a downgrade — a tenant who turned
+		// it on while on a WhatsApp-capable plan and then dropped to PERSONAL keeps the toggle at
+		// true in the DB (updateWhatsAppEnabled only blocks turning it ON, not off), so the plan's
+		// current entitlement must be checked here too, not just once at toggle time.
+		boolean whatsappEnabled = tenant.isWhatsappEnabled() && tenant.getPlanTier().isWhatsappEnabled();
 		eventPublisher.publishEvent(new AppointmentNotificationEvent(client.getEmail(), client.getName(),
 				professional.getDisplayName(), service.getName(), appointment.getStartTime(), zone, status,
-				tenant.isWhatsappEnabled(), client.getPhone()));
+				whatsappEnabled, client.getPhone()));
 	}
 
 	private void validateTransition(AppointmentStatus from, AppointmentStatus to) {

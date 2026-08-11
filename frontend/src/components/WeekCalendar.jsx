@@ -1,3 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+import { tenantMinutesOfDay, tenantTimeLabel } from "../tenantTime.js";
+import { professionalColor } from "../professionalColor.js";
+
 const PX_PER_HOUR = 56;
 // Tall enough for time+client on one line plus the professional name on a second — a 30min
 // appointment only computes to 28px from duration alone, not enough room for that second line.
@@ -10,10 +14,6 @@ function pad(n) {
 
 function toDateKey(date) {
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function minutesOfDay(date) {
-	return date.getHours() * 60 + date.getMinutes();
 }
 
 /**
@@ -72,14 +72,35 @@ function layoutDay(appointments) {
  * to its line instead of vertically centered on it — centering the very first label would put half
  * of it above y=0, where the scroll container has nothing to show, so it was rendering clipped off.
  */
-export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourStart, hourEnd, professionalName }) {
+export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourStart, hourEnd, professionalName,
+	timezone }) {
 	const hours = Array.from({ length: hourEnd - hourStart }, (_, i) => hourStart + i);
 	const bodyHeight = (hourEnd - hourStart) * PX_PER_HOUR;
 	const today = toDateKey(new Date());
 
+	const bodyRef = useRef(null);
+	// .time-grid-body scrolls internally (max-height: 70vh) but .time-grid-header, right above it,
+	// doesn't — so whenever the body actually grows a scrollbar, the OS eats that many pixels out of
+	// its 7 day-columns' available width while the header's 7 columns stay full-width, and every
+	// column past the first drifts further out of alignment with the header/appointments under it.
+	// Measuring the real scrollbar width (varies by OS/browser, 0 on overlay-scrollbar systems) and
+	// reserving the same gap on the header keeps both rows' 7 columns exactly the same width.
+	const [scrollbarWidth, setScrollbarWidth] = useState(0);
+	useEffect(() => {
+		const el = bodyRef.current;
+		if (!el) return;
+		function measure() {
+			setScrollbarWidth(el.offsetWidth - el.clientWidth);
+		}
+		measure();
+		const observer = new ResizeObserver(measure);
+		observer.observe(el);
+		return () => observer.disconnect();
+	}, []);
+
 	return (
 		<div className="time-grid">
-			<div className="time-grid-header">
+			<div className="time-grid-header" style={{ paddingRight: scrollbarWidth }}>
 				<div className="time-grid-gutter" />
 				{days.map((day) => (
 					<div key={toDateKey(day)} className={`time-grid-day-header${toDateKey(day) === today ? " is-today" : ""}`}>
@@ -88,7 +109,7 @@ export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourSt
 					</div>
 				))}
 			</div>
-			<div className="time-grid-body" style={{ height: bodyHeight }}>
+			<div className="time-grid-body" ref={bodyRef} style={{ height: bodyHeight }}>
 				<div className="time-grid-gutter">
 					{hours.map((h) => (
 						<span key={h} className="time-grid-hour-label" style={{ top: (h - hourStart) * PX_PER_HOUR }}>
@@ -99,17 +120,21 @@ export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourSt
 				{days.map((day) => {
 					const key = toDateKey(day);
 					const positioned = layoutDay(appointmentsByDay[key] ?? []);
+					const isWeekend = day.getDay() === 0 || day.getDay() === 6;
 					return (
-						<div key={key} className="time-grid-day-col">
+						<div
+							key={key}
+							className={`time-grid-day-col${isWeekend ? " is-weekend" : ""}${key === today ? " is-today" : ""}`}
+						>
 							{hours.map((h) => (
 								<div key={h} className="time-grid-hour-line" style={{ top: (h - hourStart) * PX_PER_HOUR }} />
 							))}
 							{positioned.map(({ appointment, col, totalCols }) => {
-								const start = new Date(appointment.startTime);
-								const top = (minutesOfDay(start) - hourStart * 60) * (PX_PER_HOUR / 60);
-								const durationMin = (new Date(appointment.endTime) - start) / 60000;
+								const top = (tenantMinutesOfDay(appointment.startTime, timezone) - hourStart * 60) * (PX_PER_HOUR / 60);
+								const durationMin = (new Date(appointment.endTime) - new Date(appointment.startTime)) / 60000;
 								const height = Math.max(durationMin * (PX_PER_HOUR / 60), MIN_BLOCK_HEIGHT);
 								const width = 100 / totalCols;
+								const timeLabel = tenantTimeLabel(appointment.startTime, timezone);
 								return (
 									<button
 										type="button"
@@ -117,12 +142,14 @@ export default function WeekCalendar({ days, appointmentsByDay, onSelect, hourSt
 										className={`appt-block status-${appointment.status.toLowerCase()}${appointment.overtime ? " is-overtime" : ""}`}
 										style={{ top, height, width: `calc(${width}% - 4px)`, left: `calc(${width * col}% + 2px)` }}
 										onClick={() => onSelect(appointment)}
-										title={`${pad(start.getHours())}:${pad(start.getMinutes())} · ${appointment.clientName} · ${professionalName(appointment.professionalId)}`}
+										title={`${timeLabel} · ${appointment.clientName} · ${professionalName(appointment.professionalId)}`}
 									>
 										<span className="appt-block-line1">
-											<span className="appt-block-time">
-												{pad(start.getHours())}:{pad(start.getMinutes())}
-											</span>{" "}
+											<span
+												className="appt-color-dot"
+												style={{ background: professionalColor(appointment.professionalId) }}
+											/>{" "}
+											<span className="appt-block-time">{timeLabel}</span>{" "}
 											<span className="appt-block-name">{appointment.clientName}</span>
 										</span>
 										<span className="appt-block-professional">{professionalName(appointment.professionalId)}</span>

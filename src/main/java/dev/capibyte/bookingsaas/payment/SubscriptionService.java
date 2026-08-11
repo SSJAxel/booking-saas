@@ -112,7 +112,7 @@ public class SubscriptionService {
 				// individual missed recurring charge that MercadoPago is still retrying (that's the
 				// "authorized_payment" webhook topic, not "subscription_preapproval" — not handled
 				// here yet, see README roadmap).
-				tenant.setPlanTier(PlanTier.BASIC);
+				tenant.setPlanTier(PlanTier.PERSONAL);
 			}
 		} finally {
 			TenantContext.clear();

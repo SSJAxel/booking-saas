@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { planLabel } from "../labels.js";
+import { PLAN_LIMITS } from "../planLimits.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
 import MonthCalendar from "../components/MonthCalendar.jsx";
+import { professionalColor } from "../professionalColor.js";
 
 export default function ProfessionalsPage() {
 	const [branches, setBranches] = useState([]);
 	const [professionals, setProfessionals] = useState([]);
+	const [tenant, setTenant] = useState(null);
 	const [timeOffByProfessional, setTimeOffByProfessional] = useState({});
 	const [availabilityByProfessional, setAvailabilityByProfessional] = useState({});
 	const [error, setError] = useState("");
@@ -26,9 +30,10 @@ export default function ProfessionalsPage() {
 	async function refresh() {
 		setLoading(true);
 		try {
-			const [b, p] = await Promise.all([api.branches.list(), api.professionals.list()]);
+			const [b, p, t] = await Promise.all([api.branches.list(), api.professionals.list(), api.tenant.get()]);
 			setBranches(b);
 			setProfessionals(p);
+			setTenant(t);
 			const [timeOffEntries, availabilityEntries] = await Promise.all([
 				Promise.all(p.map(async (pr) => [pr.id, await api.professionals.listTimeOff(pr.id)])),
 				Promise.all(p.map(async (pr) => [pr.id, await api.professionals.listAvailability(pr.id)])),
@@ -89,7 +94,14 @@ export default function ProfessionalsPage() {
 	}
 
 	async function handleDelete(id) {
-		if (!window.confirm("¿Eliminar este profesional?")) return;
+		if (
+			!window.confirm(
+				"¿Eliminar este profesional? Esta acción es permanente: también se borran sus horarios, bloqueos, " +
+					"asignaciones de servicio y TODOS los turnos (pasados y futuros) reservados con él/ella. No se puede " +
+					"deshacer. Si preferís conservar el historial, usá Editar → Activo para desactivarlo en vez de eliminarlo.",
+			)
+		)
+			return;
 		setError("");
 		try {
 			await api.professionals.delete(id);
@@ -180,27 +192,39 @@ export default function ProfessionalsPage() {
 
 	if (loading) return <p>Cargando...</p>;
 
+	const limit = tenant && PLAN_LIMITS[tenant.planTier]?.maxProfessionals;
+	const atLimit = limit != null && professionals.length >= limit;
+
 	return (
 		<div>
 			<h1>Profesionales</h1>
+			{tenant && (
+				<p className="muted">
+					Plan {planLabel(tenant.planTier)} · {professionals.length}/{limit} profesionales
+				</p>
+			)}
 			{error && <p className="error">{error}</p>}
 			{notice && <p className="notice">{notice}</p>}
 			{branches.length === 0 && <p className="muted">Cargá una sucursal primero.</p>}
-			<form className="inline-form" onSubmit={handleCreate}>
-				<select name="branchId" required defaultValue="">
-					<option value="" disabled>
-						Sucursal
-					</option>
-					{branches.map((b) => (
-						<option key={b.id} value={b.id}>
-							{b.name}
+			{atLimit ? (
+				<p className="muted">Llegaste al límite de profesionales de tu plan {planLabel(tenant.planTier)}.</p>
+			) : (
+				<form className="inline-form" onSubmit={handleCreate}>
+					<select name="branchId" required defaultValue="">
+						<option value="" disabled>
+							Sucursal
 						</option>
-					))}
-				</select>
-				<input name="displayName" placeholder="Nombre" required />
-				<input name="bio" placeholder="Bio (opcional)" />
-				<button type="submit">Agregar</button>
-			</form>
+						{branches.map((b) => (
+							<option key={b.id} value={b.id}>
+								{b.name}
+							</option>
+						))}
+					</select>
+					<input name="displayName" placeholder="Nombre" required />
+					<input name="bio" placeholder="Bio (opcional)" />
+					<button type="submit">Agregar</button>
+				</form>
+			)}
 
 			<div className="cards stacked">
 				{professionals.map((p) => (
@@ -263,7 +287,18 @@ export default function ProfessionalsPage() {
 						) : (
 							<div className="card-header">
 								<div>
-									<h3>{p.displayName}</h3>
+									<h3>
+										<span
+											className="appt-color-dot"
+											style={{
+												background: professionalColor(p.id),
+												width: "10px",
+												height: "10px",
+												marginRight: "0.5rem",
+											}}
+										/>
+										{p.displayName}
+									</h3>
 									<p className="muted">
 										{branchName(p.branchId)}
 										{!p.active && " · inactivo"}

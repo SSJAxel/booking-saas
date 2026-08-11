@@ -15,7 +15,7 @@ import org.springframework.http.HttpMethod;
 import org.springframework.http.ResponseEntity;
 
 /**
- * TRIAL ("Demo" in the UI) auto-downgrades to BASIC once TenantService.create's 15-day
+ * TRIAL ("Demo" in the UI) auto-downgrades to PERSONAL once TenantService.create's 15-day
  * trialExpiresAt has passed — see TrialExpirationScheduler's Javadoc for why a tenant that
  * predates this feature (trialExpiresAt null) is never touched.
  */
@@ -25,7 +25,7 @@ class TrialExpirationFlowTest extends IntegrationTestBase {
 	private TrialExpirationScheduler trialExpirationScheduler;
 
 	@Test
-	void trialPastItsExpirationDateIsDowngradedToBasic() {
+	void trialPastItsExpirationDateIsDowngradedToPersonal() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
 		assertThat(getPlanTier(headers)).isEqualTo("TRIAL");
@@ -36,7 +36,7 @@ class TrialExpirationFlowTest extends IntegrationTestBase {
 
 		trialExpirationScheduler.expireTrials();
 
-		assertThat(getPlanTier(headers)).isEqualTo("BASIC");
+		assertThat(getPlanTier(headers)).isEqualTo("PERSONAL");
 	}
 
 	@Test

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { tenantDateKey, tenantLongDateTimeLabel, tenantTimeLabel } from "../tenantTime.js";
 
 const REASON_OPTIONS = [
 	{ value: "TENANT_DECISION", label: "Personal del tenant" },
@@ -12,7 +13,7 @@ const REASON_OPTIONS = [
  * backend: si toca la calificación del cliente ("Aviso" sí, "Personal del tenant" no) y si se
  * mantiene una seña ya pagada (siempre con "Personal del tenant"; sólo la primera vez con "Aviso").
  */
-export default function RescheduleModal({ appointment, onClose, onSaved }) {
+export default function RescheduleModal({ appointment, onClose, onSaved, timezone }) {
 	const [reason, setReason] = useState("TENANT_DECISION");
 	const [date, setDate] = useState("");
 	const [time, setTime] = useState("");
@@ -21,9 +22,8 @@ export default function RescheduleModal({ appointment, onClose, onSaved }) {
 
 	useEffect(() => {
 		if (!appointment) return;
-		const start = new Date(appointment.startTime);
-		setDate(start.toISOString().slice(0, 10));
-		setTime(`${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`);
+		setDate(tenantDateKey(appointment.startTime, timezone));
+		setTime(tenantTimeLabel(appointment.startTime, timezone));
 		setReason("TENANT_DECISION");
 		setError("");
 		setSaving(false);
@@ -32,17 +32,11 @@ export default function RescheduleModal({ appointment, onClose, onSaved }) {
 		}
 		document.addEventListener("keydown", onKeyDown);
 		return () => document.removeEventListener("keydown", onKeyDown);
-	}, [appointment, onClose]);
+	}, [appointment, onClose, timezone]);
 
 	if (!appointment) return null;
 
-	const currentDateTime = new Date(appointment.startTime).toLocaleString("es-AR", {
-		weekday: "long",
-		day: "numeric",
-		month: "long",
-		hour: "2-digit",
-		minute: "2-digit",
-	});
+	const currentDateTime = tenantLongDateTimeLabel(appointment.startTime, timezone);
 
 	async function handleSubmit(event) {
 		event.preventDefault();
