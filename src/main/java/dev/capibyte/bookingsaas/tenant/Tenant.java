@@ -93,6 +93,14 @@ public class Tenant extends BaseEntity {
 	@Column(name = "top_clients_count", nullable = false)
 	private int topClientsCount = 3;
 
+	/** Cuántos minutos (10–180) tiene un depósito PENDING antes de que
+	 * PendingDepositExpirationScheduler cancele el turno solo — solo se consulta para tenants con
+	 * MercadoPago habilitado en su plan, el scheduler ignora por completo a los que no lo tienen
+	 * (ver el Javadoc de esa clase). Rango acotado tanto acá como en el request DTO y con un CHECK
+	 * de la base (V32) — mismo patrón de triple validación que topClientsCount. */
+	@Column(name = "deposit_expiration_minutes", nullable = false)
+	private int depositExpirationMinutes = 30;
+
 	/** Cuántos meses de historial de turnos se conservan como máximo (1–12) —
 	 * AppointmentRetentionScheduler borra (DELETE real, irreversible) los turnos con startTime más
 	 * viejo que este límite, corriendo periódicamente para todos los tenants. Capeado en 12 tanto

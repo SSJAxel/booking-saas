@@ -8,6 +8,7 @@ import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.ClientRankingSettingsRequest;
+import dev.capibyte.bookingsaas.tenant.dto.DepositExpirationUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.HistoryRetentionUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
@@ -120,6 +121,19 @@ public class TenantController {
 	public TenantResponse updateHistoryRetention(@Valid @RequestBody HistoryRetentionUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateHistoryRetentionMonths(TenantContext.getTenantId(),
 				request.historyRetentionMonths()));
+	}
+
+	/**
+	 * Owner/admin: how long (10–180 min) a PENDING deposit has before
+	 * PendingDepositExpirationScheduler auto-cancels the appointment. Only has an effect for
+	 * tenants with MercadoPago enabled in their plan — a tenant that only takes deposits via bank
+	 * transfer alias is never touched by that scheduler regardless of this value (see its Javadoc).
+	 */
+	@PatchMapping("/deposit-expiration")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateDepositExpiration(@Valid @RequestBody DepositExpirationUpdateRequest request) {
+		return TenantResponse.from(tenantService.updateDepositExpirationMinutes(TenantContext.getTenantId(),
+				request.depositExpirationMinutes()));
 	}
 
 	/**

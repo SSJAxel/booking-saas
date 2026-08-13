@@ -17,6 +17,45 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-13 — Categorías, banner, horarios públicos, fotos con upload real, y re-verificación de Mercado Pago
+
+- **Categoría de servicio, banner de tenant, horario/teléfono de sucursal público, foto de
+  profesional.** Migración `V31`. `ServiceOffering.category` (texto libre, el tenant define sus
+  propias categorías; agrupa el catálogo en la página pública). `Tenant.bannerUrl`, portada del
+  sitio público además del logo. `Branch.phone` (ya existía en el modelo, no se exponía) y
+  `BranchHours` ahora viajan en `GET /api/public/{slug}/branches` — horarios crudos, sin lógica de
+  "abierto ahora"/"próxima apertura", eso queda del lado del cliente a propósito.
+  `Professional.photoUrl` para el carrusel de equipo. De paso, `GET /api/public/{slug}/professionals`
+  ya no exige `serviceId`: sin ese parámetro devuelve todos los profesionales activos del tenant
+  (opcionalmente filtrado por `branchId`), para poder mostrar el equipo antes de elegir servicio.
+- **Upload real de imágenes, no URL pegada a mano.** Pedirle a un tenant no técnico que hostee una
+  imagen en otro lado y pegue el link no era práctico. Banner, logo y foto de profesional ahora se
+  suben como archivo de verdad, reusando `FileStorageService` (antes solo usado para adjuntos de
+  reportes de soporte), servidos públicamente sin auth desde `/uploads/public/**`
+  (`PublicUploadsConfig`) — en un subdirectorio separado de los adjuntos de soporte a propósito,
+  para que esos nunca queden alcanzables por URL. Endpoints nuevos: `POST
+  /api/tenant/branding/logo`, `POST /api/tenant/branding/banner`, `POST
+  /api/professionals/{id}/photo`.
+- **Checkout Pro de Mercado Pago, re-verificado en vivo (contradice una nota anterior).** Se había
+  documentado que nunca hubo credenciales de sandbox reales — resultó incorrecto: el checkout de
+  depósitos ya se había verificado en vivo el 2026-08-01, y esta sesión lo repitió de punta a punta
+  de nuevo con éxito. Gotchas de sandbox nuevos, ver "Design notes" → Payments/deposits para el
+  detalle completo (formato de credenciales `APP_USR-` en vez de `TEST-`, la trampa de
+  `sandbox_init_point`, por qué pagar con saldo de cuenta funcionó mejor que tarjeta simulada).
+- **Ventana de expiración de depósito, configurable por tenant (10–180 min) y solo aplica a tenants
+  con Mercado Pago.** Antes era un único valor de plataforma que cancelaba cualquier turno con seña
+  pendiente a los 30 minutos, sin importar el método de pago — rompía el caso real de un tenant que
+  solo cobra por alias/transferencia (ahí la confirmación siempre es manual del dueño, y puede
+  tardar horas legítimamente, no minutos). `PendingDepositExpirationScheduler` ahora ignora por
+  completo a los tenants sin Mercado Pago habilitado en su plan; los que sí lo tienen eligen su
+  propia ventana (`PATCH /api/tenant/deposit-expiration`, default 30, sin cambio para quien no lo
+  toque).
+- **Fix de una fragilidad real de la suite de tests.** Los ~170 tests de integración compartían el
+  mismo bucket de rate limiting del sitio público (misma IP de loopback en todos), y el volumen
+  acumulado de una corrida completa a veces agotaba la cuota y le tiraba un 429 de rebote a algún
+  test sin ninguna relación con rate limiting. Cada test ahora manda un `X-Forwarded-For` distinto
+  (`IntegrationTestBase`), sin tocar ningún valor real de configuración de límite.
+
 ### 2026-08-11 — Plan PERSONAL, borrado en cascada, calendario rediseñado, eliminar turno
 
 - **Plan PERSONAL + matriz de límites completa.** Nuevo escalón de entrada (1 profesional, sin
@@ -442,6 +481,18 @@ available to key on. Buckets live in a Caffeine cache with a 10-minute idle expi
 so an over-quota request never spends a DB lookup. Trusts `X-Forwarded-For` if present, which is
 only safe behind a reverse proxy that sets/overwrites that header itself.
 
+**Test-suite flakiness this caused, fixed 2026-08-13.** Spring's test-context caching keeps the
+same `TestRestTemplate` (and thus the same shared bucket, same loopback "IP") alive across every
+one of the ~50 integration test classes in the suite. A full sequential run's cumulative call
+volume against `/api/public/**` could exhaust that one shared bucket and 429 a test that had
+nothing to do with rate limiting — reproduced twice, deterministically (same 4 unrelated tests
+failing both times, confirmed to pass cleanly in isolation). Fixed at the root cause rather than by
+loosening any real limit: `IntegrationTestBase` now installs one `ClientHttpRequestInterceptor`
+(idempotent-guarded, since the same `TestRestTemplate` bean is shared) that stamps a fresh,
+unique `X-Forwarded-For` value before every test method — the filter already prefers that header
+over the socket address, so each test gets its own independent bucket, same as two different real
+clients would in production. `application.yml`'s actual `app.rate-limit.*` values are untouched.
+
 **Payments/deposits (MercadoPago).** A `ServiceOffering.depositAmount` (if set) makes new
 appointments for that service start `paymentStatus=PENDING`; the public API's `.../checkout`
 endpoint creates a `Payment` row plus a MercadoPago Checkout Pro preference and returns the
@@ -476,6 +527,39 @@ The webhook resolves which tenant a notification belongs to from the payment's
 `external_reference` (`"{tenantId}:{paymentId}"`, set when the preference is created) — the same
 `TenantContext`-before-any-`@Transactional`-call pattern as `AuthService`, since there's no JWT or
 URL slug on an inbound webhook call to resolve it from otherwise.
+
+**Re-verified live again on 2026-08-13** (this superseded an incorrect note that had claimed no
+live MercadoPago credentials were ever available — they were, on 2026-08-01, and this session
+independently re-confirmed the whole loop against a fresh sandbox test account). Notes worth
+keeping for next time:
+- **MercadoPago's current "credenciales de prueba" now use the `APP_USR-` format, not the old
+  `TEST-` prefix** — don't assume that prefix alone means production. Verify any unfamiliar token
+  by calling `GET https://api.mercadopago.com/users/me` with it: a genuine test account's response
+  has `"email":"...@testuser.com"` and `"tags":[...,"test_user",...]`.
+- **A preference's `sandbox_init_point` field is a trap, don't use it** — it gave an immediate hard
+  decline for a real test-card payment attempt. The regular `init_point` URL works fine for
+  testing, as long as the buyer logs into MercadoPago as a *different* test user than the seller
+  first (same-account buyer=seller is hard-blocked with "una de las partes es de prueba").
+  Paying with the test buyer's own account balance ("Dinero en cuenta") was far more reliable than
+  simulating a card via the magic cardholder names (`APRO`/etc.) — a card attempt "succeeded"
+  client-side (redirect, verification code accepted) but never actually created a payment record,
+  confirmed via `GET /v1/payments/search`; account-balance payments worked immediately every time.
+- `GET /v1/payments/search?external_reference=...` did **not** find a real, just-completed payment
+  even minutes later (`total: 0` every time) — don't rely on it for a smoke test. The unfiltered
+  `GET /v1/payments/search?limit=20&sort=date_created&criteria=desc` (list-all) surfaced it
+  immediately; `GET /v1/payments/{id}` directly (using the id from the on-screen receipt's "Número
+  de transacción") is the most reliable lookup if you already have it.
+- Result was identical to the 2026-08-01 run: preference → paid → `GET /v1/payments/{id}` confirmed
+  `approved`/`accredited` with a matching `external_reference` → hand-triggered
+  `POST /api/webhooks/mercadopago?type=payment&data.id={mpPaymentId}` with a correctly-computed
+  `x-signature` → `Payment.status` flipped to `PAID`, appointment auto-confirmed. No code changes
+  were needed — a clean re-verification, not a bugfix.
+
+The deposit-expiration-window gap described above (paid-after-cancellation, no refund/alert) is
+**mitigated, not fixed**, by the 2026-08-13 change making the window tenant-configurable
+(10–180 min, `PATCH /api/tenant/deposit-expiration`) and scoped only to MercadoPago-enabled
+tenants — a tenant can now set a wider window to make this race less likely, but the underlying gap
+(no refund flow, no owner-facing alert when it does happen) is still open; see the roadmap.
 
 **Plan billing (MercadoPago Preapproval).** `PlanTier` (`BASIC`/`PRO`) carries a `monthlyPrice`;
 `BASIC` is free and can be set directly (`PATCH /api/tenant/plan`), but a paid tier can only be
@@ -546,20 +630,48 @@ created as a plain Checkout Pro application — `client_id`/`client_secret` (nee
 Connect) only exist on a MercadoPago application configured as "Marketplace". Deferred rather than
 solved by creating a second application, to keep that session focused; see the roadmap.
 
-**Per-tenant branding.** Three optional `Tenant` fields — `logoUrl`, `accentColor` (hex, validated
-`^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH /api/tenant/branding` (owner or admin; billing
-stays owner-only, branding doesn't need to). `logoUrl` is a link, not a file upload: this project
-has no file storage (S3/Cloudinary/etc.) yet, so a tenant hosts their own logo and links it — see
-the roadmap for the tradeoff. `frontend/src/pages/BookingPage.jsx` (the public booking flow, see
-"One frontend, not two" below) fetches the tenant once and overrides the CSS custom property
-`--accent` inline (`style={{ "--accent": tenant.accentColor }}`) on its root element, so every
-button/chip/card on that page picks up the tenant's color through the same variable they already
-read from. An unset field is `null` end to end (DTOs, entity columns) and just falls back to the
-panel's own default look; connecting branding, like connecting MercadoPago, is additive.
+**Per-tenant branding.** `Tenant` fields — `logoUrl`, `bannerUrl` (public-site hero/cover, added
+2026-08-13), `accentColor` (hex, validated `^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH
+/api/tenant/branding` (owner or admin; billing stays owner-only, branding doesn't need to).
+`frontend/src/pages/BookingPage.jsx` (the public booking flow, see "One frontend, not two" below)
+fetches the tenant once and overrides the CSS custom property `--accent` inline
+(`style={{ "--accent": tenant.accentColor }}`) on its root element, so every button/chip/card on
+that page picks up the tenant's color through the same variable they already read from. An unset
+field is `null` end to end (DTOs, entity columns) and just falls back to the panel's own default
+look; connecting branding, like connecting MercadoPago, is additive.
 Known gap: no automatic contrast handling — `--accent-contrast` (used for button text) isn't
 derived from the tenant's chosen color, so a very light `accentColor` could produce low-contrast
-button text. Not built yet: logo file upload, since that needs a storage decision this project
-hasn't made.
+button text.
+
+**Image uploads (logo/banner/professional photo) — real files, not pasted URLs (2026-08-13).**
+`logoUrl`/`bannerUrl`/`photoUrl` used to be plain link fields — a tenant had to host the image
+somewhere else themselves and paste the URL, which isn't practical for a non-technical business
+owner. `POST /api/tenant/branding/logo`, `POST /api/tenant/branding/banner`, and `POST
+/api/professionals/{id}/photo` (all `multipart/form-data`) now accept an actual file, reusing
+`FileStorageService` (previously only used for support-report attachments — local disk, fine for a
+single-instance MVP, same caveat as that original use). The stored field still holds a
+URL-shaped string either way, just now `/uploads/public/<subdir>/<uuid>.<ext>` instead of an
+external link — `frontend/src/api.js`'s `resolveMediaUrl()` prefixes the API's own origin onto a
+relative path before rendering an `<img src>`, and leaves an absolute external URL (still legal to
+paste directly via the plain `PATCH` fields) untouched. These are deliberately public, unauthed
+reads (`PublicUploadsConfig`, `GET /uploads/public/**`, registered in `SecurityConfig`'s
+`PUBLIC_PATHS`) — scoped to a `public/` subdirectory of the uploads root specifically so
+support-report attachments (which live in their own, different subdirectory, served only through
+their own authenticated admin endpoint) never become guessable-URL-reachable by extending this
+resource handler carelessly later.
+
+**Service categories, and more of the tenant/branch exposed publicly (2026-08-13).**
+`ServiceOffering.category` (free text, a tenant defines its own categories — no fixed enum, since
+what makes sense for a barbershop vs. a tattoo studio differs) groups the catalog on the public
+booking page; `null` falls back to a single ungrouped bucket. `GET /api/public/{slug}/branches` now
+also returns `phone` (the field already existed on `Branch`, just wasn't exposed) and `hours`
+(`BranchHours`, previously admin-only) — raw weekly schedule data, deliberately not pre-computed
+into "open now"/"opens at" on the backend, so the frontend/designer can build that presentation
+however they want. `Professional.photoUrl` shows on the public team carousel, replacing a flat
+color-tile placeholder when set. Separately, `GET /api/public/{slug}/professionals` dropped its
+previously-required `serviceId` — omitting it now lists every active professional for the tenant
+(optionally still narrowed by `branchId`), for a "meet the team" view before a client has picked a
+service yet.
 
 **Owner-panel quick-access buttons (contact email/WhatsApp).** Two more optional `Tenant` fields —
 `contactEmail` (validated `@Email`) and `whatsappNumber` (validated `^[+0-9 ()-]{6,30}$`) — added
@@ -799,10 +911,12 @@ pendientes:
    OAuth es el `tenantId` directo, no un nonce opaco — más simple, pero menos duro contra un
    `state` forjado; anotado en el Javadoc de `buildAuthorizationUrl`.
 3. ~~**Verificación contra Mercado Pago real.**~~ Hecho parcialmente — Checkout Pro (señas)
-   verificado 100% en vivo: preferencia real, pago real con tarjeta de prueba, re-fetch real del
-   pago, firma de webhook validada, turno actualizado (ver "Design notes" → Payments/deposits). De
-   paso encontramos un gap real: si el pago tarda más que la ventana de expiración, el turno se
-   cancela solo y el pago queda huérfano sin aviso — sin arreglar todavía. Preapproval
+   verificado 100% en vivo, dos veces (2026-08-01 y de nuevo 2026-08-13, ver "Design notes" →
+   Payments/deposits para los gotchas de sandbox encontrados la segunda vez): preferencia real,
+   pago real, re-fetch real del pago, firma de webhook validada, turno actualizado. De paso
+   encontramos un gap real: si el pago tarda más que la ventana de expiración, el turno se cancela
+   solo y el pago queda huérfano sin aviso — el 2026-08-13 esa ventana pasó a ser configurable por
+   tenant (10-180 min, mitiga el caso pero no lo arregla, ver ítem 13 abajo). Preapproval
    (suscripciones) quedó a mitad de camino: confirmamos en vivo que `createPreapproval` funciona y
    que `payer_email` tiene que ser una cuenta real/de prueba de MercadoPago (dato nuevo, no
    documentado antes), pero no se pudo completar la autorización interactiva — MercadoPago manda un
@@ -868,8 +982,10 @@ pendientes:
 13. **Pago cobrado en un turno ya cancelado por expiración.** Confirmado en vivo el 2026-08-01 (ver
     "Design notes" → Payments/deposits): si el depósito se paga después de que
     `PendingDepositExpirationScheduler` ya canceló el turno por falta de pago, el pago queda
-    `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. En uso real
-    (cliente paga en minutos, no en más de media hora) es un caso raro, pero hay que resolverlo
-    antes de manejar plata de verdad.
+    `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. El
+    2026-08-13 la ventana de expiración pasó a ser configurable por tenant (10-180 min) y dejó de
+    aplicar a tenants sin Mercado Pago — un tenant puede correr menos riesgo poniendo una ventana
+    más ancha, pero el gap de fondo (sin reembolso, sin aviso al dueño) sigue sin resolverse; hay
+    que arreglarlo antes de manejar plata de verdad.
 14. ~~**Re-agendamiento y Sobreturno.**~~ Hecho — ver el Registro de cambios y "Design notes" →
     Double-booking prevention.

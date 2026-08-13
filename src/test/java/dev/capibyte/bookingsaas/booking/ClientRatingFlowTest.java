@@ -86,6 +86,10 @@ class ClientRatingFlowTest extends IntegrationTestBase {
 	@Test
 	void autoExpiredDepositCostsFivePointsAndNeverCountsTowardTheCancellationGrace() {
 		RegisteredTenant tenant = registerTenant();
+		// The auto-expiration scheduler only runs for MercadoPago-enabled plans (see
+		// PendingDepositExpirationScheduler's Javadoc) — a fresh tenant defaults to TRIAL, which
+		// isn't one, so this test needs to opt in explicitly to exercise that path.
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
 		HttpHeaders headers = authHeaders(tenant.token());
 		Setup setup = setUpProfessionalAndService(headers, 20.0);
 

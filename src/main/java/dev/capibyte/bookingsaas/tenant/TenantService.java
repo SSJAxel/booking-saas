@@ -8,7 +8,7 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,12 +19,24 @@ import org.springframework.transaction.annotation.Transactional;
  * critical for register()/login(), which don't know the tenant yet when they start.
  */
 @Service
-@RequiredArgsConstructor
 public class TenantService {
 
 	private static final int TRIAL_DAYS = 15;
 
 	private final TenantRepository tenantRepository;
+
+	/** Seeds Tenant.depositExpirationMinutes for every newly-registered tenant — the org-wide
+	 * default, overridable per tenant afterward via updateDepositExpirationMinutes. Written as an
+	 * explicit constructor (not @RequiredArgsConstructor) because Lombok doesn't reliably copy
+	 * Spring's @Value onto a generated constructor parameter — it collides with Lombok's own,
+	 * unrelated @Value annotation of the same simple name. */
+	private final int defaultDepositExpirationMinutes;
+
+	public TenantService(TenantRepository tenantRepository,
+			@Value("${app.booking.deposit-expiration-minutes:30}") int defaultDepositExpirationMinutes) {
+		this.tenantRepository = tenantRepository;
+		this.defaultDepositExpirationMinutes = defaultDepositExpirationMinutes;
+	}
 
 	@Transactional
 	public Tenant create(String name, String slug) {
@@ -43,6 +55,7 @@ public class TenantService {
 		// PublicTenantResolutionFilter. Every tenant that existed before this feature shipped is
 		// already ACTIVE in the DB, so this default only ever applies going forward.
 		tenant.setStatus(TenantStatus.PENDING_APPROVAL);
+		tenant.setDepositExpirationMinutes(defaultDepositExpirationMinutes);
 		return tenantRepository.save(tenant);
 	}
 
@@ -170,6 +183,20 @@ public class TenantService {
 		}
 		Tenant tenant = findById(tenantId);
 		tenant.setHistoryRetentionMonths(months);
+		return tenant;
+	}
+
+	/** {@code minutes} bounds (10–180) are also enforced by validation on the request DTO and a DB
+	 * check constraint (V32) — same three-places-deliberately pattern as updateClientRankingSettings.
+	 * Only has an effect for tenants with MercadoPago enabled — see
+	 * PendingDepositExpirationScheduler's Javadoc. */
+	@Transactional
+	public Tenant updateDepositExpirationMinutes(UUID tenantId, int minutes) {
+		if (minutes < 10 || minutes > 180) {
+			throw new BadRequestException("depositExpirationMinutes must be between 10 and 180");
+		}
+		Tenant tenant = findById(tenantId);
+		tenant.setDepositExpirationMinutes(minutes);
 		return tenant;
 	}
 }

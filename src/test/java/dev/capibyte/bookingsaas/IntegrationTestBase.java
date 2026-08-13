@@ -1,7 +1,11 @@
 package dev.capibyte.bookingsaas;
 
+import jakarta.annotation.PostConstruct;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.resttestclient.TestRestTemplate;
 import org.springframework.boot.resttestclient.autoconfigure.AutoConfigureTestRestTemplate;
@@ -28,6 +32,36 @@ public abstract class IntegrationTestBase {
 
 	@Autowired
 	protected JdbcTemplate jdbcTemplate;
+
+	// Spring's test context caching keeps this same TestRestTemplate (and its underlying bucket
+	// cache in PublicApiRateLimitFilter) alive across every one of the ~50 test classes in the
+	// suite, all calling /api/public/** as the same loopback "IP" — a full sequential run's
+	// cumulative volume can exhaust that one shared bucket, 429ing a test that has nothing to do
+	// with rate limiting. Fix: every test gets its own fake client IP (the filter already prefers
+	// X-Forwarded-For over the socket address), so each gets its own fresh bucket — same behavior
+	// PublicApiRateLimitFilter has in production for two different real clients, nothing weakened.
+	private static final AtomicInteger clientIpCounter = new AtomicInteger();
+	private static final AtomicBoolean rateLimitIsolationInstalled = new AtomicBoolean(false);
+	private static final ThreadLocal<String> currentTestClientIp = new ThreadLocal<>();
+
+	@PostConstruct
+	void installPerTestClientIpInterceptor() {
+		if (rateLimitIsolationInstalled.compareAndSet(false, true)) {
+			restTemplate.getRestTemplate().getInterceptors().add((request, body, execution) -> {
+				String ip = currentTestClientIp.get();
+				if (ip != null) {
+					request.getHeaders().add("X-Forwarded-For", ip);
+				}
+				return execution.execute(request, body);
+			});
+		}
+	}
+
+	@BeforeEach
+	void assignUniqueClientIpForRateLimiting() {
+		int n = clientIpCounter.incrementAndGet();
+		currentTestClientIp.set("10.%d.%d.%d".formatted((n >> 16) & 0xFF, (n >> 8) & 0xFF, n & 0xFF));
+	}
 
 	protected record RegisteredTenant(String slug, String token) {
 	}

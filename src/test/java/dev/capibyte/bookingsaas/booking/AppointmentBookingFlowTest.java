@@ -55,6 +55,10 @@ class AppointmentBookingFlowTest extends IntegrationTestBase {
 	@Test
 	void unpaidDepositExpiresAndFreesTheSlot() {
 		RegisteredTenant tenant = registerTenant();
+		// The auto-expiration scheduler only runs for MercadoPago-enabled plans (see
+		// PendingDepositExpirationScheduler's Javadoc) — a fresh tenant defaults to TRIAL, which
+		// isn't one, so this test needs to opt in explicitly to exercise that path.
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
 		HttpHeaders headers = authHeaders(tenant.token());
 		Setup setup = setUpProfessionalAndService(tenant, headers, 20.0);
 
@@ -82,6 +86,66 @@ class AppointmentBookingFlowTest extends IntegrationTestBase {
 		Map<String, Object> rebooked = book(tenant.slug(), setup.professionalId(), setup.serviceId(), slot,
 				"second-client");
 		assertThat(rebooked.get("status")).isEqualTo("PENDING");
+	}
+
+	/**
+	 * A tenant without MercadoPago (TRIAL/PERSONAL/BASIC) can only take a deposit via the owner
+	 * manually confirming a bank transfer — there's no live checkout session to "abandon", so the
+	 * scheduler must leave these alone no matter how old they are. The owner decides when it's
+	 * been too long and cancels by hand (a real business need: a barbershop using only a transfer
+	 * alias, checking once per shift instead of every 30 minutes).
+	 */
+	@Test
+	void unpaidDepositNeverExpiresWithoutMercadoPago() {
+		RegisteredTenant tenant = registerTenant(); // defaults to TRIAL, mercadoPagoEnabled=false
+		HttpHeaders headers = authHeaders(tenant.token());
+		Setup setup = setUpProfessionalAndService(tenant, headers, 20.0);
+
+		Instant slot = nextMonday().atStartOfDay(ZoneOffset.UTC).plusHours(10).toInstant();
+		Map<String, Object> booked = book(tenant.slug(), setup.professionalId(), setup.serviceId(), slot,
+				"alias-only-client");
+		String appointmentId = (String) booked.get("id");
+
+		Instant longAgo = Instant.now().minus(expirationMinutes + 5, ChronoUnit.MINUTES);
+		jdbcTemplate.update("UPDATE appointments SET created_at = ? WHERE id = ?::uuid", Timestamp.from(longAgo),
+				appointmentId);
+
+		expirationScheduler.expireUnpaidAppointments();
+
+		ResponseEntity<Map> afterScheduler = restTemplate.exchange("/api/appointments/" + appointmentId,
+				HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+		assertThat(afterScheduler.getBody().get("status")).isEqualTo("PENDING");
+	}
+
+	/**
+	 * The expiration cutoff is per-tenant ({@code PATCH /api/tenant/deposit-expiration}), not the
+	 * platform default — a MercadoPago-enabled tenant that raises its own window past the default
+	 * 30 minutes must not have an appointment younger than *its own* cutoff expired.
+	 */
+	@Test
+	void unpaidDepositRespectsTheTenantsOwnCustomWindowNotThePlatformDefault() {
+		RegisteredTenant tenant = registerTenant();
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
+		HttpHeaders headers = authHeaders(tenant.token());
+		restTemplate.exchange("/api/tenant/deposit-expiration", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("depositExpirationMinutes", 60), headers), Void.class);
+		Setup setup = setUpProfessionalAndService(tenant, headers, 20.0);
+
+		Instant slot = nextMonday().atStartOfDay(ZoneOffset.UTC).plusHours(10).toInstant();
+		Map<String, Object> booked = book(tenant.slug(), setup.professionalId(), setup.serviceId(), slot,
+				"custom-window-client");
+		String appointmentId = (String) booked.get("id");
+
+		// Older than the platform default (30 min) but younger than this tenant's own 60-minute window.
+		Instant thirtyFiveMinAgo = Instant.now().minus(35, ChronoUnit.MINUTES);
+		jdbcTemplate.update("UPDATE appointments SET created_at = ? WHERE id = ?::uuid",
+				Timestamp.from(thirtyFiveMinAgo), appointmentId);
+
+		expirationScheduler.expireUnpaidAppointments();
+
+		ResponseEntity<Map> afterScheduler = restTemplate.exchange("/api/appointments/" + appointmentId,
+				HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+		assertThat(afterScheduler.getBody().get("status")).isEqualTo("PENDING");
 	}
 
 	private Setup setUpProfessionalAndService(RegisteredTenant tenant, HttpHeaders headers, Double depositAmount) {
