@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 
+/** Límites de sucursales de la matriz 2026-08-11 — ver PlanTier's Javadoc. TRIAL y BASIC quedan
+ * en 2 (sin cambios respecto a la matriz vieja); PRO baja de 4 a 3 y MAX baja de 8 a 4. */
 class BranchLimitFlowTest extends IntegrationTestBase {
 
 	@Autowired
@@ -61,10 +63,25 @@ class BranchLimitFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void proPlanRejectsTheFifthBranch() {
+	void proPlanRejectsTheFourthBranch() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders headers = authHeaders(tenant.token());
 		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
+
+		for (int i = 0; i < 3; i++) {
+			createBranch(headers, "Branch " + i);
+		}
+
+		ResponseEntity<Map> fourth = restTemplate.exchange("/api/branches", HttpMethod.POST,
+				new HttpEntity<>(Map.of("name", "Branch 3"), headers), Map.class);
+		assertThat(fourth.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
+	void maxPlanRejectsTheFifthBranch() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'MAX' WHERE slug = ?", tenant.slug());
 
 		for (int i = 0; i < 4; i++) {
 			createBranch(headers, "Branch " + i);
@@ -73,21 +90,6 @@ class BranchLimitFlowTest extends IntegrationTestBase {
 		ResponseEntity<Map> fifth = restTemplate.exchange("/api/branches", HttpMethod.POST,
 				new HttpEntity<>(Map.of("name", "Branch 4"), headers), Map.class);
 		assertThat(fifth.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
-	}
-
-	@Test
-	void maxPlanRejectsTheNinthBranch() {
-		RegisteredTenant tenant = registerTenant();
-		HttpHeaders headers = authHeaders(tenant.token());
-		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'MAX' WHERE slug = ?", tenant.slug());
-
-		for (int i = 0; i < 8; i++) {
-			createBranch(headers, "Branch " + i);
-		}
-
-		ResponseEntity<Map> ninth = restTemplate.exchange("/api/branches", HttpMethod.POST,
-				new HttpEntity<>(Map.of("name", "Branch 8"), headers), Map.class);
-		assertThat(ninth.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
 	}
 
 	private void createBranch(HttpHeaders headers, String name) {

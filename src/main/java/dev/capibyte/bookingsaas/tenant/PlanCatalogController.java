@@ -3,6 +3,7 @@ package dev.capibyte.bookingsaas.tenant;
 import dev.capibyte.bookingsaas.tenant.dto.PlanCatalogResponse;
 import java.util.Arrays;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -13,10 +14,15 @@ import org.springframework.web.bind.annotation.RestController;
  * before they have a tenant). Public regardless — see SecurityConfig's PUBLIC_PATHS.
  */
 @RestController
+@RequiredArgsConstructor
 public class PlanCatalogController {
+
+	private final PlanPricingService planPricingService;
 
 	@GetMapping("/api/plans")
 	public List<PlanCatalogResponse> list() {
-		return Arrays.stream(PlanTier.values()).map(PlanCatalogResponse::from).toList();
+		return Arrays.stream(PlanTier.values())
+				.map(tier -> PlanCatalogResponse.from(tier, planPricingService.currentPrice(tier)))
+				.toList();
 	}
 }

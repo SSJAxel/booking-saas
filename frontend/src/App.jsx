@@ -14,6 +14,7 @@ import AccountPage from "./pages/AccountPage.jsx";
 import BookingPage from "./pages/BookingPage.jsx";
 import AdminTenantsPage from "./pages/AdminTenantsPage.jsx";
 import AdminSupportReportsPage from "./pages/AdminSupportReportsPage.jsx";
+import AdminUsagePage from "./pages/AdminUsagePage.jsx";
 import DashboardHomePage from "./pages/DashboardHomePage.jsx";
 
 function RequireAuth({ children }) {
@@ -73,6 +74,7 @@ export default function App() {
 			>
 				<Route index element={<Navigate to="tenants" replace />} />
 				<Route path="tenants" element={<AdminTenantsPage />} />
+				<Route path="usage" element={<AdminUsagePage />} />
 				<Route path="support-reports" element={<AdminSupportReportsPage />} />
 			</Route>
 		</Routes>

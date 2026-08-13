@@ -184,6 +184,20 @@ export const api = {
 			request(`/api/admin/support-reports/${id}/resolved`, { method: "PATCH", body: { resolved } }),
 		deleteReport: (id) => request(`/api/admin/support-reports/${id}`, { method: "DELETE" }),
 		reportImageBlob: (id) => requestBlob(`/api/admin/support-reports/${id}/image`),
+		updateReportPriority: (id, priority) =>
+			request(`/api/admin/support-reports/${id}/priority`, { method: "PATCH", body: { priority } }),
+		updateTenantCustomPrice: (id, customMonthlyPrice) =>
+			request(`/api/admin/tenants/${id}/custom-price`, { method: "PATCH", body: { customMonthlyPrice } }),
+		updateTenantProfessionalLimit: (id, professionalLimitOverride) =>
+			request(`/api/admin/tenants/${id}/professional-limit`, { method: "PATCH", body: { professionalLimitOverride } }),
+		tenantDetail: (id) => request(`/api/admin/tenants/${id}/detail`),
+		tenantsUsage: () => request("/api/admin/tenants/usage"),
+		mrr: () => request("/api/admin/mrr"),
+		pricingReference: () => request("/api/admin/pricing-reference"),
+		// Not requestBlob: needs the caller-provided filename for the download, and blob-only
+		// endpoints don't currently expose Content-Disposition parsing — kept as an explicit fetch.
+		billingReportBlob: (from, to) =>
+			requestBlob(`/api/admin/billing-report${toQuery({ from, to })}`),
 	},
 	public: {
 		tenant: (tenantSlug) => request(`/api/public/${tenantSlug}`, { auth: false }),

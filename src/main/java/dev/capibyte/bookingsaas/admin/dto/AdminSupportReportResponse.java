@@ -15,6 +15,7 @@ public record AdminSupportReportResponse(
 		String tenantSlug,
 		String submitterEmail,
 		String type,
+		String priority,
 		String message,
 		boolean hasImage,
 		boolean resolved,

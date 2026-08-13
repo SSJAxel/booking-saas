@@ -2,6 +2,11 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 
 const TYPE_LABELS = { BUG: "🐛 Bug", PLAN_UPGRADE: "⭐ Mejorar plan" };
+const PRIORITIES = ["BAJA", "MEDIA", "ALTA"];
+const PRIORITY_LABELS = { BAJA: "Baja", MEDIA: "Media", ALTA: "Alta" };
+// Same color tokens AdminTenantsPage's statusChip() badges already use — no new CSS needed.
+const PRIORITY_COLORS = { ALTA: "var(--danger)", MEDIA: "var(--warning)", BAJA: "var(--ok-text)" };
+const PRIORITY_ORDER = { ALTA: 3, MEDIA: 2, BAJA: 1 };
 
 /** The image endpoint requires a Bearer token, which an <img src> can't carry — fetch it as a
  * blob and hand the browser an object URL instead, revoking it on unmount to avoid leaking it. */
@@ -56,6 +61,16 @@ export default function AdminSupportReportsPage() {
 		}
 	}
 
+	async function handlePriorityChange(id, priority) {
+		setError("");
+		try {
+			await api.admin.updateReportPriority(id, priority);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	async function handleDelete(id) {
 		if (!window.confirm("¿Eliminar este reporte para siempre? No se puede deshacer.")) return;
 		setError("");
@@ -69,7 +84,9 @@ export default function AdminSupportReportsPage() {
 
 	if (loading) return <p>Cargando...</p>;
 
-	const pending = reports.filter((r) => !r.resolved);
+	const pending = reports
+		.filter((r) => !r.resolved)
+		.sort((a, b) => PRIORITY_ORDER[b.priority] - PRIORITY_ORDER[a.priority]);
 	const history = reports.filter((r) => r.resolved);
 
 	return (
@@ -81,6 +98,7 @@ export default function AdminSupportReportsPage() {
 				reports={pending}
 				emptyMessage="No hay nada pendiente."
 				onToggleResolved={handleToggleResolved}
+				onPriorityChange={handlePriorityChange}
 				onDelete={handleDelete}
 			/>
 			<ReportTable
@@ -88,13 +106,14 @@ export default function AdminSupportReportsPage() {
 				reports={history}
 				emptyMessage="Todavía no se resolvió nada."
 				onToggleResolved={handleToggleResolved}
+				onPriorityChange={handlePriorityChange}
 				onDelete={handleDelete}
 			/>
 		</div>
 	);
 }
 
-function ReportTable({ title, reports, emptyMessage, onToggleResolved, onDelete }) {
+function ReportTable({ title, reports, emptyMessage, onToggleResolved, onPriorityChange, onDelete }) {
 	return (
 		<section className="appointments-section">
 			<h2>
@@ -107,6 +126,7 @@ function ReportTable({ title, reports, emptyMessage, onToggleResolved, onDelete 
 					<thead>
 						<tr>
 							<th>Tipo</th>
+							<th>Prioridad</th>
 							<th>Negocio</th>
 							<th>Reportado por</th>
 							<th>Mensaje</th>
@@ -120,6 +140,19 @@ function ReportTable({ title, reports, emptyMessage, onToggleResolved, onDelete 
 						{reports.map((r) => (
 							<tr key={r.id}>
 								<td>{TYPE_LABELS[r.type] ?? r.type}</td>
+								<td>
+									<select
+										value={r.priority}
+										onChange={(event) => onPriorityChange(r.id, event.target.value)}
+										style={{ borderColor: PRIORITY_COLORS[r.priority], color: PRIORITY_COLORS[r.priority] }}
+									>
+										{PRIORITIES.map((p) => (
+											<option key={p} value={p}>
+												{PRIORITY_LABELS[p]}
+											</option>
+										))}
+									</select>
+								</td>
 								<td>
 									{r.tenantName}
 									<br />

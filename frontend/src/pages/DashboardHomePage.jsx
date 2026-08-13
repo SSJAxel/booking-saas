@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import BarChart from "../components/BarChart.jsx";
+import StatTile from "../components/StatTile.jsx";
 
 const WEEKDAY_FORMAT = new Intl.DateTimeFormat("es-AR", { weekday: "short" });
 const TODAY_FORMAT = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" });
@@ -38,22 +39,6 @@ function XIcon() {
 		<svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
 			<path d="M6 6l12 12M18 6 6 18" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
 		</svg>
-	);
-}
-
-function StatTile({ icon, iconBg, iconColor, value, label }) {
-	return (
-		<div className="card stat-tile">
-			<div className="stat-tile-header">
-				<span className="stat-icon" style={{ background: iconBg, color: iconColor }}>
-					{icon}
-				</span>
-				<span className="muted">{label}</span>
-			</div>
-			<span className="stat-value" style={{ color: iconColor }}>
-				{value}
-			</span>
-		</div>
 	);
 }
 

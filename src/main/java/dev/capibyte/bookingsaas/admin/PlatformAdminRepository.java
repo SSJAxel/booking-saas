@@ -1,6 +1,8 @@
 package dev.capibyte.bookingsaas.admin;
 
+import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -71,10 +73,49 @@ public class PlatformAdminRepository {
 		return count == null ? 0 : count;
 	}
 
+	/** Backs the usage-ranking table's "Sucursales" column. Same "tenants with zero are absent"
+	 * convention as {@link #countProfessionalsByTenant}. */
+	public Map<UUID, Long> countBranchesByTenant() {
+		String sql = "SELECT tenant_id, COUNT(*) AS branch_count FROM branches GROUP BY tenant_id";
+		return jdbcTemplate.query(sql, rs -> {
+			Map<UUID, Long> result = new java.util.HashMap<>();
+			while (rs.next()) {
+				result.put(UUID.fromString(rs.getString("tenant_id")), rs.getLong("branch_count"));
+			}
+			return result;
+		});
+	}
+
+	/** Backs the usage-ranking table's "Servicios" column. */
+	public Map<UUID, Long> countServicesByTenant() {
+		String sql = "SELECT tenant_id, COUNT(*) AS service_count FROM service_offerings GROUP BY tenant_id";
+		return jdbcTemplate.query(sql, rs -> {
+			Map<UUID, Long> result = new java.util.HashMap<>();
+			while (rs.next()) {
+				result.put(UUID.fromString(rs.getString("tenant_id")), rs.getLong("service_count"));
+			}
+			return result;
+		});
+	}
+
+	/** Backs the usage-ranking table's "Stock" column — total units across every product, not a
+	 * product count (see Product's Javadoc: {@code stock} is a per-product unit quantity). */
+	public Map<UUID, Long> sumStockByTenant() {
+		String sql = "SELECT tenant_id, SUM(stock) AS stock_units FROM products GROUP BY tenant_id";
+		return jdbcTemplate.query(sql, rs -> {
+			Map<UUID, Long> result = new java.util.HashMap<>();
+			while (rs.next()) {
+				result.put(UUID.fromString(rs.getString("tenant_id")), rs.getLong("stock_units"));
+			}
+			return result;
+		});
+	}
+
 	public List<AdminSupportReportRow> findAllSupportReports() {
 		String sql = """
 				SELECT sr.id, sr.tenant_id, t.name AS tenant_name, t.slug AS tenant_slug,
-				       au.email AS submitter_email, sr.type, sr.message, sr.image_path, sr.resolved, sr.created_at
+				       au.email AS submitter_email, sr.type, sr.priority, sr.message, sr.image_path,
+				       sr.resolved, sr.created_at
 				FROM support_reports sr
 				JOIN tenants t ON t.id = sr.tenant_id
 				JOIN app_users au ON au.id = sr.app_user_id
@@ -87,10 +128,57 @@ public class PlatformAdminRepository {
 				rs.getString("tenant_slug"),
 				rs.getString("submitter_email"),
 				rs.getString("type"),
+				rs.getString("priority"),
 				rs.getString("message"),
 				rs.getString("image_path") != null,
 				rs.getBoolean("resolved"),
 				rs.getTimestamp("created_at").toInstant()));
+	}
+
+	public void updatePriority(UUID id, String priority) {
+		jdbcTemplate.update("UPDATE support_reports SET priority = ? WHERE id = ?", priority, id);
+	}
+
+	/** Billing report rows, one per subscription attempt in range — matches Subscription's own
+	 * "one row per attempt, not per tenant" model (see V8__subscriptions.sql). {@code from}/{@code
+	 * to} bound {@code created_at}'s date, inclusive on both ends. */
+	public List<BillingRow> findSubscriptionPayments(LocalDate from, LocalDate to) {
+		String sql = """
+				SELECT s.tenant_id, t.name AS tenant_name, s.plan_tier, s.amount, s.status, s.created_at
+				FROM subscriptions s
+				JOIN tenants t ON t.id = s.tenant_id
+				WHERE s.created_at >= ? AND s.created_at < ?
+				ORDER BY s.created_at DESC
+				""";
+		return jdbcTemplate.query(sql, (rs, rowNum) -> new BillingRow(
+				UUID.fromString(rs.getString("tenant_id")),
+				rs.getString("tenant_name"),
+				rs.getString("plan_tier"),
+				rs.getBigDecimal("amount"),
+				rs.getString("status"),
+				rs.getTimestamp("created_at").toInstant()),
+				java.sql.Timestamp.from(from.atStartOfDay(java.time.ZoneOffset.UTC).toInstant()),
+				java.sql.Timestamp.from(to.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant()));
+	}
+
+	/** Appointment count + revenue per tenant over the given window, COMPLETED only — same revenue
+	 * definition as ReportService's per-tenant figure, computed in SQL here (rather than looping
+	 * TenantContext per tenant) since this needs every tenant in one round trip, consistent with
+	 * this repository's other cross-tenant aggregations. Tenants with zero completed appointments
+	 * in the window are absent from the result. */
+	public List<UsageRow> findTenantUsage(Instant from, Instant to) {
+		String sql = """
+				SELECT a.tenant_id, COUNT(*) AS appointment_count, SUM(so.price) AS revenue
+				FROM appointments a
+				JOIN service_offerings so ON so.id = a.service_id
+				WHERE a.status = 'COMPLETED' AND a.start_time >= ? AND a.start_time < ?
+				GROUP BY a.tenant_id
+				""";
+		return jdbcTemplate.query(sql, (rs, rowNum) -> new UsageRow(
+				UUID.fromString(rs.getString("tenant_id")),
+				rs.getLong("appointment_count"),
+				rs.getBigDecimal("revenue")),
+				java.sql.Timestamp.from(from), java.sql.Timestamp.from(to));
 	}
 
 	public Optional<ImageRef> findSupportReportImage(UUID id) {
@@ -112,10 +200,17 @@ public class PlatformAdminRepository {
 	}
 
 	public record AdminSupportReportRow(UUID id, UUID tenantId, String tenantName, String tenantSlug,
-			String submitterEmail, String type, String message, boolean hasImage, boolean resolved,
-			Instant createdAt) {
+			String submitterEmail, String type, String priority, String message, boolean hasImage,
+			boolean resolved, Instant createdAt) {
 	}
 
 	public record ImageRef(String imagePath, String contentType) {
+	}
+
+	public record BillingRow(UUID tenantId, String tenantName, String planTier, BigDecimal amount,
+			String status, Instant createdAt) {
+	}
+
+	public record UsageRow(UUID tenantId, long appointmentCount, BigDecimal revenue) {
 	}
 }

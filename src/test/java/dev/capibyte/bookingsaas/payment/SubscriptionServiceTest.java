@@ -18,9 +18,11 @@ import dev.capibyte.bookingsaas.identity.AppUserRepository;
 import dev.capibyte.bookingsaas.identity.Role;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
+import dev.capibyte.bookingsaas.tenant.PlanPricingService;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -35,9 +37,10 @@ class SubscriptionServiceTest {
 	private final MercadoPagoClient mercadoPagoClient = mock(MercadoPagoClient.class);
 	private final MercadoPagoAccountService mercadoPagoAccountService = mock(MercadoPagoAccountService.class);
 	private final WebhookSignatureVerifier signatureVerifier = mock(WebhookSignatureVerifier.class);
+	private final PlanPricingService planPricingService = mock(PlanPricingService.class);
 	private final SubscriptionService subscriptionService = new SubscriptionService(subscriptionRepository,
 			tenantService, appUserRepository, mercadoPagoClient, mercadoPagoAccountService, signatureVerifier,
-			"test-webhook-secret");
+			planPricingService, "test-webhook-secret");
 
 	@AfterEach
 	void clearTenantContext() {
@@ -66,9 +69,10 @@ class SubscriptionServiceTest {
 			org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
 			return saved;
 		});
+		when(planPricingService.currentPrice(PlanTier.PRO)).thenReturn(new BigDecimal("50000.00"));
 		when(mercadoPagoAccountService.resolveAccessToken(tenantId)).thenReturn("tenant-access-token");
 		when(mercadoPagoClient.createPreapproval(eq("tenant-access-token"), eq(tenantId), any(), anyString(),
-				eq(PlanTier.PRO.getMonthlyPrice()), eq("owner@demo.com")))
+				eq(new BigDecimal("50000.00")), eq("owner@demo.com")))
 				.thenReturn(new MercadoPagoPreapproval("preapproval-1", "pending",
 						"https://mp.example/subscriptions/preapproval-1", "ignored"));
 

@@ -2,6 +2,7 @@ package dev.capibyte.bookingsaas.admin.dto;
 
 import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.TenantStatus;
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.UUID;
 
@@ -19,5 +20,9 @@ public record AdminTenantSummaryResponse(
 		String subscriptionStatus,
 		LocalDate nextPaymentDueAt,
 		Long daysRemaining,
-		long professionalCount) {
+		long professionalCount,
+		BigDecimal customMonthlyPrice,
+		BigDecimal effectiveMonthlyPrice,
+		Integer professionalLimitOverride,
+		int effectiveProfessionalLimit) {
 }

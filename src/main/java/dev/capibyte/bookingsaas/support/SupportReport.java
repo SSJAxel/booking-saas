@@ -27,6 +27,11 @@ public class SupportReport extends BaseTenantEntity {
 	@Column(nullable = false)
 	private SupportReportType type = SupportReportType.BUG;
 
+	/** Triage priority set by the super-admin — independent of {@link #type}. */
+	@Enumerated(EnumType.STRING)
+	@Column(nullable = false)
+	private SupportReportPriority priority = SupportReportPriority.MEDIA;
+
 	@Column(nullable = false, columnDefinition = "text")
 	private String message;
 

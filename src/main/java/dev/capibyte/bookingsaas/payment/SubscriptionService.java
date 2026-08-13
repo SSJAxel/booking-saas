@@ -9,9 +9,11 @@ import dev.capibyte.bookingsaas.identity.AppUserRepository;
 import dev.capibyte.bookingsaas.identity.Role;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
+import dev.capibyte.bookingsaas.tenant.PlanPricingService;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
@@ -36,18 +38,20 @@ public class SubscriptionService {
 	private final MercadoPagoClient mercadoPagoClient;
 	private final MercadoPagoAccountService mercadoPagoAccountService;
 	private final WebhookSignatureVerifier signatureVerifier;
+	private final PlanPricingService planPricingService;
 	private final String webhookSecret;
 
 	public SubscriptionService(SubscriptionRepository subscriptionRepository, TenantService tenantService,
 			AppUserRepository appUserRepository, MercadoPagoClient mercadoPagoClient,
 			MercadoPagoAccountService mercadoPagoAccountService, WebhookSignatureVerifier signatureVerifier,
-			@Value("${app.mercadopago.webhook-secret}") String webhookSecret) {
+			PlanPricingService planPricingService, @Value("${app.mercadopago.webhook-secret}") String webhookSecret) {
 		this.subscriptionRepository = subscriptionRepository;
 		this.tenantService = tenantService;
 		this.appUserRepository = appUserRepository;
 		this.mercadoPagoClient = mercadoPagoClient;
 		this.mercadoPagoAccountService = mercadoPagoAccountService;
 		this.signatureVerifier = signatureVerifier;
+		this.planPricingService = planPricingService;
 		this.webhookSecret = webhookSecret;
 	}
 
@@ -56,7 +60,8 @@ public class SubscriptionService {
 		if (requestedTier.isFree()) {
 			throw new BadRequestException(requestedTier + " is free — use PATCH /api/tenant/plan instead");
 		}
-		if (requestedTier.getMonthlyPrice() == null) {
+		BigDecimal price = planPricingService.currentPrice(requestedTier);
+		if (price == null) {
 			throw new BadRequestException(requestedTier + " doesn't have a price set yet — not available to subscribe to");
 		}
 		Tenant tenant = tenantService.findById(tenantId);
@@ -65,13 +70,13 @@ public class SubscriptionService {
 
 		Subscription subscription = new Subscription();
 		subscription.setPlanTier(requestedTier);
-		subscription.setAmount(requestedTier.getMonthlyPrice());
+		subscription.setAmount(price);
 		subscription = subscriptionRepository.save(subscription);
 
 		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
 		MercadoPagoPreapproval preapproval = mercadoPagoClient.createPreapproval(accessToken, tenantId,
-				subscription.getId(), "booking-saas " + tenant.getSlug() + " — plan " + requestedTier,
-				requestedTier.getMonthlyPrice(), owner.getEmail());
+				subscription.getId(), "booking-saas " + tenant.getSlug() + " — plan " + requestedTier, price,
+				owner.getEmail());
 		subscription.setProviderSubscriptionId(preapproval.id());
 
 		return new SubscriptionCheckoutResponse(subscription.getId(), preapproval.initPoint());
