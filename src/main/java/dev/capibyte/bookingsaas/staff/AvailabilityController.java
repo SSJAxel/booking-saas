@@ -1,5 +1,7 @@
 package dev.capibyte.bookingsaas.staff;
 
+import dev.capibyte.bookingsaas.staff.dto.DateAvailabilityRequest;
+import dev.capibyte.bookingsaas.staff.dto.DateAvailabilityResponse;
 import dev.capibyte.bookingsaas.staff.dto.TimeOffRequest;
 import dev.capibyte.bookingsaas.staff.dto.TimeOffResponse;
 import dev.capibyte.bookingsaas.staff.dto.WeeklyAvailabilityRequest;
@@ -27,6 +29,7 @@ public class AvailabilityController {
 
 	private final WeeklyAvailabilityService weeklyAvailabilityService;
 	private final TimeOffService timeOffService;
+	private final DateAvailabilityService dateAvailabilityService;
 
 	@GetMapping("/availability")
 	public List<WeeklyAvailabilityResponse> listAvailability(@PathVariable UUID professionalId) {
@@ -64,5 +67,28 @@ public class AvailabilityController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void deleteTimeOff(@PathVariable UUID professionalId, @PathVariable UUID timeOffId) {
 		timeOffService.delete(timeOffId);
+	}
+
+	/** Opens a specific date regardless of its day of week — the inverse of time-off, for a
+	 * professional who wants to release capacity one calendar date at a time instead of committing
+	 * to a recurring weekly rule (see DateAvailability's Javadoc). */
+	@GetMapping("/date-availability")
+	public List<DateAvailabilityResponse> listDateAvailability(@PathVariable UUID professionalId) {
+		return dateAvailabilityService.findByProfessional(professionalId).stream()
+				.map(DateAvailabilityResponse::from).toList();
+	}
+
+	@PostMapping("/date-availability")
+	@ResponseStatus(HttpStatus.CREATED)
+	public DateAvailabilityResponse addDateAvailability(@PathVariable UUID professionalId,
+			@Valid @RequestBody DateAvailabilityRequest request) {
+		return DateAvailabilityResponse.from(
+				dateAvailabilityService.create(professionalId, request.date(), request.startTime(), request.endTime()));
+	}
+
+	@DeleteMapping("/date-availability/{dateAvailabilityId}")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void deleteDateAvailability(@PathVariable UUID professionalId, @PathVariable UUID dateAvailabilityId) {
+		dateAvailabilityService.delete(dateAvailabilityId);
 	}
 }

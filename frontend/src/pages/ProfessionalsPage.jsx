@@ -3,6 +3,7 @@ import { api, resolveMediaUrl } from "../api.js";
 import { planLabel } from "../labels.js";
 import { PLAN_LIMITS } from "../planLimits.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
+import SimpleAvailabilityEditor from "../components/SimpleAvailabilityEditor.jsx";
 import MonthCalendar from "../components/MonthCalendar.jsx";
 import { professionalColor } from "../professionalColor.js";
 
@@ -12,6 +13,7 @@ export default function ProfessionalsPage() {
 	const [tenant, setTenant] = useState(null);
 	const [timeOffByProfessional, setTimeOffByProfessional] = useState({});
 	const [availabilityByProfessional, setAvailabilityByProfessional] = useState({});
+	const [dateAvailabilityByProfessional, setDateAvailabilityByProfessional] = useState({});
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -22,6 +24,16 @@ export default function ProfessionalsPage() {
 	const [rangePickerFor, setRangePickerFor] = useState(null);
 	const [selectedDates, setSelectedDates] = useState(new Set());
 	const [rangeReason, setRangeReason] = useState("");
+	const [scheduleView, setScheduleView] = useState({});
+
+	// Defaults to the one-slot-at-a-time editor for a professional with nothing loaded yet (a full
+	// 7-day grid reads as "fill in your whole week now"), and to the grid once they already have a
+	// schedule (editing an existing week is easier to see all at once). Either can switch freely —
+	// this is just the starting tab, not a lock-in.
+	function scheduleViewFor(professionalId) {
+		if (scheduleView[professionalId]) return scheduleView[professionalId];
+		return (availabilityByProfessional[professionalId] ?? []).length === 0 ? "simple" : "grid";
+	}
 
 	function flashNotice(message) {
 		setNotice(message);
@@ -35,12 +47,14 @@ export default function ProfessionalsPage() {
 			setBranches(b);
 			setProfessionals(p);
 			setTenant(t);
-			const [timeOffEntries, availabilityEntries] = await Promise.all([
+			const [timeOffEntries, availabilityEntries, dateAvailabilityEntries] = await Promise.all([
 				Promise.all(p.map(async (pr) => [pr.id, await api.professionals.listTimeOff(pr.id)])),
 				Promise.all(p.map(async (pr) => [pr.id, await api.professionals.listAvailability(pr.id)])),
+				Promise.all(p.map(async (pr) => [pr.id, await api.professionals.listDateAvailability(pr.id)])),
 			]);
 			setTimeOffByProfessional(Object.fromEntries(timeOffEntries));
 			setAvailabilityByProfessional(Object.fromEntries(availabilityEntries));
+			setDateAvailabilityByProfessional(Object.fromEntries(dateAvailabilityEntries));
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -176,6 +190,39 @@ export default function ProfessionalsPage() {
 		setError("");
 		try {
 			await api.professionals.deleteTimeOff(professionalId, timeOffId);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleAddDateAvailability(professionalId, event) {
+		event.preventDefault();
+		setError("");
+		const form = new FormData(event.target);
+		const startTime = form.get("startTime");
+		const endTime = form.get("endTime");
+		if (startTime >= endTime) {
+			setError("El inicio de la franja debe ser antes del fin.");
+			return;
+		}
+		try {
+			await api.professionals.addDateAvailability(professionalId, {
+				date: form.get("date"),
+				startTime: `${startTime}:00`,
+				endTime: `${endTime}:00`,
+			});
+			event.target.reset();
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleDeleteDateAvailability(professionalId, dateAvailabilityId) {
+		setError("");
+		try {
+			await api.professionals.deleteDateAvailability(professionalId, dateAvailabilityId);
 			refresh();
 		} catch (err) {
 			setError(err.message);
@@ -394,17 +441,79 @@ export default function ProfessionalsPage() {
 						</div>
 
 						<div className="card-section">
-							<p className="label">Horario semanal</p>
-							<WeeklySchedule
-								entries={availabilityByProfessional[p.id] ?? []}
-								onCreate={(body) => api.professionals.addAvailability(p.id, body)}
-								onDelete={(availabilityId) => api.professionals.deleteAvailability(p.id, availabilityId)}
-								onSaved={() => {
-									refresh();
-									flashNotice("Horario actualizado.");
-								}}
-								onError={setError}
-							/>
+							<div className="button-row" style={{ justifyContent: "space-between", alignItems: "center" }}>
+								<p className="label">Horario semanal</p>
+								<div className="tabs" style={{ marginBottom: 0 }}>
+									<button
+										type="button"
+										className={scheduleViewFor(p.id) === "simple" ? "active" : ""}
+										onClick={() => setScheduleView((s) => ({ ...s, [p.id]: "simple" }))}
+									>
+										Agregar de a poco
+									</button>
+									<button
+										type="button"
+										className={scheduleViewFor(p.id) === "grid" ? "active" : ""}
+										onClick={() => setScheduleView((s) => ({ ...s, [p.id]: "grid" }))}
+									>
+										Semana completa
+									</button>
+								</div>
+							</div>
+							{scheduleViewFor(p.id) === "simple" ? (
+								<SimpleAvailabilityEditor
+									entries={availabilityByProfessional[p.id] ?? []}
+									onCreate={(body) => api.professionals.addAvailability(p.id, body)}
+									onDelete={(availabilityId) => api.professionals.deleteAvailability(p.id, availabilityId)}
+									onSaved={() => {
+										refresh();
+										flashNotice("Horario actualizado.");
+									}}
+									onError={setError}
+								/>
+							) : (
+								<WeeklySchedule
+									entries={availabilityByProfessional[p.id] ?? []}
+									onCreate={(body) => api.professionals.addAvailability(p.id, body)}
+									onDelete={(availabilityId) => api.professionals.deleteAvailability(p.id, availabilityId)}
+									onSaved={() => {
+										refresh();
+										flashNotice("Horario actualizado.");
+									}}
+									onError={setError}
+								/>
+							)}
+						</div>
+
+						<div className="card-section">
+							<p className="label">Fechas puntuales habilitadas (sin importar el día de semana)</p>
+							<p className="muted" style={{ marginTop: 0 }}>
+								Para abrir fechas sueltas de a una — útil si trabajás por temporada o preferís ir liberando
+								cupo de a poco en vez de cargar un horario semanal fijo.
+							</p>
+							<div className="chip-row">
+								{(dateAvailabilityByProfessional[p.id] ?? []).length === 0 && (
+									<span className="muted">Sin fechas puntuales cargadas.</span>
+								)}
+								{(dateAvailabilityByProfessional[p.id] ?? []).map((d) => (
+									<button
+										key={d.id}
+										type="button"
+										className="chip chip-removable"
+										aria-label={`Eliminar fecha habilitada ${d.date}`}
+										title="Eliminar"
+										onClick={() => handleDeleteDateAvailability(p.id, d.id)}
+									>
+										{d.date} {d.startTime.slice(0, 5)}–{d.endTime.slice(0, 5)} ×
+									</button>
+								))}
+							</div>
+							<form className="add-form" onSubmit={(event) => handleAddDateAvailability(p.id, event)}>
+								<input name="date" type="date" required />
+								<input name="startTime" type="time" required aria-label="Inicio" />
+								<input name="endTime" type="time" required aria-label="Fin" />
+								<button type="submit">+ Fecha</button>
+							</form>
 						</div>
 
 						<div className="card-section">

@@ -17,6 +17,33 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-13 — Dos formas de armar la disponibilidad: patrón semanal recurrente o fechas puntuales
+
+- **Motivación real**: un negocio de alta demanda (ej. Lusi Tattoo) que agenda por temporada no
+  tiene un patrón semanal fijo — quiere abrir fechas sueltas de a una (ej. "12, 17 y 24 de
+  septiembre nada más") a medida que decide liberar cupo, y esas fechas ni siquiera comparten el
+  mismo día de semana entre sí. El horario semanal recurrente (`WeeklyAvailability`, ya existía)
+  no puede representar eso — una regla "todos los jueves" no sirve para abrir un sábado suelto.
+- **`DateAvailability` (tabla nueva, migración V33) — la imagen espejo de `TimeOff`.** En vez de
+  cerrar una fecha que estaría abierta por el patrón semanal, abre una fecha puntual sin importar
+  su día de semana. Es **aditivo, no excluyente**, con el horario semanal: un profesional puede
+  usar ambos a la vez, o apoyarse solo en fechas puntuales con el horario semanal vacío (el caso de
+  temporada — nada que "apagar" en la baja, simplemente no se cargan fechas nuevas).
+  `PublicAvailabilityService.findFreeSlots` ahora junta las dos fuentes de ventanas abiertas para
+  una fecha dada antes de restar bloqueos/turnos ya tomados. `AvailabilityCalculator.freeSlots`
+  suma un `.distinct()` defensivo por si las dos fuentes se solapan para la misma fecha (ej. un
+  jueves recurrente + una fecha puntual ese mismo jueves con horario extendido) — sin eso, el
+  tramo solapado se ofrecía duplicado.
+  Endpoints nuevos bajo `/api/professionals/{id}/date-availability` (GET/POST/DELETE), mismo estilo
+  que `.../time-off`. Sección nueva "Fechas puntuales habilitadas" en el panel de Profesionales.
+- **La otra forma (horario recurrente) también se separó en dos vistas.** `WeeklySchedule.jsx` (la
+  grilla completa de 7 días, ya existía) sigue disponible, pero ahora convive con
+  `SimpleAvailabilityEditor.jsx` — agregar una franja recurrente a la vez en vez de ver los 7 días
+  de encima, para quien prefiere ir sumando días de a poco a su patrón semanal. Un tab arriba de la
+  sección elige la vista; arranca en la simple si el profesional no tiene nada cargado todavía, en
+  la grilla si ya tiene un horario armado. Ninguna de las dos vistas es dueña del dato — ambas
+  llaman a los mismos endpoints de siempre (`POST`/`DELETE` `.../availability`, uno por franja).
+
 ### 2026-08-13 — OAuth Connect: túnel en vivo, fix de encoding, sigue bloqueado por MercadoPago
 
 - **Túnel público con ngrok para poder registrar un redirect URI real** — el panel de MercadoPago
@@ -900,6 +927,39 @@ already existed server-side and was already fully wired into `PublicAvailability
 — nothing to fix there. The gap was purely that the admin panel had no screen for it; professionals
 now have a "Bloqueos" section (date + optional start/end + optional reason) alongside their weekly
 schedule.
+
+**Date-specific availability (`DateAvailability`), added 2026-08-13 — the mirror image of
+time-off.** `WeeklyAvailability` only knows recurring weekdays ("every Tuesday 9-18"), which can't
+express a professional opening specific unrelated calendar dates (a Saturday, then two Thursdays
+in a different week — no shared weekday). Real case: a tattoo artist who books by season and never
+has a fixed weekly pattern, releasing capacity a few dates at a time. `DateAvailability` is
+structurally `TimeOff` with the polarity flipped — `date` + required `startTime`/`endTime`, opens
+instead of closes — and is **additive** with `WeeklyAvailability`, never exclusive:
+`PublicAvailabilityService.findFreeSlots` now merges both sources' open windows for a given date
+before subtracting time-off/existing bookings, so a professional can rely on one, the other, or
+both together. The one thing this doesn't override is a full-day `TimeOff` for that date — an
+explicit "I'm off" still wins over anything `DateAvailability` says, same as it already did over
+`WeeklyAvailability`. Merging two independently-sourced sets of open windows can now produce
+overlapping windows for the same date (e.g. a recurring Thursday slot plus a one-off
+`DateAvailability` entry extending that same Thursday) — `AvailabilityCalculator.freeSlots` picked
+up a `.distinct()` on its way out to guard against handing back the same slot twice; nothing
+upstream needed to know or care.
+
+New endpoints mirror time-off's shape exactly: `GET`/`POST`/`DELETE`
+`/api/professionals/{id}/date-availability`. Frontend: a new "Fechas puntuales habilitadas"
+section in `ProfessionalsPage`, same chip-row-plus-add-form pattern as "Bloqueos" right below it.
+
+**Two ways to build the recurring weekly schedule, added the same day.** `WeeklySchedule.jsx`'s
+7-day grid (see above) shows every day at once — great for editing an existing week, but reads as
+"fill in your whole week right now" to a professional with nothing loaded yet. New
+`SimpleAvailabilityEditor.jsx` is the other entry point onto the *same* `WeeklyAvailability` data:
+a running list of currently-added slots plus a one-slot-at-a-time add form (day + start + end), no
+grid in sight. `ProfessionalsPage` shows a small tab above the schedule section to switch between
+the two, defaulting to the simple editor when a professional has zero slots and to the grid once
+they have some — either can be switched to freely afterward. Neither view owns the data or has its
+own persistence path; both call the exact same `POST`/`DELETE .../availability` endpoints
+`WeeklySchedule` already used, so there's no risk of the two disagreeing about what's actually
+saved.
 
 **Professional branch reassignment.** `ProfessionalUpdateRequest` didn't carry `branchId`, so a
 professional's branch could only ever be set at creation. Added to the update DTO/service/UI —

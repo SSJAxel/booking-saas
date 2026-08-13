@@ -118,6 +118,10 @@ export const api = {
 		listTimeOff: (id) => request(`/api/professionals/${id}/time-off`),
 		addTimeOff: (id, body) => request(`/api/professionals/${id}/time-off`, { method: "POST", body }),
 		deleteTimeOff: (id, timeOffId) => request(`/api/professionals/${id}/time-off/${timeOffId}`, { method: "DELETE" }),
+		listDateAvailability: (id) => request(`/api/professionals/${id}/date-availability`),
+		addDateAvailability: (id, body) => request(`/api/professionals/${id}/date-availability`, { method: "POST", body }),
+		deleteDateAvailability: (id, dateAvailabilityId) =>
+			request(`/api/professionals/${id}/date-availability/${dateAvailabilityId}`, { method: "DELETE" }),
 		uploadPhoto: (id, file) => {
 			const fd = new FormData();
 			fd.append("file", file);
