@@ -32,6 +32,27 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   `756946925289310`) pidiendo que revisen si la app tiene alguna habilitación pendiente — sin
   resolver del lado de ellos todavía.
 
+### 2026-08-13 — Preapproval verificado en vivo, con un bug real de persistencia corregido
+
+- **Verificado de punta a punta por primera vez.** Se destrabó el bloqueo del 2026-08-01
+  (verificación por mail a un `@testuser.com` sin bandeja real): la clave era usar el email de un
+  **usuario comprador de prueba** (creado vía `POST /users/test_user`), no el email real de una
+  persona ni el de la cuenta vendedora — MercadoPago rechaza `payer`/`collector` salvo que ambos
+  sean "reales o de prueba", y un comprador de prueba autorizando contra un collector de prueba sí
+  cumple eso. El código de verificación que pide el checkout de MercadoPago para una cuenta de
+  prueba son los últimos 6 dígitos de su User ID (mismo truco ya conocido de la verificación de
+  sesión en Checkout Pro). Flujo probado completo: `POST /api/tenant/subscription` → autorizar en
+  `checkoutUrl` con tarjeta de prueba (titular `APRO`) → webhook `subscription_preapproval` real,
+  firmado y verificado → tenant pasa a `PRO`.
+- **Bug real encontrado y corregido: el webhook de suscripción nunca persistía el cambio de
+  plan.** `SubscriptionService.handleWebhook` mutaba el `Tenant` que devolvía
+  `TenantService.findById` (ese método es `@Transactional(readOnly = true)` por su cuenta, así que
+  la entidad vuelve *detached* apenas retorna) sin volver a guardarlo — el `Subscription` quedaba
+  bien en `AUTHORIZED`, pero el tenant seguía en su plan viejo. Nuevo
+  `TenantService.applyPlanTierFromSubscription(tenantId, tier)`, con su propio `@Transactional`
+  envolviendo fetch + mutación, reemplaza la mutación directa. `SubscriptionServiceTest` actualizado
+  para verificar la llamada en vez de inspeccionar un objeto detached.
+
 ### 2026-08-13 — Página pública de precios y alta self-service
 
 - **`/precios` — landing pública nueva.** Reconstruye lo que `frontend-public/` tenía (ver "Design
@@ -664,19 +685,24 @@ preapproval's own status webhook, not MercadoPago's separate `authorized_payment
 each individual recurring charge) — so a single missed/retried monthly charge that MercadoPago is
 still retrying isn't reflected here yet, only an eventual pause/cancellation is.
 
-**Partially verified live (2026-08-01).** `createPreapproval` was exercised against MercadoPago's
-real API and confirmed to work — but only after discovering a real, previously-undocumented
-requirement: `payer_email` must belong to an actual MercadoPago account (real or sandbox test
-user), or the API rejects the call with `400 Both payer and collector must be real or test users`.
-A tenant's real owner email always satisfies this in production, so it's not a code change, just a
-gap in what was previously assumed. Could not complete the interactive authorization step or
-exercise the webhook path against a real `authorized` preapproval: MercadoPago's checkout emails a
-one-time verification code to `payer_email` before letting a sandbox test user authorize a
-recurring charge, and a sandbox test account's `@testuser.com` address isn't a real inbox — a
-sandbox-environment dead end, not something in this codebase. `SubscriptionService.handleWebhook`
-and the `authorized`/`paused`/`cancelled` state transitions remain unverified against a live
-authorized subscription — covered instead by `MercadoPagoClientTest` (request/response contract)
-and `SubscriptionServiceTest` (business logic).
+**Fully verified live (2026-08-13).** The whole loop — `createPreapproval` → interactive
+authorization → real signed webhook → tenant flipped onto the paid tier — was exercised end to end
+against MercadoPago's real sandbox. The 2026-08-01 blocker (a sandbox test user's `@testuser.com`
+address has no real inbox to receive the checkout's verification code) turned out to be avoidable:
+the verification code MercadoPago's checkout asks for is just the last 6 digits of the test user's
+numeric User ID (same trick already known from Checkout Pro's session verification), so no real
+inbox is ever needed. The `400 Both payer and collector must be real or test users` requirement
+noted back then holds exactly as described — `payer_email` has to be a MercadoPago test-user
+account (created via `POST /users/test_user`), not an arbitrary real email, when the collector is
+also a test/sandbox account.
+
+This pass also caught a real bug: `SubscriptionService.handleWebhook` used to mutate the `Tenant`
+returned by `TenantService.findById` directly — but that method is its own
+`@Transactional(readOnly = true)`, so the entity is already detached by the time `handleWebhook`
+(deliberately not itself `@Transactional` — see its Javadoc) sets a field on it, and the change was
+silently lost. Fixed with `TenantService.applyPlanTierFromSubscription(tenantId, tier)`, a new
+`@Transactional` method that does the fetch and the mutation inside one transaction so the
+dirty-checked update actually flushes.
 
 **Per-tenant MercadoPago accounts (OAuth Connect).** `MercadoPagoClient` takes an
 `accessToken` on every call that moves money or reads a payment/subscription — it has no
@@ -1009,12 +1035,12 @@ pendientes:
    encontramos un gap real: si el pago tarda más que la ventana de expiración, el turno se cancela
    solo y el pago queda huérfano sin aviso — el 2026-08-13 esa ventana pasó a ser configurable por
    tenant (10-180 min, mitiga el caso pero no lo arregla, ver ítem 13 abajo). Preapproval
-   (suscripciones) quedó a mitad de camino: confirmamos en vivo que `createPreapproval` funciona y
-   que `payer_email` tiene que ser una cuenta real/de prueba de MercadoPago (dato nuevo, no
-   documentado antes), pero no se pudo completar la autorización interactiva — MercadoPago manda un
-   código de verificación por mail a `payer_email`, y una cuenta de prueba no tiene una casilla real
-   para leerlo. OAuth Connect sigue sin probarse: la cuenta de sandbox usada es de tipo Checkout Pro
-   simple, no "Marketplace" (que es el tipo de aplicación que expone `client_id`/`client_secret`).
+   (suscripciones) se terminó de verificar en vivo el 2026-08-13: creación, autorización interactiva
+   (con un usuario de prueba comprador, no el email real de una persona) y webhook, de punta a
+   punta — de paso salió un bug real de persistencia, ya arreglado (ver Registro de cambios y
+   Design notes → Plan billing). OAuth Connect sigue sin probarse en vivo — no por el tipo de
+   aplicación como se pensaba antes, sino por un bloqueo del lado de MercadoPago con ticket de
+   soporte abierto (ver "Preguntas abiertas" arriba y Design notes).
 4. ~~**Página pública de precios y alta.**~~ Hecho (2026-08-13) — reconstruida dentro de
    `frontend/` esta vez (ver "One frontend, not two" en Design notes para por qué no un proyecto
    aparte), en `/precios`. El alta paga en sí sigue siendo manual (mail + comprobante), no un

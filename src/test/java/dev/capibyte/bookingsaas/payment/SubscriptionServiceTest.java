@@ -107,14 +107,10 @@ class SubscriptionServiceTest {
 		when(subscriptionRepository.findById(subscriptionId)).thenReturn(Optional.of(subscription));
 		when(subscriptionRepository.save(any(Subscription.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		Tenant tenant = new Tenant();
-		tenant.setPlanTier(PlanTier.BASIC);
-		when(tenantService.findById(tenantId)).thenReturn(tenant);
-
 		subscriptionService.handleWebhook("preapproval-1", "req-1", "valid-signature");
 
 		assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.AUTHORIZED);
-		assertThat(tenant.getPlanTier()).isEqualTo(PlanTier.PRO);
+		verify(tenantService).applyPlanTierFromSubscription(tenantId, PlanTier.PRO);
 		assertThat(TenantContext.getTenantId()).isNull();
 	}
 
@@ -134,14 +130,10 @@ class SubscriptionServiceTest {
 		when(subscriptionRepository.findById(subscriptionId)).thenReturn(Optional.of(subscription));
 		when(subscriptionRepository.save(any(Subscription.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-		Tenant tenant = new Tenant();
-		tenant.setPlanTier(PlanTier.PRO);
-		when(tenantService.findById(tenantId)).thenReturn(tenant);
-
 		subscriptionService.handleWebhook("preapproval-1", "req-1", "valid-signature");
 
 		assertThat(subscription.getStatus()).isEqualTo(SubscriptionStatus.CANCELLED);
-		assertThat(tenant.getPlanTier()).isEqualTo(PlanTier.PERSONAL);
+		verify(tenantService).applyPlanTierFromSubscription(tenantId, PlanTier.PERSONAL);
 	}
 
 	@Test

@@ -88,6 +88,21 @@ public class TenantService {
 		return tenant;
 	}
 
+	/**
+	 * The upgrade/downgrade path driven by a MercadoPago subscription webhook (see
+	 * SubscriptionService.handleWebhook) — unlike changePlan, allowed to set a paid tier, since the
+	 * whole point is reacting to a just-confirmed subscription. Needs its own @Transactional
+	 * boundary: findById alone returns a detached entity once its own read-only transaction
+	 * closes, so a bare setPlanTier() on that result from a non-transactional caller would be lost
+	 * — this method's transaction covers the fetch and the mutation together so the dirty-checked
+	 * update actually flushes.
+	 */
+	@Transactional
+	public void applyPlanTierFromSubscription(UUID tenantId, PlanTier tier) {
+		Tenant tenant = findById(tenantId);
+		tenant.setPlanTier(tier);
+	}
+
 	@Transactional
 	public void delete(UUID tenantId) {
 		tenantRepository.deleteById(tenantId);

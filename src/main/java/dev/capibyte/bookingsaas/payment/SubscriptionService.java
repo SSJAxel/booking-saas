@@ -108,16 +108,15 @@ public class SubscriptionService {
 			subscription.setStatus(mappedStatus);
 			subscriptionRepository.save(subscription);
 
-			Tenant tenant = tenantService.findById(tenantId);
 			if (mappedStatus == SubscriptionStatus.AUTHORIZED) {
-				tenant.setPlanTier(subscription.getPlanTier());
+				tenantService.applyPlanTierFromSubscription(tenantId, subscription.getPlanTier());
 			} else if (mappedStatus == SubscriptionStatus.CANCELLED || mappedStatus == SubscriptionStatus.PAUSED) {
 				// A failed/cancelled/paused charge means the tenant stops getting what they stopped
 				// paying for — not left stuck on PRO forever. This intentionally doesn't cover an
 				// individual missed recurring charge that MercadoPago is still retrying (that's the
 				// "authorized_payment" webhook topic, not "subscription_preapproval" — not handled
 				// here yet, see README roadmap).
-				tenant.setPlanTier(PlanTier.PERSONAL);
+				tenantService.applyPlanTierFromSubscription(tenantId, PlanTier.PERSONAL);
 			}
 		} finally {
 			TenantContext.clear();
