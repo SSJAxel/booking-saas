@@ -7,12 +7,14 @@ import dev.capibyte.bookingsaas.booking.dto.PublicBranchResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicProfessionalResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicServiceResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicTenantResponse;
+import dev.capibyte.bookingsaas.booking.dto.PublicWeeklyAvailabilityResponse;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.staff.WeeklyAvailabilityService;
 import dev.capibyte.bookingsaas.tenant.Branch;
 import dev.capibyte.bookingsaas.tenant.BranchHoursService;
 import dev.capibyte.bookingsaas.tenant.BranchService;
@@ -47,6 +49,7 @@ public class PublicBookingController {
 
 	private final ServiceOfferingService serviceOfferingService;
 	private final ProfessionalService professionalService;
+	private final WeeklyAvailabilityService weeklyAvailabilityService;
 	private final BranchService branchService;
 	private final BranchHoursService branchHoursService;
 	private final PublicAvailabilityService publicAvailabilityService;
@@ -101,7 +104,8 @@ public class PublicBookingController {
 		return professionals.stream()
 				.filter(Professional::isActive)
 				.filter(p -> branchId == null || p.getBranchId().equals(branchId))
-				.map(PublicProfessionalResponse::from)
+				.map(p -> PublicProfessionalResponse.from(p, weeklyAvailabilityService.findByProfessional(p.getId())
+						.stream().map(PublicWeeklyAvailabilityResponse::from).toList()))
 				.toList();
 	}
 

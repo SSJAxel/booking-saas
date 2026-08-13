@@ -44,6 +44,14 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   la grilla si ya tiene un horario armado. Ninguna de las dos vistas es dueña del dato — ambas
   llaman a los mismos endpoints de siempre (`POST`/`DELETE` `.../availability`, uno por franja).
 
+### 2026-08-13 — Horario público de profesional para el hover del equipo (pedido de Mica)
+
+- **`GET /api/public/{slug}/professionals` ahora expone `hours` (horario semanal real).** Antes solo
+  traía `bio` — sin horarios reales, el hover del "carrusel de equipo" del sitio público no tenía
+  con qué mostrar disponibilidad, solo texto libre. Nuevo `PublicWeeklyAvailabilityResponse`, mismo
+  patrón que ya existía para horarios de sucursal (`PublicBranchHoursResponse`). No toca el sitio
+  público — el hover en sí lo arma Mica en su propio frontend.
+
 ### 2026-08-13 — OAuth Connect verificado en vivo — dos bugs reales encontrados, uno propio
 
 - **Túnel público con ngrok para poder registrar un redirect URI real** — el panel de MercadoPago
