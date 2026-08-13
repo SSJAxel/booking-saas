@@ -655,6 +655,145 @@ h3 {
 	letter-spacing: -0.01em;
 }
 
+/* Public pricing/landing page (PricingPage.jsx) — the only public "marketing" surface in the
+   app, everything else public is either the booking flow (.booking-*) or auth (.auth-*). Reuses
+   the same design tokens as the rest of the app so it doesn't look like a bolted-on landing
+   page. */
+.pricing-page {
+	min-height: 100vh;
+	background: var(--surface-2);
+	padding: 3rem 1.5rem 4rem;
+}
+
+.pricing-hero {
+	max-width: 640px;
+	margin: 0 auto 2.5rem;
+	text-align: center;
+}
+
+.pricing-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 1.2rem;
+	max-width: 1080px;
+	margin: 0 auto 3rem;
+}
+
+.pricing-card {
+	background: var(--surface);
+	border: 1px solid var(--border);
+	border-radius: var(--r-xl);
+	padding: 1.6rem 1.4rem;
+	box-shadow: var(--shadow-resting);
+	text-align: left;
+	position: relative;
+}
+
+.pricing-card-featured {
+	border-color: var(--accent);
+	box-shadow: var(--shadow-hover);
+}
+
+.pricing-badge {
+	position: absolute;
+	top: -0.7rem;
+	right: 1.2rem;
+	background: var(--accent);
+	color: var(--accent-contrast);
+	font-size: 0.7rem;
+	font-weight: 700;
+	padding: 0.25rem 0.6rem;
+	border-radius: var(--r-pill);
+}
+
+.pricing-price {
+	font-size: 1.6rem;
+	font-weight: 700;
+	margin: 0.2rem 0 1rem;
+}
+
+.pricing-features {
+	list-style: none;
+	padding: 0;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	color: var(--text-dim);
+}
+
+.pricing-features li::before {
+	content: "✓ ";
+	color: var(--accent);
+	font-weight: 700;
+}
+
+.pricing-count {
+	display: flex;
+	flex-direction: column;
+	gap: 0.35rem;
+	font-size: 0.78rem;
+	font-weight: 600;
+	color: var(--text);
+	margin-bottom: 1rem;
+}
+
+.pricing-count-stepper {
+	display: flex;
+	align-items: center;
+	gap: 0.6rem;
+}
+
+.pricing-count-stepper button {
+	width: 1.8rem;
+	height: 1.8rem;
+	padding: 0;
+	border-radius: 50%;
+	font-weight: 700;
+	line-height: 1;
+}
+
+.pricing-count-stepper span {
+	min-width: 1.5rem;
+	text-align: center;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.pricing-count-fixed {
+	font-size: 0.78rem;
+	margin-bottom: 1rem;
+}
+
+.pricing-contact {
+	display: block;
+	text-align: center;
+	margin-top: 1.1rem;
+	padding: 0.6rem;
+	border-radius: var(--r-sm);
+	background: var(--accent-soft);
+	color: var(--accent);
+	font-weight: 600;
+	font-size: 0.85rem;
+	text-decoration: none;
+}
+
+.pricing-manual-note {
+	max-width: 640px;
+	margin: 0 auto 2.5rem;
+	text-align: center;
+}
+
+.pricing-signup {
+	display: flex;
+	justify-content: center;
+}
+
+.pricing-signup .auth-card {
+	width: 420px;
+}
+
 /* Forms and inputs */
 label {
 	display: flex;

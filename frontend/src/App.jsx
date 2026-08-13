@@ -3,6 +3,7 @@ import { useAuth } from "./auth/AuthContext.jsx";
 import DashboardLayout from "./layout/DashboardLayout.jsx";
 import AdminLayout from "./layout/AdminLayout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
+import PricingPage from "./pages/PricingPage.jsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import BranchesPage from "./pages/BranchesPage.jsx";
@@ -44,6 +45,7 @@ export default function App() {
 	return (
 		<Routes>
 			<Route path="/login" element={<LoginPage />} />
+			<Route path="/precios" element={<PricingPage />} />
 			<Route path="/verificar-email" element={<VerifyEmailPage />} />
 			<Route path="/reservar/:tenantSlug" element={<BookingPage />} />
 			<Route

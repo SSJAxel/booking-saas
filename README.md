@@ -17,6 +17,35 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-13 — Página pública de precios y alta self-service
+
+- **`/precios` — landing pública nueva.** Reconstruye lo que `frontend-public/` tenía (ver "Design
+  notes" → One frontend, not two) pero dentro de `frontend/`, no como proyecto aparte. Consume
+  `GET /api/plans` (ya existía, sin cambios de backend) y muestra los 5 planes con precio real
+  (indexado a dólar blue), destacando PRO. El registro se extrajo de `LoginPage.jsx` a
+  `RegisterForm.jsx` (componente compartido, evita duplicar la lógica de "revisá tu mail") — crear
+  el negocio sigue arrancando en el plan Demo/`TRIAL` como siempre, subir a un plan pago sigue
+  siendo un paso aparte desde el panel.
+- **Selector de cantidad de profesionales, con precio progresivo — a pedido, iterado varias veces
+  en vivo.** BASIC/PRO/MAX (los únicos con `extraProfessionalPrice` en el backend) muestran un
+  selector +/− arrancando en un piso común de **2 profesionales** (deliberadamente igual para los
+  tres en esta página, no el `maxProfessionals` real de cada tier — ver el porqué abajo), con tope
+  de **20** (límite absoluto de la plataforma, cualquier plan). Cada profesional extra cuesta un %
+  más que el anterior (compuesto, no plano): **BASIC +10%, PRO +15%, MAX +25%**. La primera versión
+  usaba el `maxProfessionals` real de cada tier (1/2/5/10) como piso — con pisos distintos, un plan
+  necesita más "escalones" que otro para llegar a la misma cantidad total, y el compuesto castiga
+  más escalones más que una tasa más alta con menos escalones: a 20 profesionales, BASIC terminaba
+  costando más que MAX. Igualar el piso a 2 en los tres arregla el orden (a cualquier cantidad,
+  BASIC < PRO < MAX) porque ahora todos compuestan sobre el mismo número de escalones. El precio
+  del extra en sí **no se muestra en público** (solo el total y el %) — se probó mostrándolo y no
+  tenía sentido exponer la mecánica exacta del cálculo.
+- **Alta paga sigue siendo manual, a propósito.** No hay checkout automático desde esta página —
+  cada card con precio real tiene un botón que abre un mail pre-completado a
+  `info.capibyte@gmail.com` con el plan y la cantidad elegida, para pedir alta contra comprobante
+  de pago. Es una decisión de proceso actual, no una limitación técnica: `POST
+  /api/tenant/subscription` (Mercado Pago Preapproval) ya existe y funciona (ver Payments/deposits
+  más abajo), simplemente no está conectado a esta página todavía.
+
 ### 2026-08-13 — Reembolso de depósito vía Mercado Pago
 
 - **Reembolso real, verificado en vivo.** `MercadoPagoClient.refundPayment` (`POST
@@ -959,12 +988,11 @@ pendientes:
    código de verificación por mail a `payer_email`, y una cuenta de prueba no tiene una casilla real
    para leerlo. OAuth Connect sigue sin probarse: la cuenta de sandbox usada es de tipo Checkout Pro
    simple, no "Marketplace" (que es el tipo de aplicación que expone `client_id`/`client_secret`).
-4. **Página pública de precios y alta.** Se había hecho — una landing (`GET /api/plans`, catálogo
-   público de precios, no tenant-scoped, por eso vive fuera de `/api/public/{tenantSlug}/**`) y
-   `/registrarse` para crear la cuenta — pero vivía en `frontend-public/`, que se eliminó entero
-   (ver "One frontend, not two" en Design notes). El endpoint `GET /api/plans` sigue existiendo y
-   funciona; lo que falta es la pantalla. Sigue en el roadmap, ahora para reconstruir dentro de
-   `frontend/`.
+4. ~~**Página pública de precios y alta.**~~ Hecho (2026-08-13) — reconstruida dentro de
+   `frontend/` esta vez (ver "One frontend, not two" en Design notes para por qué no un proyecto
+   aparte), en `/precios`. El alta paga en sí sigue siendo manual (mail + comprobante), no un
+   checkout automático — ver el Registro de cambios y Design notes → Payments/deposits para el
+   detalle.
 
 ### Para competir en serio con AgendaPro (prioridad media)
 
