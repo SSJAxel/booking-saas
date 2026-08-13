@@ -6,6 +6,8 @@ import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoRefund;
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -159,12 +161,18 @@ public class MercadoPagoClient {
 	 * state value driving the callback to the wrong tenant.
 	 */
 	public String buildAuthorizationUrl(String state, String redirectUri) {
+		// MercadoPago's redirect_uri match check is picky about the query-string representation —
+		// ':' and '/' are legal inside a query value per RFC 3986, so UriComponentsBuilder's own
+		// .encode() leaves them alone; percent-encode explicitly and mark the builder as
+		// already-encoded (build(true)) so it doesn't re-escape the '%' we just introduced.
+		String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
 		return UriComponentsBuilder.fromUriString("https://auth.mercadopago.com/authorization")
 				.queryParam("client_id", clientId)
 				.queryParam("response_type", "code")
 				.queryParam("platform_id", "mp")
 				.queryParam("state", state)
-				.queryParam("redirect_uri", redirectUri)
+				.queryParam("redirect_uri", encodedRedirectUri)
+				.build(true)
 				.toUriString();
 	}
 

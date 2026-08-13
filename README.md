@@ -17,6 +17,21 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-13 — OAuth Connect: túnel en vivo, fix de encoding, sigue bloqueado por MercadoPago
+
+- **Túnel público con ngrok para poder registrar un redirect URI real** — el panel de MercadoPago
+  rechaza `localhost` en las URLs de redireccionamiento. (Falso positivo de Windows Defender en el
+  binario de ngrok descargado — hubo que agregar una exclusión manual a la carpeta del paquete.)
+- **Se probaron y descartaron, una por una, las causas típicas de `"La aplicación no está
+  preparada para conectarse a Mercado Pago"`:** PKCE (estaba deshabilitado), país de la app vs.
+  cuenta (ambos MLA/Argentina), y el encoding del `redirect_uri` en la URL de autorización — esto
+  último sí era un bug real (`MercadoPagoClient.buildAuthorizationUrl` usaba
+  `UriComponentsBuilder...toUriString()` sin encodear, corregido con `URLEncoder` + `build(true)`),
+  pero no era la causa del bloqueo: el error persiste igual con y sin encoding.
+- **Sigue bloqueado.** Ticket abierto con soporte de MercadoPago (`WCS-XXXXX`, Client ID
+  `756946925289310`) pidiendo que revisen si la app tiene alguna habilitación pendiente — sin
+  resolver del lado de ellos todavía.
+
 ### 2026-08-13 — Página pública de precios y alta self-service
 
 - **`/precios` — landing pública nueva.** Reconstruye lo que `frontend-public/` tenía (ver "Design
@@ -690,10 +705,20 @@ MercadoPago's marketplace model is assumed to give the integrating application r
 transactions it created through a connected account's OAuth flow. That assumption is unverified
 against a live sandbox, same as the rest of this integration.
 
-**Not attempted live yet:** the sandbox account used for the 2026-08-01 verification pass was
-created as a plain Checkout Pro application — `client_id`/`client_secret` (needed for OAuth
-Connect) only exist on a MercadoPago application configured as "Marketplace". Deferred rather than
-solved by creating a second application, to keep that session focused; see the roadmap.
+**Attempted live (2026-08-13), blocked on MercadoPago's side.** A plain "Pagos online" application
+(not a separately-flagged "Marketplace" one — that distinction from the 2026-08-01 note doesn't
+seem to be real; `client_id`/`client_secret` and the redirect-URL/permissions config were all
+available directly on it) was fully wired up: ngrok tunnel for a public redirect URI (MercadoPago's
+dashboard rejects `localhost`), OAuth scopes (`read`/`write`/`offline_access`) enabled, PKCE
+confirmed off, app and test account both on the same site (MLA/Argentina). Authorizing still fails
+with `"La aplicación no está preparada para conectarse a Mercado Pago"` immediately after picking a
+country on MercadoPago's own consent screen — before it ever reaches our redirect URI. Along the
+way, `MercadoPagoClient.buildAuthorizationUrl` was found to build `redirect_uri` without
+percent-encoding it in the query string (`UriComponentsBuilder...toUriString()` leaves `:`/`/`
+alone since they're legal query characters per RFC 3986) — fixed with an explicit `URLEncoder` pass
++ `build(true)`, and worth having regardless, but it wasn't the cause: the error is identical with
+or without encoding. Support ticket open with MercadoPago (`WCS-XXXXX`, Client ID
+`756946925289310`) — still unresolved as of this note.
 
 **Per-tenant branding.** `Tenant` fields — `logoUrl`, `bannerUrl` (public-site hero/cover, added
 2026-08-13), `accentColor` (hex, validated `^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH
@@ -957,9 +982,11 @@ pendientes:
 - El caso de "el pago llega después de que el turno ya expiró y se canceló solo" (ver "Deuda
   técnica" abajo) necesita una decisión de producto, no solo una de código: ¿reembolso automático?
   ¿aviso al dueño para que decida a mano?
-- OAuth Connect (cuenta de Mercado Pago propia por tenant) sigue sin poder probarse en vivo porque
-  la app de sandbox usada no es de tipo "Marketplace" — hay que crear una nueva y repetir la
-  verificación.
+- OAuth Connect (cuenta de Mercado Pago propia por tenant) sigue sin poder probarse en vivo —
+  bloqueado del lado de MercadoPago (`"La aplicación no está preparada para conectarse"`, causa no
+  confirmada pese a descartar PKCE, país y encoding del redirect_uri; ver Design notes → Payments →
+  Per-tenant MercadoPago accounts). Ticket de soporte abierto (`WCS-XXXXX`), a la espera de
+  respuesta.
 
 ### Para poder vender el plan de autoservicio (prioridad alta)
 

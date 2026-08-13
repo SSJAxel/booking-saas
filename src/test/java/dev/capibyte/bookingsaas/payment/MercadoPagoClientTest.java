@@ -166,7 +166,7 @@ class MercadoPagoClientTest {
 		assertThat(url).startsWith("https://auth.mercadopago.com/authorization");
 		assertThat(url).contains("client_id=TEST-client-id");
 		assertThat(url).contains("state=tenant-id-as-state");
-		assertThat(url).contains("redirect_uri=https://example.com/oauth/callback");
+		assertThat(url).contains("redirect_uri=https%3A%2F%2Fexample.com%2Foauth%2Fcallback");
 	}
 
 	@Test
