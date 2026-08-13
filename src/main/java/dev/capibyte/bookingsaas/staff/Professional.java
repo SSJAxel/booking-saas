@@ -28,6 +28,12 @@ public class Professional extends BaseTenantEntity {
 	@Column
 	private String bio;
 
+	/** URL-string convention, same as Tenant.logoUrl — the professional/owner hosts the photo
+	 * elsewhere and links it, no file storage in this project. Null falls back to a color-tile
+	 * placeholder on the public team carousel. */
+	@Column(name = "photo_url")
+	private String photoUrl;
+
 	@Column(nullable = false)
 	private boolean active = true;
 }

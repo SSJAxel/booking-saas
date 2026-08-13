@@ -1,5 +1,13 @@
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
+// Uploaded images (logo/banner/professional photo) are stored as paths relative to this API
+// (e.g. "/uploads/public/..."), not full URLs — an <img src> needs the API's own origin prefixed
+// on. Left untouched if it's already an absolute URL (someone pasted an external link instead).
+export function resolveMediaUrl(path) {
+	if (!path) return null;
+	return /^https?:\/\//.test(path) ? path : `${API_BASE}${path}`;
+}
+
 function getToken() {
 	return localStorage.getItem("token");
 }
@@ -71,6 +79,16 @@ export const api = {
 		subscribe: (planTier) => request("/api/tenant/subscription", { method: "POST", body: { planTier } }),
 		connectMercadoPago: () => request("/api/tenant/mercadopago/connect"),
 		updateBranding: (body) => request("/api/tenant/branding", { method: "PATCH", body }),
+		uploadLogo: (file) => {
+			const fd = new FormData();
+			fd.append("file", file);
+			return requestForm("/api/tenant/branding/logo", fd);
+		},
+		uploadBanner: (file) => {
+			const fd = new FormData();
+			fd.append("file", file);
+			return requestForm("/api/tenant/branding/banner", fd);
+		},
 		updateTimezone: (timezone) => request("/api/tenant/timezone", { method: "PATCH", body: { timezone } }),
 		updateNotifications: (whatsappEnabled) =>
 			request("/api/tenant/notifications", { method: "PATCH", body: { whatsappEnabled } }),
@@ -100,6 +118,11 @@ export const api = {
 		listTimeOff: (id) => request(`/api/professionals/${id}/time-off`),
 		addTimeOff: (id, body) => request(`/api/professionals/${id}/time-off`, { method: "POST", body }),
 		deleteTimeOff: (id, timeOffId) => request(`/api/professionals/${id}/time-off/${timeOffId}`, { method: "DELETE" }),
+		uploadPhoto: (id, file) => {
+			const fd = new FormData();
+			fd.append("file", file);
+			return requestForm(`/api/professionals/${id}/photo`, fd);
+		},
 	},
 	reports: {
 		today: () => request("/api/reports/today"),

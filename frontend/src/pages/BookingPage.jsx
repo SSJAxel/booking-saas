@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { api } from "../api.js";
+import { api, resolveMediaUrl } from "../api.js";
 import Calendar from "../components/Calendar.jsx";
 
 const STEP_LABELS = {
@@ -8,6 +8,16 @@ const STEP_LABELS = {
 	professional: "Profesional",
 	datetime: "Fecha y hora",
 	details: "Tus datos",
+};
+
+const DAY_LABELS = {
+	MONDAY: "Lun",
+	TUESDAY: "Mar",
+	WEDNESDAY: "Mié",
+	THURSDAY: "Jue",
+	FRIDAY: "Vie",
+	SATURDAY: "Sáb",
+	SUNDAY: "Dom",
 };
 
 function formatDateDisplay(dateKey) {
@@ -172,9 +182,28 @@ export default function BookingPage() {
 		<div className="booking-page" style={tenant.accentColor ? { "--accent": tenant.accentColor } : undefined}>
 			<div className="booking-card">
 				<header className="booking-header">
-					{tenant.logoUrl ? <img src={tenant.logoUrl} alt={tenant.name} className="booking-logo" /> : null}
+					{tenant.bannerUrl ? (
+						<img
+							src={resolveMediaUrl(tenant.bannerUrl)}
+							alt=""
+							style={{ width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "8px" }}
+						/>
+					) : null}
+					{tenant.logoUrl ? (
+						<img src={resolveMediaUrl(tenant.logoUrl)} alt={tenant.name} className="booking-logo" />
+					) : null}
 					<h1>{tenant.name}</h1>
 					{tenant.tagline && <p className="muted">{tenant.tagline}</p>}
+					{branch && (branch.phone || branch.hours?.length > 0) && (
+						<p className="muted" style={{ fontSize: "0.85rem" }}>
+							{branch.phone && <span>📞 {branch.phone}</span>}
+							{branch.phone && branch.hours?.length > 0 && " · "}
+							{branch.hours?.length > 0 &&
+								branch.hours
+									.map((h) => `${DAY_LABELS[h.dayOfWeek]} ${h.startTime.slice(0, 5)}–${h.endTime.slice(0, 5)}`)
+									.join(", ")}
+						</p>
+					)}
 				</header>
 
 				{step !== "done" && (
@@ -195,6 +224,7 @@ export default function BookingPage() {
 							<button key={b.id} type="button" className="booking-option" onClick={() => handlePickBranch(b)}>
 								<strong>{b.name}</strong>
 								{b.address && <span className="muted">{b.address}</span>}
+								{b.phone && <span className="muted">📞 {b.phone}</span>}
 							</button>
 						))}
 					</div>
@@ -203,17 +233,30 @@ export default function BookingPage() {
 				{step === "service" && (
 					<div className="booking-options">
 						{services.length === 0 && <p className="muted">No hay servicios disponibles.</p>}
-						{services.map((s) => (
-							<button key={s.id} type="button" className="booking-option" onClick={() => handlePickService(s)}>
-								<strong>{s.name}</strong>
-								<span className="muted">
-									{s.durationMinutes} min · ${Number(s.price).toLocaleString("es-AR")}
-								</span>
-								{s.depositAmount && (
-									<span className="muted">Requiere seña de ${Number(s.depositAmount).toLocaleString("es-AR")}</span>
-								)}
-								{s.description && <span className="muted">{s.description}</span>}
-							</button>
+						{Object.entries(
+							services.reduce((groups, s) => {
+								const key = s.category || "Servicios";
+								(groups[key] ??= []).push(s);
+								return groups;
+							}, {}),
+						).map(([category, categoryServices]) => (
+							<div key={category} className="booking-category-group">
+								{category !== "Servicios" && <p className="label">{category}</p>}
+								{categoryServices.map((s) => (
+									<button key={s.id} type="button" className="booking-option" onClick={() => handlePickService(s)}>
+										<strong>{s.name}</strong>
+										<span className="muted">
+											{s.durationMinutes} min · ${Number(s.price).toLocaleString("es-AR")}
+										</span>
+										{s.depositAmount && (
+											<span className="muted">
+												Requiere seña de ${Number(s.depositAmount).toLocaleString("es-AR")}
+											</span>
+										)}
+										{s.description && <span className="muted">{s.description}</span>}
+									</button>
+								))}
+							</div>
 						))}
 					</div>
 				)}
@@ -233,6 +276,13 @@ export default function BookingPage() {
 								className="booking-option"
 								onClick={() => handlePickProfessional(p)}
 							>
+								{p.photoUrl && (
+									<img
+										src={resolveMediaUrl(p.photoUrl)}
+										alt={p.displayName}
+										style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }}
+									/>
+								)}
 								<strong>{p.displayName}</strong>
 								{p.bio && <span className="muted">{p.bio}</span>}
 							</button>

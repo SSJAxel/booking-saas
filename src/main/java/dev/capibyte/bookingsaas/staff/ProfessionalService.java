@@ -4,7 +4,7 @@ import dev.capibyte.bookingsaas.common.ConflictException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.tenant.BranchService;
-import dev.capibyte.bookingsaas.tenant.PlanTier;
+import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.util.List;
 import java.util.UUID;
@@ -22,16 +22,17 @@ public class ProfessionalService {
 	private final TenantService tenantService;
 
 	@Transactional
-	public Professional create(UUID branchId, String displayName, String bio) {
-		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
-		if (professionalRepository.countByActiveTrue() >= tier.getMaxProfessionals()) {
-			throw new ProfessionalLimitExceededException(tier);
+	public Professional create(UUID branchId, String displayName, String bio, String photoUrl) {
+		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+		if (professionalRepository.countByActiveTrue() >= tenant.getEffectiveProfessionalLimit()) {
+			throw new ProfessionalLimitExceededException(tenant.getPlanTier());
 		}
 		branchService.findById(branchId); // 404s (not FK violation) if missing or belongs to another tenant
 		Professional professional = new Professional();
 		professional.setBranchId(branchId);
 		professional.setDisplayName(displayName);
 		professional.setBio(bio);
+		professional.setPhotoUrl(photoUrl);
 		return professionalRepository.save(professional);
 	}
 
@@ -47,13 +48,24 @@ public class ProfessionalService {
 	}
 
 	@Transactional
-	public Professional update(UUID id, UUID branchId, String displayName, String bio, boolean active) {
+	public Professional update(UUID id, UUID branchId, String displayName, String bio, String photoUrl,
+			boolean active) {
 		branchService.findById(branchId); // 404s (not FK violation) if missing or belongs to another tenant
 		Professional professional = findById(id);
 		professional.setBranchId(branchId);
 		professional.setDisplayName(displayName);
 		professional.setBio(bio);
+		professional.setPhotoUrl(photoUrl);
 		professional.setActive(active);
+		return professional;
+	}
+
+	/** Narrower than update() — used by the photo upload endpoint, which only ever touches this
+	 * one field and shouldn't require resending the rest of the edit form. */
+	@Transactional
+	public Professional updatePhoto(UUID id, String photoUrl) {
+		Professional professional = findById(id);
+		professional.setPhotoUrl(photoUrl);
 		return professional;
 	}
 

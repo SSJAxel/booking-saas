@@ -2,6 +2,7 @@ package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.AppointmentResponse;
 import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
+import dev.capibyte.bookingsaas.booking.dto.PublicBranchHoursResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicBranchResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicProfessionalResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicServiceResponse;
@@ -13,6 +14,7 @@ import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
 import dev.capibyte.bookingsaas.tenant.Branch;
+import dev.capibyte.bookingsaas.tenant.BranchHoursService;
 import dev.capibyte.bookingsaas.tenant.BranchService;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import jakarta.validation.Valid;
@@ -46,6 +48,7 @@ public class PublicBookingController {
 	private final ServiceOfferingService serviceOfferingService;
 	private final ProfessionalService professionalService;
 	private final BranchService branchService;
+	private final BranchHoursService branchHoursService;
 	private final PublicAvailabilityService publicAvailabilityService;
 	private final AppointmentService appointmentService;
 	private final TenantService tenantService;
@@ -59,7 +62,8 @@ public class PublicBookingController {
 	public List<PublicBranchResponse> branches(@PathVariable String tenantSlug) {
 		return branchService.findAll().stream()
 				.filter(Branch::isActive)
-				.map(PublicBranchResponse::from)
+				.map(branch -> PublicBranchResponse.from(branch, branchHoursService.findByBranch(branch.getId())
+						.stream().map(PublicBranchHoursResponse::from).toList()))
 				.toList();
 	}
 
@@ -80,11 +84,21 @@ public class PublicBookingController {
 				.toList();
 	}
 
+	/**
+	 * {@code serviceId} is optional: when given, only professionals assigned to that service come
+	 * back (the booking flow, step by step); when omitted, every active professional for the
+	 * tenant (optionally narrowed by {@code branchId}) comes back — e.g. for a "meet the team"
+	 * carousel shown before a client picks a service.
+	 */
 	@GetMapping("/professionals")
-	public List<PublicProfessionalResponse> professionals(@PathVariable String tenantSlug, @RequestParam UUID serviceId,
-			@RequestParam(required = false) UUID branchId) {
-		return serviceOfferingService.findProfessionalIdsForService(serviceId).stream()
-				.map(professionalService::findById)
+	public List<PublicProfessionalResponse> professionals(@PathVariable String tenantSlug,
+			@RequestParam(required = false) UUID serviceId, @RequestParam(required = false) UUID branchId) {
+		List<Professional> professionals = serviceId == null
+				? professionalService.findAll()
+				: serviceOfferingService.findProfessionalIdsForService(serviceId).stream()
+						.map(professionalService::findById)
+						.toList();
+		return professionals.stream()
 				.filter(Professional::isActive)
 				.filter(p -> branchId == null || p.getBranchId().equals(branchId))
 				.map(PublicProfessionalResponse::from)

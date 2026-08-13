@@ -82,15 +82,32 @@ public class TenantService {
 
 	/** Any field left null clears that piece of branding — an unbranded tenant is a valid state. */
 	@Transactional
-	public Tenant updateBranding(UUID tenantId, String logoUrl, String accentColor, String tagline,
+	public Tenant updateBranding(UUID tenantId, String logoUrl, String bannerUrl, String accentColor, String tagline,
 			String contactEmail, String whatsappNumber, String transferAlias) {
 		Tenant tenant = findById(tenantId);
 		tenant.setLogoUrl(logoUrl);
+		tenant.setBannerUrl(bannerUrl);
 		tenant.setAccentColor(accentColor);
 		tenant.setTagline(tagline);
 		tenant.setContactEmail(contactEmail);
 		tenant.setWhatsappNumber(whatsappNumber);
 		tenant.setTransferAlias(transferAlias);
+		return tenant;
+	}
+
+	/** Narrower than updateBranding — used by the logo/banner upload endpoints, which only ever
+	 * touch their own field and shouldn't require resending the rest of the branding form. */
+	@Transactional
+	public Tenant updateLogoUrl(UUID tenantId, String logoUrl) {
+		Tenant tenant = findById(tenantId);
+		tenant.setLogoUrl(logoUrl);
+		return tenant;
+	}
+
+	@Transactional
+	public Tenant updateBannerUrl(UUID tenantId, String bannerUrl) {
+		Tenant tenant = findById(tenantId);
+		tenant.setBannerUrl(bannerUrl);
 		return tenant;
 	}
 

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api.js";
+import { api, resolveMediaUrl } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import HelpManual from "../components/HelpManual.jsx";
 import { planLabel } from "../labels.js";
@@ -10,6 +10,8 @@ export default function TenantPage() {
 	const [plans, setPlans] = useState([]);
 	const [error, setError] = useState("");
 	const [brandingNotice, setBrandingNotice] = useState("");
+	const [uploadingLogo, setUploadingLogo] = useState(false);
+	const [uploadingBanner, setUploadingBanner] = useState(false);
 	const [timezoneNotice, setTimezoneNotice] = useState("");
 	const [notificationsNotice, setNotificationsNotice] = useState("");
 	const [transferAliasNotice, setTransferAliasNotice] = useState("");
@@ -72,7 +74,8 @@ export default function TenantPage() {
 		try {
 			setTenant(
 				await api.tenant.updateBranding({
-					logoUrl: form.get("logoUrl")?.trim() || null,
+					logoUrl: tenant.logoUrl,
+					bannerUrl: tenant.bannerUrl,
 					accentColor: form.get("accentColor")?.trim() || null,
 					tagline: form.get("tagline")?.trim() || null,
 					contactEmail: form.get("contactEmail")?.trim() || null,
@@ -81,6 +84,74 @@ export default function TenantPage() {
 				}),
 			);
 			setBrandingNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleUploadLogo(event) {
+		const file = event.target.files[0];
+		if (!file) return;
+		setError("");
+		setUploadingLogo(true);
+		try {
+			setTenant(await api.tenant.uploadLogo(file));
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setUploadingLogo(false);
+			event.target.value = "";
+		}
+	}
+
+	async function handleRemoveLogo() {
+		setError("");
+		try {
+			setTenant(
+				await api.tenant.updateBranding({
+					logoUrl: null,
+					bannerUrl: tenant.bannerUrl,
+					accentColor: tenant.accentColor,
+					tagline: tenant.tagline,
+					contactEmail: tenant.contactEmail,
+					whatsappNumber: tenant.whatsappNumber,
+					transferAlias: tenant.transferAlias,
+				}),
+			);
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleUploadBanner(event) {
+		const file = event.target.files[0];
+		if (!file) return;
+		setError("");
+		setUploadingBanner(true);
+		try {
+			setTenant(await api.tenant.uploadBanner(file));
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setUploadingBanner(false);
+			event.target.value = "";
+		}
+	}
+
+	async function handleRemoveBanner() {
+		setError("");
+		try {
+			setTenant(
+				await api.tenant.updateBranding({
+					logoUrl: tenant.logoUrl,
+					bannerUrl: null,
+					accentColor: tenant.accentColor,
+					tagline: tenant.tagline,
+					contactEmail: tenant.contactEmail,
+					whatsappNumber: tenant.whatsappNumber,
+					transferAlias: tenant.transferAlias,
+				}),
+			);
 		} catch (err) {
 			setError(err.message);
 		}
@@ -95,6 +166,7 @@ export default function TenantPage() {
 			setTenant(
 				await api.tenant.updateBranding({
 					logoUrl: tenant.logoUrl,
+					bannerUrl: tenant.bannerUrl,
 					accentColor: tenant.accentColor,
 					tagline: tenant.tagline,
 					contactEmail: tenant.contactEmail,
@@ -376,9 +448,46 @@ export default function TenantPage() {
 					Se ve en tu página pública de reservas ({window.location.protocol}//{window.location.host}/reservar/
 					{tenant.slug}). Dejar un campo vacío lo saca.
 				</p>
+				{canManage && (
+					<div className="button-row" style={{ marginBottom: "0.8rem", flexWrap: "wrap" }}>
+						<label className="button-row" style={{ alignItems: "center", gap: "0.5rem" }}>
+							{tenant.logoUrl && (
+								<img
+									src={resolveMediaUrl(tenant.logoUrl)}
+									alt="Logo"
+									style={{ maxHeight: "48px", borderRadius: "6px" }}
+								/>
+							)}
+							<span className="muted">Logo:</span>
+							<input type="file" accept="image/*" onChange={handleUploadLogo} disabled={uploadingLogo} />
+							{uploadingLogo && <span className="muted">Subiendo...</span>}
+							{tenant.logoUrl && (
+								<button type="button" className="secondary" onClick={handleRemoveLogo}>
+									Quitar
+								</button>
+							)}
+						</label>
+						<label className="button-row" style={{ alignItems: "center", gap: "0.5rem" }}>
+							{tenant.bannerUrl && (
+								<img
+									src={resolveMediaUrl(tenant.bannerUrl)}
+									alt="Banner"
+									style={{ maxHeight: "48px", borderRadius: "6px" }}
+								/>
+							)}
+							<span className="muted">Banner/portada:</span>
+							<input type="file" accept="image/*" onChange={handleUploadBanner} disabled={uploadingBanner} />
+							{uploadingBanner && <span className="muted">Subiendo...</span>}
+							{tenant.bannerUrl && (
+								<button type="button" className="secondary" onClick={handleRemoveBanner}>
+									Quitar
+								</button>
+							)}
+						</label>
+					</div>
+				)}
 				{canManage ? (
 					<form className="inline-form" onSubmit={handleSaveBranding}>
-						<input name="logoUrl" placeholder="URL del logo" defaultValue={tenant.logoUrl ?? ""} />
 						<input
 							name="accentColor"
 							placeholder="#RRGGBB"

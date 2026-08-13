@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "../api.js";
+import { api, resolveMediaUrl } from "../api.js";
 import { planLabel } from "../labels.js";
 import { PLAN_LIMITS } from "../planLimits.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
@@ -17,7 +17,8 @@ export default function ProfessionalsPage() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [editingId, setEditingId] = useState(null);
-	const [editDraft, setEditDraft] = useState({ displayName: "", bio: "", active: true, branchId: "" });
+	const [editDraft, setEditDraft] = useState({ displayName: "", bio: "", photoUrl: "", active: true, branchId: "" });
+	const [uploadingPhotoFor, setUploadingPhotoFor] = useState(null);
 	const [rangePickerFor, setRangePickerFor] = useState(null);
 	const [selectedDates, setSelectedDates] = useState(new Set());
 	const [rangeReason, setRangeReason] = useState("");
@@ -70,7 +71,13 @@ export default function ProfessionalsPage() {
 
 	function startEdit(p) {
 		setEditingId(p.id);
-		setEditDraft({ displayName: p.displayName, bio: p.bio ?? "", active: p.active, branchId: p.branchId });
+		setEditDraft({
+			displayName: p.displayName,
+			bio: p.bio ?? "",
+			photoUrl: p.photoUrl ?? "",
+			active: p.active,
+			branchId: p.branchId,
+		});
 	}
 
 	async function handleSaveEdit(id) {
@@ -81,6 +88,7 @@ export default function ProfessionalsPage() {
 				branchId: editDraft.branchId,
 				displayName: editDraft.displayName,
 				bio: editDraft.bio || null,
+				photoUrl: editDraft.photoUrl || null,
 				active: editDraft.active,
 			});
 			setEditingId(null);
@@ -90,6 +98,38 @@ export default function ProfessionalsPage() {
 			setError(err.message);
 		} finally {
 			setSaving(false);
+		}
+	}
+
+	async function handleUploadPhoto(id, event) {
+		const file = event.target.files[0];
+		if (!file) return;
+		setError("");
+		setUploadingPhotoFor(id);
+		try {
+			await api.professionals.uploadPhoto(id, file);
+			await refresh();
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setUploadingPhotoFor(null);
+			event.target.value = "";
+		}
+	}
+
+	async function handleRemovePhoto(professional) {
+		setError("");
+		try {
+			await api.professionals.update(professional.id, {
+				branchId: professional.branchId,
+				displayName: professional.displayName,
+				bio: professional.bio,
+				photoUrl: null,
+				active: professional.active,
+			});
+			await refresh();
+		} catch (err) {
+			setError(err.message);
 		}
 	}
 
@@ -225,6 +265,11 @@ export default function ProfessionalsPage() {
 					<button type="submit">Agregar</button>
 				</form>
 			)}
+			{branches.length > 0 && !atLimit && (
+				<p className="muted" style={{ marginTop: "-0.4rem" }}>
+					La foto se sube después de crear el profesional, desde su tarjeta.
+				</p>
+			)}
 
 			<div className="cards stacked">
 				{professionals.map((p) => (
@@ -288,15 +333,30 @@ export default function ProfessionalsPage() {
 							<div className="card-header">
 								<div>
 									<h3>
-										<span
-											className="appt-color-dot"
-											style={{
-												background: professionalColor(p.id),
-												width: "10px",
-												height: "10px",
-												marginRight: "0.5rem",
-											}}
-										/>
+										{p.photoUrl ? (
+											<img
+												src={resolveMediaUrl(p.photoUrl)}
+												alt={p.displayName}
+												style={{
+													width: "24px",
+													height: "24px",
+													borderRadius: "50%",
+													objectFit: "cover",
+													marginRight: "0.5rem",
+													verticalAlign: "middle",
+												}}
+											/>
+										) : (
+											<span
+												className="appt-color-dot"
+												style={{
+													background: professionalColor(p.id),
+													width: "10px",
+													height: "10px",
+													marginRight: "0.5rem",
+												}}
+											/>
+										)}
 										{p.displayName}
 									</h3>
 									<p className="muted">
@@ -314,6 +374,24 @@ export default function ProfessionalsPage() {
 								</div>
 							</div>
 						)}
+
+						<div className="card-section">
+							<p className="label">Foto</p>
+							<div className="button-row" style={{ alignItems: "center", gap: "0.5rem" }}>
+								<input
+									type="file"
+									accept="image/*"
+									disabled={uploadingPhotoFor === p.id}
+									onChange={(e) => handleUploadPhoto(p.id, e)}
+								/>
+								{uploadingPhotoFor === p.id && <span className="muted">Subiendo...</span>}
+								{p.photoUrl && (
+									<button type="button" className="secondary" onClick={() => handleRemovePhoto(p)}>
+										Quitar
+									</button>
+								)}
+							</div>
+						</div>
 
 						<div className="card-section">
 							<p className="label">Horario semanal</p>

@@ -22,8 +22,8 @@ public class ServiceOfferingService {
 	private final TenantService tenantService;
 
 	@Transactional
-	public ServiceOffering create(String name, String description, int durationMinutes, BigDecimal price,
-			BigDecimal depositAmount) {
+	public ServiceOffering create(String name, String description, String category, int durationMinutes,
+			BigDecimal price, BigDecimal depositAmount) {
 		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
 		if (serviceOfferingRepository.countByActiveTrue() >= tier.getMaxServices()) {
 			throw new ServiceLimitExceededException(tier);
@@ -31,6 +31,7 @@ public class ServiceOfferingService {
 		ServiceOffering service = new ServiceOffering();
 		service.setName(name);
 		service.setDescription(description);
+		service.setCategory(category);
 		service.setDurationMinutes(durationMinutes);
 		service.setPrice(price);
 		service.setDepositAmount(depositAmount);
@@ -49,11 +50,12 @@ public class ServiceOfferingService {
 	}
 
 	@Transactional
-	public ServiceOffering update(UUID id, String name, String description, int durationMinutes, BigDecimal price,
-			BigDecimal depositAmount, boolean active) {
+	public ServiceOffering update(UUID id, String name, String description, String category, int durationMinutes,
+			BigDecimal price, BigDecimal depositAmount, boolean active) {
 		ServiceOffering service = findById(id);
 		service.setName(name);
 		service.setDescription(description);
+		service.setCategory(category);
 		service.setDurationMinutes(durationMinutes);
 		service.setPrice(price);
 		service.setDepositAmount(depositAmount);

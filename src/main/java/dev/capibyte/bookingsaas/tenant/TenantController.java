@@ -1,5 +1,6 @@
 package dev.capibyte.bookingsaas.tenant;
 
+import dev.capibyte.bookingsaas.common.FileStorageService;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.payment.MercadoPagoAccountService;
 import dev.capibyte.bookingsaas.payment.SubscriptionService;
@@ -15,14 +16,17 @@ import dev.capibyte.bookingsaas.tenant.dto.TimezoneUpdateRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 /** Self-service settings for the caller's own tenant — the tenant-level counterpart to /api/me. */
 @RestController
@@ -33,6 +37,7 @@ public class TenantController {
 	private final TenantService tenantService;
 	private final SubscriptionService subscriptionService;
 	private final MercadoPagoAccountService mercadoPagoAccountService;
+	private final FileStorageService fileStorageService;
 
 	@GetMapping
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN','STAFF')")
@@ -48,8 +53,27 @@ public class TenantController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public TenantResponse updateBranding(@Valid @RequestBody BrandingUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateBranding(TenantContext.getTenantId(), request.logoUrl(),
-				request.accentColor(), request.tagline(), request.contactEmail(), request.whatsappNumber(),
-				request.transferAlias()));
+				request.bannerUrl(), request.accentColor(), request.tagline(), request.contactEmail(),
+				request.whatsappNumber(), request.transferAlias()));
+	}
+
+	/** Owner/admin: uploads a logo image file, stores it, and points logoUrl at it — an
+	 * alternative to PATCH /branding for tenants who don't already have the image hosted
+	 * somewhere with a URL to paste. */
+	@PostMapping(value = "/branding/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse uploadLogo(@RequestParam("file") MultipartFile file) {
+		String relativePath = fileStorageService.store(file, "public/tenant-logos");
+		return TenantResponse.from(tenantService.updateLogoUrl(TenantContext.getTenantId(), "/uploads/" + relativePath));
+	}
+
+	/** Owner/admin: same as uploadLogo, for the public page's cover/banner image. */
+	@PostMapping(value = "/branding/banner", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse uploadBanner(@RequestParam("file") MultipartFile file) {
+		String relativePath = fileStorageService.store(file, "public/tenant-banners");
+		return TenantResponse
+				.from(tenantService.updateBannerUrl(TenantContext.getTenantId(), "/uploads/" + relativePath));
 	}
 
 	/**

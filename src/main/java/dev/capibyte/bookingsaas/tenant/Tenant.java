@@ -7,6 +7,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
 import lombok.Getter;
@@ -41,9 +42,14 @@ public class Tenant extends BaseEntity {
 	@Column(name = "plan_tier", nullable = false)
 	private PlanTier planTier = PlanTier.TRIAL;
 
-	/** All three optional — an unbranded tenant just gets frontend-public's default look. */
+	/** All optional — an unbranded tenant just gets frontend-public's default look. */
 	@Column(name = "logo_url")
 	private String logoUrl;
+
+	/** Cover photo for the public booking page hero, shown behind/alongside the logo — same
+	 * URL-string convention as logoUrl (see V10's Javadoc). */
+	@Column(name = "banner_url")
+	private String bannerUrl;
 
 	@Column(name = "accent_color")
 	private String accentColor;
@@ -101,6 +107,27 @@ public class Tenant extends BaseEntity {
 	 * unaffected. */
 	@Column(name = "trial_expires_at")
 	private Instant trialExpiresAt;
+
+	/** Negotiated price for this tenant, set by hand by the super-admin — overrides the plan
+	 * tier's current list price (see {@code PlanPricingService#effectivePrice}) for MRR/billing
+	 * reporting only. Never used to compute what MercadoPago actually charges at checkout
+	 * (SubscriptionService keeps using the plan's list price there) — deliberately kept out of
+	 * that flow to avoid touching live payment code. */
+	@Column(name = "custom_monthly_price")
+	private BigDecimal customMonthlyPrice;
+
+	/** Founder-set override for how many professionals this tenant may have, independent of its
+	 * plan tier's default included count — set by hand when approving a "mejorar plan" request
+	 * for more employees within the same tier (not self-service, see PlanTier's Javadoc). Null
+	 * falls back to the plan's default. */
+	@Column(name = "professional_limit_override")
+	private Integer professionalLimitOverride;
+
+	/** Single source of truth for "how many professionals can this tenant have" — the override if
+	 * the founder set one, otherwise the plan tier's default included count. */
+	public int getEffectiveProfessionalLimit() {
+		return professionalLimitOverride != null ? professionalLimitOverride : planTier.getMaxProfessionals();
+	}
 
 	@PrePersist
 	void onCreate() {

@@ -3,7 +3,15 @@ import { api } from "../api.js";
 import { planLabel } from "../labels.js";
 import { PLAN_LIMITS } from "../planLimits.js";
 
-const EMPTY_DRAFT = { name: "", description: "", durationMinutes: "", price: "", depositAmount: "", active: true };
+const EMPTY_DRAFT = {
+	name: "",
+	description: "",
+	category: "",
+	durationMinutes: "",
+	price: "",
+	depositAmount: "",
+	active: true,
+};
 
 export default function ServicesPage() {
 	const [services, setServices] = useState([]);
@@ -51,6 +59,7 @@ export default function ServicesPage() {
 			await api.services.create({
 				name: form.get("name"),
 				description: form.get("description") || null,
+				category: form.get("category") || null,
 				durationMinutes: Number(form.get("durationMinutes")),
 				price: Number(form.get("price")),
 				depositAmount: deposit ? Number(deposit) : null,
@@ -81,6 +90,7 @@ export default function ServicesPage() {
 		setEditDraft({
 			name: s.name,
 			description: s.description ?? "",
+			category: s.category ?? "",
 			durationMinutes: s.durationMinutes,
 			price: s.price,
 			depositAmount: s.depositAmount ?? "",
@@ -95,6 +105,7 @@ export default function ServicesPage() {
 			await api.services.update(id, {
 				name: editDraft.name,
 				description: editDraft.description || null,
+				category: editDraft.category || null,
 				durationMinutes: Number(editDraft.durationMinutes),
 				price: Number(editDraft.price),
 				depositAmount: editDraft.depositAmount ? Number(editDraft.depositAmount) : null,
@@ -142,6 +153,7 @@ export default function ServicesPage() {
 				<form className="inline-form" onSubmit={handleCreate}>
 					<input name="name" placeholder="Nombre" required />
 					<input name="description" placeholder="Descripción" />
+					<input name="category" placeholder="Categoría (ej: Cortes)" />
 					<input name="durationMinutes" type="number" min="1" placeholder="Duración (min)" required />
 					<input name="price" type="number" step="0.01" min="0" placeholder="Precio" required />
 					<input name="depositAmount" type="number" step="0.01" min="0" placeholder="Seña (opcional)" />
@@ -190,6 +202,14 @@ export default function ServicesPage() {
 										onChange={(e) => setEditDraft({ ...editDraft, depositAmount: e.target.value })}
 									/>
 								</label>
+								<label>
+									Categoría
+									<input
+										value={editDraft.category}
+										onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
+										placeholder="ej: Cortes"
+									/>
+								</label>
 								<label className="span-2">
 									Descripción
 									<input
@@ -223,6 +243,7 @@ export default function ServicesPage() {
 								{s.name}
 								{!s.active && " (inactivo)"}
 							</h3>
+							{s.category && <p className="muted">Categoría: {s.category}</p>}
 							<p className="muted">
 								{s.durationMinutes} min · ${s.price}
 								{s.depositAmount ? ` · seña $${s.depositAmount}` : " · sin seña (confirma solo)"}

@@ -10,6 +10,7 @@ import org.springframework.security.authorization.AuthorizationDeniedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -50,6 +51,14 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AuthorizationDeniedException.class)
 	public ResponseEntity<ApiError> handleAuthorizationDenied(AuthorizationDeniedException ex) {
 		return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiError.of("FORBIDDEN", "Access denied"));
+	}
+
+	/** Without this, a missing file under /uploads/public/** (e.g. a stale or mistyped image
+	 * path) falls through to handleUnexpected() below and returns 500 instead of 404 — Spring's
+	 * static resource resolver throws this, not a plain 404 response, when nothing matches. */
+	@ExceptionHandler(NoResourceFoundException.class)
+	public ResponseEntity<ApiError> handleNoResourceFound(NoResourceFoundException ex) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiError.of("NOT_FOUND", "Resource not found"));
 	}
 
 	@ExceptionHandler(DataIntegrityViolationException.class)

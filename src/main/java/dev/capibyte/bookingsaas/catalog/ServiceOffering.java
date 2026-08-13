@@ -23,6 +23,12 @@ public class ServiceOffering extends BaseTenantEntity {
 	@Column
 	private String description;
 
+	/** Tenant-defined free-text grouping (e.g. "Cortes"/"Tratamientos"/"Rasurado") — null falls
+	 * back to a single "Servicios" bucket on the public booking page. Not an enum: each tenant
+	 * picks whatever categories make sense for their own business. */
+	@Column
+	private String category;
+
 	@Column(name = "duration_minutes", nullable = false)
 	private int durationMinutes;
 
