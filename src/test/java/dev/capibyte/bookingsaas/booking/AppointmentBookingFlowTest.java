@@ -3,6 +3,7 @@ package dev.capibyte.bookingsaas.booking;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.capibyte.bookingsaas.IntegrationTestBase;
+import dev.capibyte.bookingsaas.common.TenantContext;
 import java.sql.Timestamp;
 import java.time.DayOfWeek;
 import java.time.Instant;
@@ -12,6 +13,7 @@ import java.time.ZoneOffset;
 import java.time.temporal.ChronoUnit;
 import java.time.temporal.TemporalAdjusters;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -32,6 +34,9 @@ class AppointmentBookingFlowTest extends IntegrationTestBase {
 
 	@Autowired
 	private PendingDepositExpirationScheduler expirationScheduler;
+
+	@Autowired
+	private AppointmentService appointmentService;
 
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
@@ -146,6 +151,48 @@ class AppointmentBookingFlowTest extends IntegrationTestBase {
 		ResponseEntity<Map> afterScheduler = restTemplate.exchange("/api/appointments/" + appointmentId,
 				HttpMethod.GET, new HttpEntity<>(headers), Map.class);
 		assertThat(afterScheduler.getBody().get("status")).isEqualTo("PENDING");
+	}
+
+	/**
+	 * A deposit confirmed PAID after the scheduler already cancelled the appointment must never
+	 * un-cancel it (see AppointmentService.markDepositPaid's Javadoc — the slot may already be held
+	 * by someone else) — but paymentStatus must still flip to PAID, since MercadoPago really was
+	 * paid, and that mismatch has to be recorded, not silently dropped.
+	 */
+	@Test
+	void depositPaidAfterExpirationStaysCancelledButRecordsThePayment() {
+		RegisteredTenant tenant = registerTenant();
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
+		HttpHeaders headers = authHeaders(tenant.token());
+		Setup setup = setUpProfessionalAndService(tenant, headers, 20.0);
+
+		Instant slot = nextMonday().atStartOfDay(ZoneOffset.UTC).plusHours(10).toInstant();
+		Map<String, Object> booked = book(tenant.slug(), setup.professionalId(), setup.serviceId(), slot,
+				"late-payer-client");
+		String appointmentId = (String) booked.get("id");
+
+		Instant longAgo = Instant.now().minus(expirationMinutes + 5, ChronoUnit.MINUTES);
+		jdbcTemplate.update("UPDATE appointments SET created_at = ? WHERE id = ?::uuid", Timestamp.from(longAgo),
+				appointmentId);
+		expirationScheduler.expireUnpaidAppointments();
+
+		// Simulates the late MercadoPago webhook arriving after the appointment already expired.
+		// PaymentService.handleWebhook always sets TenantContext before calling markDepositPaid
+		// (there's no JWT/URL slug on an inbound webhook to resolve it from otherwise) — replicated
+		// here since this test calls the service method directly, bypassing that caller.
+		UUID tenantId = UUID
+				.fromString(jdbcTemplate.queryForObject("SELECT id FROM tenants WHERE slug = ?", String.class, tenant.slug()));
+		TenantContext.setTenantId(tenantId);
+		try {
+			appointmentService.markDepositPaid(UUID.fromString(appointmentId));
+		} finally {
+			TenantContext.clear();
+		}
+
+		ResponseEntity<Map> afterLatePayment = restTemplate.exchange("/api/appointments/" + appointmentId,
+				HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+		assertThat(afterLatePayment.getBody().get("status")).isEqualTo("CANCELLED");
+		assertThat(afterLatePayment.getBody().get("paymentStatus")).isEqualTo("PAID");
 	}
 
 	private Setup setUpProfessionalAndService(RegisteredTenant tenant, HttpHeaders headers, Double depositAmount) {

@@ -55,6 +55,13 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   acumulado de una corrida completa a veces agotaba la cuota y le tiraba un 429 de rebote a algún
   test sin ninguna relación con rate limiting. Cada test ahora manda un `X-Forwarded-For` distinto
   (`IntegrationTestBase`), sin tocar ningún valor real de configuración de límite.
+- **Aviso al dueño cuando un depósito se cobra en un turno ya cancelado.** El gap de "pago huérfano"
+  documentado desde el 2026-08-01 (ver "Design notes" → Payments/deposits y roadmap ítem 13) ahora
+  manda un mail automático al dueño del tenant (`OrphanedDepositPaymentEvent`/
+  `OrphanedDepositPaymentListener`) apenas se detecta el desfasaje, con cliente/monto/servicio, para
+  que decida a mano si reconfirma el turno o gestiona un reembolso. Deliberadamente NO reconfirma el
+  turno solo ni llama a ninguna API de reembolso de Mercado Pago — ambas siguen siendo decisiones de
+  negocio pendientes, no solo código sin escribir.
 
 ### 2026-08-11 — Plan PERSONAL, borrado en cascada, calendario rediseñado, eliminar turno
 
@@ -555,11 +562,21 @@ keeping for next time:
   `x-signature` → `Payment.status` flipped to `PAID`, appointment auto-confirmed. No code changes
   were needed — a clean re-verification, not a bugfix.
 
-The deposit-expiration-window gap described above (paid-after-cancellation, no refund/alert) is
-**mitigated, not fixed**, by the 2026-08-13 change making the window tenant-configurable
-(10–180 min, `PATCH /api/tenant/deposit-expiration`) and scoped only to MercadoPago-enabled
-tenants — a tenant can now set a wider window to make this race less likely, but the underlying gap
-(no refund flow, no owner-facing alert when it does happen) is still open; see the roadmap.
+The deposit-expiration-window gap described above (paid-after-cancellation) got two independent
+improvements on 2026-08-13, neither of which fully closes it:
+1. The window is now tenant-configurable (10–180 min, `PATCH /api/tenant/deposit-expiration`) and
+   scoped only to MercadoPago-enabled tenants (see "Deposit expiration" further down) — a tenant
+   can set it wider to make the race less likely.
+2. `AppointmentService.markDepositPaid` now detects the mismatch (appointment already `CANCELLED`
+   when the payment comes in) and emails the tenant owner — a new
+   `OrphanedDepositPaymentEvent`/`OrphanedDepositPaymentListener` pair, same
+   `@TransactionalEventListener(AFTER_COMMIT)` pattern as the rest of this file's notifications,
+   resolved via `AppUserService.findOwner()` (same "email the tenant's owner, not the platform
+   founder" pattern `PlatformAdminService.approveTenant` already used). Deliberately still does
+   **not** un-cancel the appointment even if the slot happens to still be free — `markDepositPaid`'s
+   own Javadoc explains why (someone else may already hold it) — and does **not** call any
+   MercadoPago refund API (none is integrated). Both remain open product decisions, not just
+   unfinished code — see "Preguntas abiertas para el equipo" → Producto and the roadmap.
 
 **Plan billing (MercadoPago Preapproval).** `PlanTier` (`BASIC`/`PRO`) carries a `monthlyPrice`;
 `BASIC` is free and can be set directly (`PATCH /api/tenant/plan`), but a paid tier can only be
@@ -979,13 +996,20 @@ pendientes:
     también "Preguntas abiertas para el equipo" arriba).
 12. Reembolsos de depósitos y turnos recurrentes — ya listados como fuera de alcance del MVP (ver
     "Design notes"), sin cambios.
-13. **Pago cobrado en un turno ya cancelado por expiración.** Confirmado en vivo el 2026-08-01 (ver
-    "Design notes" → Payments/deposits): si el depósito se paga después de que
-    `PendingDepositExpirationScheduler` ya canceló el turno por falta de pago, el pago queda
-    `PAID` pero el turno sigue `CANCELLED` — sin reembolso automático ni aviso a nadie. El
-    2026-08-13 la ventana de expiración pasó a ser configurable por tenant (10-180 min) y dejó de
-    aplicar a tenants sin Mercado Pago — un tenant puede correr menos riesgo poniendo una ventana
-    más ancha, pero el gap de fondo (sin reembolso, sin aviso al dueño) sigue sin resolverse; hay
-    que arreglarlo antes de manejar plata de verdad.
+13. ~~**Pago cobrado en un turno ya cancelado por expiración — sin aviso a nadie.**~~ Hecho a
+    medias (2026-08-13). Confirmado en vivo el 2026-08-01 (ver "Design notes" → Payments/deposits):
+    si el depósito se paga después de que `PendingDepositExpirationScheduler` ya canceló el turno
+    por falta de pago, el pago queda `PAID` pero el turno sigue `CANCELLED`. La ventana de
+    expiración pasó a ser configurable por tenant (10-180 min) y dejó de aplicar a tenants sin
+    Mercado Pago, lo que hace el caso menos frecuente — y ahora, cuando sí pasa,
+    `AppointmentService.markDepositPaid` dispara un mail automático al dueño del tenant
+    (`OrphanedDepositPaymentEvent`/`OrphanedDepositPaymentListener`, mismo patrón evento +
+    `@TransactionalEventListener(AFTER_COMMIT)` que el resto de las notificaciones) con el cliente,
+    el monto y el servicio, para que decida a mano si el horario sigue libre y coordina con el
+    cliente, o si hay que resolver un reembolso desde Mercado Pago. **Lo que sigue sin resolver a
+    propósito**: no hay reembolso automático (ninguna integración con la API de reembolsos de
+    Mercado Pago) ni auto-reconfirmación del turno aunque el horario siga libre — ambas son
+    decisiones de negocio explícitamente abiertas (ver "Preguntas abiertas para el equipo" →
+    Producto), no solo trabajo técnico pendiente.
 14. ~~**Re-agendamiento y Sobreturno.**~~ Hecho — ver el Registro de cambios y "Design notes" →
     Double-booking prevention.

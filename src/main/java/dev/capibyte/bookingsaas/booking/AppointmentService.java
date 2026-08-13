@@ -5,7 +5,9 @@ import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
 import dev.capibyte.bookingsaas.common.TenantContext;
+import dev.capibyte.bookingsaas.identity.AppUserService;
 import dev.capibyte.bookingsaas.notification.AppointmentNotificationEvent;
+import dev.capibyte.bookingsaas.notification.OrphanedDepositPaymentEvent;
 import dev.capibyte.bookingsaas.staff.Professional;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
@@ -43,6 +45,7 @@ public class AppointmentService {
 	private final TenantService tenantService;
 	private final ClientRatingService clientRatingService;
 	private final ApplicationEventPublisher eventPublisher;
+	private final AppUserService appUserService;
 
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
@@ -241,8 +244,29 @@ public class AppointmentService {
 			Professional professional = professionalService.findById(appointment.getProfessionalId());
 			ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
 			publishNotification(appointment, client, professional, service, AppointmentStatus.CONFIRMED);
+		} else if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
+			notifyOwnerOfOrphanedPayment(appointment);
 		}
 		return appointment;
+	}
+
+	/**
+	 * The deposit was confirmed after PendingDepositExpirationScheduler already cancelled this
+	 * same appointment for non-payment — per this method's own Javadoc above, the slot is never
+	 * un-cancelled here (someone else may already hold it), and there's no refund flow anywhere in
+	 * this codebase to undo the MercadoPago charge either. The one thing done automatically:
+	 * telling the tenant owner it happened, via OrphanedDepositPaymentListener, so a paid-but-
+	 * cancelled appointment doesn't sit unnoticed. Silently does nothing if the tenant somehow has
+	 * no OWNER user (shouldn't happen in practice — every tenant gets one at registration).
+	 */
+	private void notifyOwnerOfOrphanedPayment(Appointment appointment) {
+		appUserService.findOwner().ifPresent(owner -> {
+			Client client = loadClient(appointment.getClientId());
+			Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+			ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
+			eventPublisher.publishEvent(new OrphanedDepositPaymentEvent(owner.getEmail(), tenant.getName(),
+					client.getName(), client.getEmail(), service.getName(), service.getDepositAmount()));
+		});
 	}
 
 	/**
