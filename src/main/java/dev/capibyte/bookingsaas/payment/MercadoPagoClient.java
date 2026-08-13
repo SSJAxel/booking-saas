@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.payment.dto.MercadoPagoOAuthToken;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
+import dev.capibyte.bookingsaas.payment.dto.MercadoPagoRefund;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +87,16 @@ public class MercadoPagoClient {
 				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
 				.retrieve()
 				.body(MercadoPagoPayment.class);
+	}
+
+	/** Full refund — no request body means "refund the whole amount" per MercadoPago's API. Partial
+	 * refunds (a JSON body with "amount") aren't needed by anything in this codebase yet. */
+	public MercadoPagoRefund refundPayment(String accessToken, String providerPaymentId) {
+		return restClient.post()
+				.uri("/v1/payments/{id}/refunds", providerPaymentId)
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+				.retrieve()
+				.body(MercadoPagoRefund.class);
 	}
 
 	/**

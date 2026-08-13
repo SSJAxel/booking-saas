@@ -80,6 +80,37 @@ public class PaymentService {
 	}
 
 	/**
+	 * Owner/admin-triggered refund of a deposit that's already PAID — the tenant's own call to make
+	 * (see OrphanedDepositPaymentListener, which points them here for the "orphaned payment" case,
+	 * but nothing restricts this to only that scenario). Finds the PAID {@link Payment} row for the
+	 * appointment, asks MercadoPago to refund it with the same access token that was used to create
+	 * the original checkout (the tenant's own connected account if they have one, the platform's
+	 * shared token otherwise — see {@link MercadoPagoAccountService#resolveAccessToken}), then marks
+	 * both the {@code Payment} and the {@code Appointment}'s summary field REFUNDED. Never touches
+	 * {@code Appointment.status} — see {@link AppointmentService#markDepositRefunded}.
+	 */
+	@Transactional
+	public Appointment refundDeposit(UUID appointmentId) {
+		Appointment appointment = appointmentService.findById(appointmentId);
+		if (appointment.getPaymentStatus() != PaymentStatus.PAID) {
+			throw new BadRequestException("This appointment's deposit isn't PAID — nothing to refund");
+		}
+		Payment payment = paymentRepository.findAllByAppointmentId(appointmentId).stream()
+				.filter(p -> p.getStatus() == PaymentStatus.PAID)
+				.findFirst()
+				.orElseThrow(
+						() -> new NotFoundException("No paid Mercado Pago payment found for appointment: " + appointmentId));
+
+		String accessToken = mercadoPagoAccountService.resolveAccessToken(TenantContext.getTenantId());
+		mercadoPagoClient.refundPayment(accessToken, payment.getProviderPaymentId());
+
+		payment.setStatus(PaymentStatus.REFUNDED);
+		paymentRepository.save(payment);
+
+		return appointmentService.markDepositRefunded(appointmentId);
+	}
+
+	/**
 	 * Deliberately NOT @Transactional at this level — same reasoning as AuthService.register()/
 	 * login(): the tenant isn't known (there's no JWT or URL slug here) until after fetching the
 	 * payment from MercadoPago and parsing its external_reference, so TenantContext has to be set

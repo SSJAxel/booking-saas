@@ -261,6 +261,18 @@ export default function AppointmentsPage() {
 		}
 	}
 
+	async function handleRefundDeposit(id) {
+		if (!window.confirm("¿Reembolsar la seña de este turno a través de Mercado Pago? No se puede deshacer.")) return;
+		setError("");
+		try {
+			await api.appointments.refundDeposit(id);
+			setDetailAppointment(null);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
 	async function handleDeleteAppointment(id) {
 		if (
 			!window.confirm(
@@ -529,6 +541,16 @@ export default function AppointmentsPage() {
 													title="Marcar la seña como recibida (transferencia por alias) y confirmar el turno"
 												>
 													Confirmar seña
+												</button>
+											)}
+											{a.paymentStatus === "PAID" && a.status === "CANCELLED" && (
+												<button
+													type="button"
+													className="link-button"
+													onClick={() => handleRefundDeposit(a.id)}
+													title="La seña se cobró pero el turno ya está cancelado — reembolsarla a través de Mercado Pago"
+												>
+													Reembolsar seña
 												</button>
 											)}
 											{ACTIVE_STATUSES.has(a.status) && (

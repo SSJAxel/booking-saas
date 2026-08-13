@@ -253,11 +253,12 @@ public class AppointmentService {
 	/**
 	 * The deposit was confirmed after PendingDepositExpirationScheduler already cancelled this
 	 * same appointment for non-payment — per this method's own Javadoc above, the slot is never
-	 * un-cancelled here (someone else may already hold it), and there's no refund flow anywhere in
-	 * this codebase to undo the MercadoPago charge either. The one thing done automatically:
-	 * telling the tenant owner it happened, via OrphanedDepositPaymentListener, so a paid-but-
-	 * cancelled appointment doesn't sit unnoticed. Silently does nothing if the tenant somehow has
-	 * no OWNER user (shouldn't happen in practice — every tenant gets one at registration).
+	 * un-cancelled here (someone else may already hold it). Automatically tells the tenant owner
+	 * it happened, via OrphanedDepositPaymentListener, so a paid-but-cancelled appointment doesn't
+	 * sit unnoticed — the owner decides from there whether to coordinate a new booking with the
+	 * client or refund them (see PaymentService#refundDeposit). Silently does nothing if the
+	 * tenant somehow has no OWNER user (shouldn't happen in practice — every tenant gets one at
+	 * registration).
 	 */
 	private void notifyOwnerOfOrphanedPayment(Appointment appointment) {
 		appUserService.findOwner().ifPresent(owner -> {
@@ -267,6 +268,17 @@ public class AppointmentService {
 			eventPublisher.publishEvent(new OrphanedDepositPaymentEvent(owner.getEmail(), tenant.getName(),
 					client.getName(), client.getEmail(), service.getName(), service.getDepositAmount()));
 		});
+	}
+
+	/** Called by PaymentService once a MercadoPago refund is confirmed — updates only the summary
+	 * field, same as markDepositPaid does for the opposite direction. Never touches
+	 * Appointment.status: a refund doesn't re-open or re-cancel anything, it's purely a payment
+	 * outcome. */
+	@Transactional
+	public Appointment markDepositRefunded(UUID appointmentId) {
+		Appointment appointment = findById(appointmentId);
+		appointment.setPaymentStatus(PaymentStatus.REFUNDED);
+		return appointment;
 	}
 
 	/**

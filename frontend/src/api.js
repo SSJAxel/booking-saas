@@ -154,6 +154,7 @@ export const api = {
 		list: (params) => request(`/api/appointments${toQuery(params)}`),
 		transition: (id, status) => request(`/api/appointments/${id}/status`, { method: "PATCH", body: { status } }),
 		confirmDeposit: (id) => request(`/api/appointments/${id}/confirm-deposit`, { method: "PATCH" }),
+		refundDeposit: (id) => request(`/api/appointments/${id}/refund-deposit`, { method: "POST" }),
 		create: (body) => request("/api/appointments", { method: "POST", body }),
 		reschedule: (id, body) => request(`/api/appointments/${id}/reschedule`, { method: "POST", body }),
 		createOvertime: (body) => request("/api/appointments/overtime", { method: "POST", body }),

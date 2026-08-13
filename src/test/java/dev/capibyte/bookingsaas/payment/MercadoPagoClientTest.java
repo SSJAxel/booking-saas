@@ -12,6 +12,7 @@ import dev.capibyte.bookingsaas.payment.dto.MercadoPagoOAuthToken;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreapproval;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
+import dev.capibyte.bookingsaas.payment.dto.MercadoPagoRefund;
 import java.math.BigDecimal;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,6 +80,24 @@ class MercadoPagoClientTest {
 		assertThat(payment.id()).isEqualTo("mp-999");
 		assertThat(payment.status()).isEqualTo("approved");
 		assertThat(payment.externalReference()).isEqualTo("tenant-id:payment-id");
+		mockServer.verify();
+	}
+
+	@Test
+	void refundPaymentSendsTheExpectedRequestAndParsesTheResponse() {
+		mockServer.expect(requestTo("https://api.mercadopago.com/v1/payments/mp-999/refunds"))
+				.andExpect(method(HttpMethod.POST))
+				.andExpect(header("Authorization", "Bearer tenant-access-token"))
+				.andRespond(withSuccess(
+						"""
+						{"id":"refund-1","status":"approved","payment_id":"mp-999","amount":50.0}
+						""",
+						MediaType.APPLICATION_JSON));
+
+		MercadoPagoRefund refund = client.refundPayment("tenant-access-token", "mp-999");
+
+		assertThat(refund.id()).isEqualTo("refund-1");
+		assertThat(refund.status()).isEqualTo("approved");
 		mockServer.verify();
 	}
 

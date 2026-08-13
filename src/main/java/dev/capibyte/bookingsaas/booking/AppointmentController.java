@@ -6,6 +6,7 @@ import dev.capibyte.bookingsaas.booking.dto.HistoryPurgeResponse;
 import dev.capibyte.bookingsaas.booking.dto.RescheduleRequest;
 import dev.capibyte.bookingsaas.booking.dto.StatusTransitionRequest;
 import dev.capibyte.bookingsaas.common.TenantContext;
+import dev.capibyte.bookingsaas.payment.PaymentService;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import jakarta.validation.Valid;
 import java.time.Instant;
@@ -36,6 +37,7 @@ public class AppointmentController {
 
 	private final AppointmentService appointmentService;
 	private final TenantService tenantService;
+	private final PaymentService paymentService;
 
 	@GetMapping
 	public List<AppointmentResponse> list(
@@ -137,6 +139,16 @@ public class AppointmentController {
 	@PatchMapping("/{id}/confirm-deposit")
 	public AppointmentResponse confirmDeposit(@PathVariable UUID id) {
 		return toResponse(appointmentService.markDepositPaid(id));
+	}
+
+	/** Refunds a PAID deposit through MercadoPago — the owner's own call, most commonly for a
+	 * deposit that got paid after its appointment already auto-cancelled (see
+	 * OrphanedDepositPaymentListener), but usable for any PAID deposit. Owner/admin only, unlike
+	 * most of this controller — moving real money is a step above STAFF's usual reach. */
+	@PostMapping("/{id}/refund-deposit")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public AppointmentResponse refundDeposit(@PathVariable UUID id) {
+		return toResponse(paymentService.refundDeposit(id));
 	}
 
 	private AppointmentResponse toResponse(Appointment appointment) {

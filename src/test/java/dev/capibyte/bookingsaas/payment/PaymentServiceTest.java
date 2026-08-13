@@ -22,10 +22,12 @@ import dev.capibyte.bookingsaas.common.UnauthorizedException;
 import dev.capibyte.bookingsaas.payment.dto.CheckoutResponse;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
+import dev.capibyte.bookingsaas.payment.dto.MercadoPagoRefund;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.AfterEach;
@@ -166,6 +168,42 @@ class PaymentServiceTest {
 
 		verify(appointmentService, never()).markDepositPaid(any());
 		assertThat(payment.getStatus()).isEqualTo(PaymentStatus.PENDING);
+	}
+
+	@Test
+	void refundDepositRejectsAnAppointmentThatIsNotPaid() {
+		UUID appointmentId = UUID.randomUUID();
+		Appointment appointment = new Appointment();
+		appointment.setPaymentStatus(PaymentStatus.PENDING);
+		when(appointmentService.findById(appointmentId)).thenReturn(appointment);
+
+		assertThatThrownBy(() -> paymentService.refundDeposit(appointmentId)).isInstanceOf(BadRequestException.class);
+		verify(mercadoPagoClient, never()).refundPayment(any(), any());
+	}
+
+	@Test
+	void refundDepositCallsMercadoPagoAndMarksThePaymentRefunded() {
+		UUID appointmentId = UUID.randomUUID();
+		Appointment appointment = new Appointment();
+		appointment.setPaymentStatus(PaymentStatus.PAID);
+		when(appointmentService.findById(appointmentId)).thenReturn(appointment);
+
+		Payment payment = new Payment();
+		payment.setStatus(PaymentStatus.PAID);
+		payment.setProviderPaymentId("mp-1");
+		when(paymentRepository.findAllByAppointmentId(appointmentId)).thenReturn(List.of(payment));
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+		when(mercadoPagoAccountService.resolveAccessToken(any())).thenReturn("tenant-access-token");
+		when(mercadoPagoClient.refundPayment("tenant-access-token", "mp-1"))
+				.thenReturn(new MercadoPagoRefund("refund-1", "approved"));
+
+		TenantContext.setTenantId(UUID.randomUUID());
+		paymentService.refundDeposit(appointmentId);
+
+		verify(mercadoPagoClient).refundPayment("tenant-access-token", "mp-1");
+		assertThat(payment.getStatus()).isEqualTo(PaymentStatus.REFUNDED);
+		verify(appointmentService).markDepositRefunded(appointmentId);
 	}
 
 	@Test
