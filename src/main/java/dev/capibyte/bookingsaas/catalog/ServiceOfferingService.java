@@ -23,7 +23,7 @@ public class ServiceOfferingService {
 
 	@Transactional
 	public ServiceOffering create(String name, String description, String category, int durationMinutes,
-			BigDecimal price, BigDecimal depositAmount) {
+			BigDecimal price, BigDecimal depositAmount, boolean featured) {
 		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
 		if (serviceOfferingRepository.countByActiveTrue() >= tier.getMaxServices()) {
 			throw new ServiceLimitExceededException(tier);
@@ -35,6 +35,7 @@ public class ServiceOfferingService {
 		service.setDurationMinutes(durationMinutes);
 		service.setPrice(price);
 		service.setDepositAmount(depositAmount);
+		service.setFeatured(featured);
 		return serviceOfferingRepository.save(service);
 	}
 
@@ -49,9 +50,14 @@ public class ServiceOfferingService {
 				.orElseThrow(() -> new NotFoundException("Service not found: " + id));
 	}
 
+	/**
+	 * {@code featured} is nullable and deliberately preserved (not reset to false) when omitted —
+	 * unlike {@code active}, forgetting to send it isn't dangerous enough to warrant forcing every
+	 * caller to always know about it.
+	 */
 	@Transactional
 	public ServiceOffering update(UUID id, String name, String description, String category, int durationMinutes,
-			BigDecimal price, BigDecimal depositAmount, boolean active) {
+			BigDecimal price, BigDecimal depositAmount, boolean active, Boolean featured) {
 		ServiceOffering service = findById(id);
 		service.setName(name);
 		service.setDescription(description);
@@ -60,6 +66,9 @@ public class ServiceOfferingService {
 		service.setPrice(price);
 		service.setDepositAmount(depositAmount);
 		service.setActive(active);
+		if (featured != null) {
+			service.setFeatured(featured);
+		}
 		return service;
 	}
 

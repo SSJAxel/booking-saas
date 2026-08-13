@@ -9,5 +9,5 @@ import java.math.BigDecimal;
 
 public record ServiceOfferingRequest(@NotBlank String name, String description, @Size(max = 100) String category,
 		@Positive int durationMinutes, @NotNull @DecimalMin(value = "0", inclusive = true) BigDecimal price,
-		@DecimalMin(value = "0", inclusive = false) BigDecimal depositAmount) {
+		@DecimalMin(value = "0", inclusive = false) BigDecimal depositAmount, Boolean featured) {
 }

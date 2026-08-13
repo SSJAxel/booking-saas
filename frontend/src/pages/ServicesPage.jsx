@@ -11,6 +11,7 @@ const EMPTY_DRAFT = {
 	price: "",
 	depositAmount: "",
 	active: true,
+	featured: false,
 };
 
 export default function ServicesPage() {
@@ -63,6 +64,7 @@ export default function ServicesPage() {
 				durationMinutes: Number(form.get("durationMinutes")),
 				price: Number(form.get("price")),
 				depositAmount: deposit ? Number(deposit) : null,
+				featured: form.get("featured") === "on",
 			});
 			event.target.reset();
 			refresh();
@@ -95,6 +97,7 @@ export default function ServicesPage() {
 			price: s.price,
 			depositAmount: s.depositAmount ?? "",
 			active: s.active,
+			featured: s.featured,
 		});
 	}
 
@@ -110,6 +113,7 @@ export default function ServicesPage() {
 				price: Number(editDraft.price),
 				depositAmount: editDraft.depositAmount ? Number(editDraft.depositAmount) : null,
 				active: editDraft.active,
+				featured: editDraft.featured,
 			});
 			setEditingId(null);
 			await refresh();
@@ -157,6 +161,10 @@ export default function ServicesPage() {
 					<input name="durationMinutes" type="number" min="1" placeholder="Duración (min)" required />
 					<input name="price" type="number" step="0.01" min="0" placeholder="Precio" required />
 					<input name="depositAmount" type="number" step="0.01" min="0" placeholder="Seña (opcional)" />
+					<label className="form-check">
+						<input type="checkbox" name="featured" />
+						Destacado
+					</label>
 					<button type="submit">Agregar</button>
 				</form>
 			)}
@@ -219,14 +227,24 @@ export default function ServicesPage() {
 								</label>
 							</div>
 							<div className="card-header" style={{ marginTop: "0.8rem" }}>
-								<label className="form-check">
-									<input
-										type="checkbox"
-										checked={editDraft.active}
-										onChange={(e) => setEditDraft({ ...editDraft, active: e.target.checked })}
-									/>
-									Activo
-								</label>
+								<div className="button-row">
+									<label className="form-check">
+										<input
+											type="checkbox"
+											checked={editDraft.active}
+											onChange={(e) => setEditDraft({ ...editDraft, active: e.target.checked })}
+										/>
+										Activo
+									</label>
+									<label className="form-check">
+										<input
+											type="checkbox"
+											checked={editDraft.featured}
+											onChange={(e) => setEditDraft({ ...editDraft, featured: e.target.checked })}
+										/>
+										Destacado
+									</label>
+								</div>
 								<div className="button-row">
 									<button type="button" disabled={saving} onClick={() => handleSaveEdit(s.id)}>
 										{saving ? "Guardando..." : "Guardar"}
@@ -240,6 +258,7 @@ export default function ServicesPage() {
 					) : (
 						<div className="card" key={s.id}>
 							<h3>
+								{s.featured && "★ "}
 								{s.name}
 								{!s.active && " (inactivo)"}
 							</h3>

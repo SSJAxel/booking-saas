@@ -41,4 +41,9 @@ public class ServiceOffering extends BaseTenantEntity {
 
 	@Column(nullable = false)
 	private boolean active = true;
+
+	/** Shows first in a "Destacados" section on the public catalog, ahead of the normal category
+	 * grouping — not exclusive with {@link #category}, a service can appear in both places. */
+	@Column(nullable = false)
+	private boolean featured = false;
 }

@@ -60,6 +60,21 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   `PublicBranchResponse`, cargable desde el panel (Sucursales → crear/editar). No toca el sitio
   público — mostrarlo es trabajo de Mica en su propio frontend.
 
+### 2026-08-13 — Servicios destacados (pedido de Mica), con un gotcha real de Jackson en el camino
+
+- **`ServiceOffering.featured` (opcional), migración V35.** Marca un servicio para la sección
+  "Destacados" del catálogo público — no excluyente con `category`, el mismo servicio puede
+  aparecer en Destacados y en su categoría normal. Checkbox "Destacado" nuevo en Servicios.
+- **Gotcha real encontrado en el camino**: se agregó primero como `boolean` (primitivo) en los
+  DTOs de request — como son records, Jackson exige que el campo venga en el JSON o falla con
+  `MismatchedInputException`, y como ningún test/helper existente lo mandaba, rompieron ~15 clases
+  de test sin relación aparente (con un `NullPointerException` confuso varios frames más abajo
+  como síntoma, no la causa real). Corregido usando `Boolean` (boxed): en creación, ausente =
+  `false`; en edición, ausente = **se preserva el valor actual**, no se resetea — mismo criterio
+  que ya se usa para `active` en sucursales, para no perder estado que nadie pidió tocar.
+- No toca el sitio público (`BookingPage.jsx`) — la sección visual "Destacados" la arma Mica en su
+  propio frontend/diseño, el pedido acá era solo que el dato exista.
+
 ### 2026-08-13 — OAuth Connect verificado en vivo — dos bugs reales encontrados, uno propio
 
 - **Túnel público con ngrok para poder registrar un redirect URI real** — el panel de MercadoPago

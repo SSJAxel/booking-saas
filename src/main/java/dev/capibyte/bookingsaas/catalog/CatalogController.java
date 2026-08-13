@@ -42,14 +42,15 @@ public class CatalogController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public ServiceOfferingResponse create(@Valid @RequestBody ServiceOfferingRequest request) {
 		return ServiceOfferingResponse.from(serviceOfferingService.create(request.name(), request.description(),
-				request.category(), request.durationMinutes(), request.price(), request.depositAmount()));
+				request.category(), request.durationMinutes(), request.price(), request.depositAmount(),
+				Boolean.TRUE.equals(request.featured())));
 	}
 
 	@PutMapping("/{id}")
 	public ServiceOfferingResponse update(@PathVariable UUID id, @Valid @RequestBody ServiceOfferingUpdateRequest request) {
 		return ServiceOfferingResponse.from(serviceOfferingService.update(id, request.name(), request.description(),
 				request.category(), request.durationMinutes(), request.price(), request.depositAmount(),
-				request.active()));
+				request.active(), request.featured()));
 	}
 
 	@DeleteMapping("/{id}")
