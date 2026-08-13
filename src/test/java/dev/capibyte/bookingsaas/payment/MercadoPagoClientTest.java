@@ -148,6 +148,10 @@ class MercadoPagoClientTest {
 		assertThat(url).contains("client_id=TEST-client-id");
 		assertThat(url).contains("state=tenant-id-as-state");
 		assertThat(url).contains("redirect_uri=https%3A%2F%2Fexample.com%2Foauth%2Fcallback");
+		// Per MercadoPago support (ticket WCS-45796): only the standard grant scopes belong here,
+		// not a dashboard permission label like "Online Preferences", and no platform_id param.
+		assertThat(url).contains("scope=read+write+offline_access");
+		assertThat(url).doesNotContain("platform_id");
 	}
 
 	@Test

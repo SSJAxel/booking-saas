@@ -44,7 +44,7 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   la grilla si ya tiene un horario armado. Ninguna de las dos vistas es dueña del dato — ambas
   llaman a los mismos endpoints de siempre (`POST`/`DELETE` `.../availability`, uno por franja).
 
-### 2026-08-13 — OAuth Connect: túnel en vivo, fix de encoding, sigue bloqueado por MercadoPago
+### 2026-08-13 — OAuth Connect verificado en vivo — dos bugs reales encontrados, uno propio
 
 - **Túnel público con ngrok para poder registrar un redirect URI real** — el panel de MercadoPago
   rechaza `localhost` en las URLs de redireccionamiento. (Falso positivo de Windows Defender en el
@@ -55,9 +55,25 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   último sí era un bug real (`MercadoPagoClient.buildAuthorizationUrl` usaba
   `UriComponentsBuilder...toUriString()` sin encodear, corregido con `URLEncoder` + `build(true)`),
   pero no era la causa del bloqueo: el error persiste igual con y sin encoding.
-- **Sigue bloqueado.** Ticket abierto con soporte de MercadoPago (`WCS-XXXXX`, Client ID
-  `756946925289310`) pidiendo que revisen si la app tiene alguna habilitación pendiente — sin
-  resolver del lado de ellos todavía.
+- **La causa real, según soporte de MercadoPago (ticket `WCS-45796`): el redirect URI registrado
+  en el panel no era el nuestro.** Estaba cargado el placeholder `https://www.mercadopago.com`
+  (nunca se había reemplazado) — el panel no permite editar en el lugar, solo agregar una URL
+  nueva sin borrar la vieja, así que quedaron las dos en la lista. También indicaron que el
+  parámetro correcto es `scope=read write offline_access` (los nombres de grant estándar), no
+  `platform_id=mp` ni una etiqueta de permiso del dashboard como "Online Preferences" —
+  `buildAuthorizationUrl` se actualizó para reflejar ambas correcciones.
+- **Con eso resuelto, apareció un segundo bug — propio, no de MercadoPago: `invalid client_id or
+  client_secret` al intercambiar el código por el token.** Veníamos usando el "Número de
+  aplicación" (`756946925289310`, el que aparece en el panel de usuarios de prueba) como si fuera
+  el OAuth `client_id` — la pantalla de autorización lo acepta igual (MP no lo valida ahí), pero el
+  intercambio de token sí lo rechaza. El Client ID real, visible en "Credenciales de producción"
+  junto al Client Secret (enmascarado detrás de un ícono "mostrar"), es un valor completamente
+  distinto (`6328748736404873`). El Client Secret que se venía usando **sí era el correcto** desde
+  el principio — confirmado pegando el mismo valor una vez revelado.
+- **Verificado en vivo de punta a punta**, con `MERCADOPAGO_CLIENT_ID` corregido: autorización con
+  la cuenta de prueba → callback real (con el aviso gratuito de ngrok de por medio, "Visit Site")
+  → intercambio de código por token exitoso → fila nueva en `mercadopago_accounts` con
+  `access_token`/`refresh_token` reales, `expires_at` a 6 meses.
 
 ### 2026-08-13 — Preapproval verificado en vivo, con un bug real de persistencia corregido
 
@@ -774,20 +790,33 @@ MercadoPago's marketplace model is assumed to give the integrating application r
 transactions it created through a connected account's OAuth flow. That assumption is unverified
 against a live sandbox, same as the rest of this integration.
 
-**Attempted live (2026-08-13), blocked on MercadoPago's side.** A plain "Pagos online" application
-(not a separately-flagged "Marketplace" one — that distinction from the 2026-08-01 note doesn't
-seem to be real; `client_id`/`client_secret` and the redirect-URL/permissions config were all
-available directly on it) was fully wired up: ngrok tunnel for a public redirect URI (MercadoPago's
-dashboard rejects `localhost`), OAuth scopes (`read`/`write`/`offline_access`) enabled, PKCE
-confirmed off, app and test account both on the same site (MLA/Argentina). Authorizing still fails
-with `"La aplicación no está preparada para conectarse a Mercado Pago"` immediately after picking a
-country on MercadoPago's own consent screen — before it ever reaches our redirect URI. Along the
-way, `MercadoPagoClient.buildAuthorizationUrl` was found to build `redirect_uri` without
-percent-encoding it in the query string (`UriComponentsBuilder...toUriString()` leaves `:`/`/`
-alone since they're legal query characters per RFC 3986) — fixed with an explicit `URLEncoder` pass
-+ `build(true)`, and worth having regardless, but it wasn't the cause: the error is identical with
-or without encoding. Support ticket open with MercadoPago (`WCS-XXXXX`, Client ID
-`756946925289310`) — still unresolved as of this note.
+**Fully verified live (2026-08-13), two real bugs found — one MercadoPago-side, one ours.** A
+plain "Pagos online" application (not a separately-flagged "Marketplace" one — that distinction
+from the 2026-08-01 note doesn't seem to be real; `client_id`/`client_secret` and the
+redirect-URL/permissions config were all available directly on it) was wired up with an ngrok
+tunnel for a public redirect URI (MercadoPago's dashboard rejects `localhost`). Authorizing kept
+failing with `"La aplicación no está preparada para conectarse a Mercado Pago"` even after PKCE,
+site/country, and `redirect_uri` percent-encoding were all ruled out (the encoding *was* a real bug
+— `UriComponentsBuilder...toUriString()` left `:`/`/` unescaped since they're legal query
+characters per RFC 3986, fixed with an explicit `URLEncoder` pass + `build(true)` — just not the
+cause of this particular error). MercadoPago support (ticket `WCS-45796`) found the actual cause:
+the app's registered redirect URI was still the placeholder `https://www.mercadopago.com`, never
+replaced with the real tunnel URL — the dashboard only lets you *add* a new one, not edit the
+existing entry in place. They also flagged that the authorization URL should send
+`scope=read write offline_access` (the standard grant names), not a non-standard `platform_id=mp`
+param or a dashboard permission label like "Online Preferences" as a scope value —
+`buildAuthorizationUrl` now sends exactly that.
+
+With MercadoPago's side fixed, a second bug surfaced — this one entirely on this codebase: token
+exchange failed with `invalid client_id or client_secret`. The Application Number
+(`756946925289310`, the id shown on the test-user panel) had been used as the OAuth `client_id`
+all along — MercadoPago's authorization screen accepts it without validating it, so this went
+unnoticed through every earlier authorize-URL test, but `/oauth/token` does validate it and
+rejects it. The real Client ID (found on "Credenciales de producción", next to a masked Client
+Secret behind a reveal icon) is a different value entirely. The Client Secret itself had been
+correct the whole time. With the real `client_id` configured, the full loop completed: authorize
+→ MercadoPago's own callback redirect (through ngrok's one-time visitor-warning interstitial) →
+token exchange → a real `MercadoPagoAccount` row with a live `access_token`/`refresh_token` pair.
 
 **Per-tenant branding.** `Tenant` fields — `logoUrl`, `bannerUrl` (public-site hero/cover, added
 2026-08-13), `accentColor` (hex, validated `^#[0-9a-fA-F]{6}$`), `tagline` — editable via `PATCH
@@ -1085,11 +1114,6 @@ pendientes:
 - El caso de "el pago llega después de que el turno ya expiró y se canceló solo" ya tiene aviso al
   dueño (ver "Deuda técnica" ítem 13) — lo que sigue abierto es si el turno debería poder
   auto-reconfirmarse cuando el horario sigue libre, o si eso también debe quedar siempre a mano.
-- OAuth Connect (cuenta de Mercado Pago propia por tenant) sigue sin poder probarse en vivo —
-  bloqueado del lado de MercadoPago (`"La aplicación no está preparada para conectarse"`, causa no
-  confirmada pese a descartar PKCE, país y encoding del redirect_uri; ver Design notes → Payments →
-  Per-tenant MercadoPago accounts). Ticket de soporte abierto (`WCS-XXXXX`), a la espera de
-  respuesta.
 
 ### Para poder vender el plan de autoservicio (prioridad alta)
 
@@ -1105,19 +1129,20 @@ pendientes:
    usando la cuenta compartida exactamente como antes). Quedó afuera a propósito: el `state` del
    OAuth es el `tenantId` directo, no un nonce opaco — más simple, pero menos duro contra un
    `state` forjado; anotado en el Javadoc de `buildAuthorizationUrl`.
-3. ~~**Verificación contra Mercado Pago real.**~~ Hecho parcialmente — Checkout Pro (señas)
-   verificado 100% en vivo, dos veces (2026-08-01 y de nuevo 2026-08-13, ver "Design notes" →
-   Payments/deposits para los gotchas de sandbox encontrados la segunda vez): preferencia real,
-   pago real, re-fetch real del pago, firma de webhook validada, turno actualizado. De paso
-   encontramos un gap real: si el pago tarda más que la ventana de expiración, el turno se cancela
-   solo y el pago queda huérfano sin aviso — el 2026-08-13 esa ventana pasó a ser configurable por
-   tenant (10-180 min, mitiga el caso pero no lo arregla, ver ítem 13 abajo). Preapproval
-   (suscripciones) se terminó de verificar en vivo el 2026-08-13: creación, autorización interactiva
-   (con un usuario de prueba comprador, no el email real de una persona) y webhook, de punta a
-   punta — de paso salió un bug real de persistencia, ya arreglado (ver Registro de cambios y
-   Design notes → Plan billing). OAuth Connect sigue sin probarse en vivo — no por el tipo de
-   aplicación como se pensaba antes, sino por un bloqueo del lado de MercadoPago con ticket de
-   soporte abierto (ver "Preguntas abiertas" arriba y Design notes).
+3. ~~**Verificación contra Mercado Pago real.**~~ Hecho — Checkout Pro (señas) verificado 100% en
+   vivo, dos veces (2026-08-01 y de nuevo 2026-08-13, ver "Design notes" → Payments/deposits para
+   los gotchas de sandbox encontrados la segunda vez): preferencia real, pago real, re-fetch real
+   del pago, firma de webhook validada, turno actualizado. De paso encontramos un gap real: si el
+   pago tarda más que la ventana de expiración, el turno se cancela solo y el pago queda huérfano
+   sin aviso — el 2026-08-13 esa ventana pasó a ser configurable por tenant (10-180 min, mitiga el
+   caso pero no lo arregla, ver ítem 13 abajo). Preapproval (suscripciones) se terminó de verificar
+   en vivo el 2026-08-13: creación, autorización interactiva (con un usuario de prueba comprador,
+   no el email real de una persona) y webhook, de punta a punta — de paso salió un bug real de
+   persistencia, ya arreglado (ver Registro de cambios y Design notes → Plan billing). OAuth
+   Connect también se terminó de verificar en vivo el 2026-08-13 — dos bugs reales encontrados en
+   el camino (uno de MercadoPago: el redirect URI registrado nunca se había reemplazado del
+   placeholder; uno propio: se usaba el Número de aplicación en vez del Client ID real para el
+   intercambio de token), ver Registro de cambios y Design notes → Per-tenant MercadoPago accounts.
 4. ~~**Página pública de precios y alta.**~~ Hecho (2026-08-13) — reconstruida dentro de
    `frontend/` esta vez (ver "One frontend, not two" en Design notes para por qué no un proyecto
    aparte), en `/precios`. El alta paga en sí sigue siendo manual (mail + comprobante), no un
