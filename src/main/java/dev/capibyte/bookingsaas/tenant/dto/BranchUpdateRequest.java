@@ -7,5 +7,6 @@ import jakarta.validation.constraints.NotNull;
  * from ProfessionalRequest — {@code active} is boxed and required so a client that forgets to send
  * it fails validation instead of silently deactivating the branch (a primitive default of false
  * would do exactly that). */
-public record BranchUpdateRequest(@NotBlank String name, String address, String phone, @NotNull Boolean active) {
+public record BranchUpdateRequest(@NotBlank String name, String address, String phone, String googleBusinessUrl,
+		@NotNull Boolean active) {
 }

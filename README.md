@@ -52,6 +52,14 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   patrón que ya existía para horarios de sucursal (`PublicBranchHoursResponse`). No toca el sitio
   público — el hover en sí lo arma Mica en su propio frontend.
 
+### 2026-08-13 — Google Business por sucursal (pedido de Mica)
+
+- **`Branch.googleBusinessUrl` (opcional), migración V34.** Link a la ficha de Google Business de
+  la sucursal, para SEO/confianza en el sitio público — por sucursal, no por tenant, porque cada
+  sucursal de un negocio multi-sucursal suele tener su propia ficha. Expuesto en
+  `PublicBranchResponse`, cargable desde el panel (Sucursales → crear/editar). No toca el sitio
+  público — mostrarlo es trabajo de Mica en su propio frontend.
+
 ### 2026-08-13 — OAuth Connect verificado en vivo — dos bugs reales encontrados, uno propio
 
 - **Túnel público con ngrok para poder registrar un redirect URI real** — el panel de MercadoPago

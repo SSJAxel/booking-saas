@@ -13,7 +13,7 @@ export default function BranchesPage() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [editingId, setEditingId] = useState(null);
-	const [editDraft, setEditDraft] = useState({ name: "", address: "", phone: "", active: true });
+	const [editDraft, setEditDraft] = useState({ name: "", address: "", phone: "", googleBusinessUrl: "", active: true });
 
 	function flashNotice(message) {
 		setNotice(message);
@@ -48,6 +48,7 @@ export default function BranchesPage() {
 				name: form.get("name"),
 				address: form.get("address") || null,
 				phone: form.get("phone") || null,
+				googleBusinessUrl: form.get("googleBusinessUrl") || null,
 			});
 			event.target.reset();
 			refresh();
@@ -58,7 +59,13 @@ export default function BranchesPage() {
 
 	function startEdit(branch) {
 		setEditingId(branch.id);
-		setEditDraft({ name: branch.name, address: branch.address ?? "", phone: branch.phone ?? "", active: branch.active });
+		setEditDraft({
+			name: branch.name,
+			address: branch.address ?? "",
+			phone: branch.phone ?? "",
+			googleBusinessUrl: branch.googleBusinessUrl ?? "",
+			active: branch.active,
+		});
 	}
 
 	async function handleSaveEdit(id) {
@@ -69,6 +76,7 @@ export default function BranchesPage() {
 				name: editDraft.name,
 				address: editDraft.address || null,
 				phone: editDraft.phone || null,
+				googleBusinessUrl: editDraft.googleBusinessUrl || null,
 				active: editDraft.active,
 			});
 			setEditingId(null);
@@ -122,6 +130,7 @@ export default function BranchesPage() {
 					<input name="name" placeholder="Nombre" required />
 					<input name="address" placeholder="Dirección" />
 					<input name="phone" placeholder="Teléfono" />
+					<input name="googleBusinessUrl" type="url" placeholder="Link de Google Business (opcional)" />
 					<button type="submit">Agregar</button>
 				</form>
 			)}
@@ -154,6 +163,14 @@ export default function BranchesPage() {
 											<input
 												value={editDraft.phone}
 												onChange={(e) => setEditDraft({ ...editDraft, phone: e.target.value })}
+											/>
+										</label>
+										<label className="span-2">
+											Link de Google Business
+											<input
+												type="url"
+												value={editDraft.googleBusinessUrl}
+												onChange={(e) => setEditDraft({ ...editDraft, googleBusinessUrl: e.target.value })}
 											/>
 										</label>
 									</div>

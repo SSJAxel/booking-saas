@@ -43,13 +43,14 @@ public class BranchController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public BranchResponse create(@Valid @RequestBody BranchRequest request) {
-		return BranchResponse.from(branchService.create(request.name(), request.address(), request.phone()));
+		return BranchResponse.from(branchService.create(request.name(), request.address(), request.phone(),
+				request.googleBusinessUrl()));
 	}
 
 	@PutMapping("/{id}")
 	public BranchResponse update(@PathVariable UUID id, @Valid @RequestBody BranchUpdateRequest request) {
-		return BranchResponse
-				.from(branchService.update(id, request.name(), request.address(), request.phone(), request.active()));
+		return BranchResponse.from(branchService.update(id, request.name(), request.address(), request.phone(),
+				request.googleBusinessUrl(), request.active()));
 	}
 
 	@DeleteMapping("/{id}")

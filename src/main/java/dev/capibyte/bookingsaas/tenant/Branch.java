@@ -24,6 +24,9 @@ public class Branch extends BaseTenantEntity {
 	@Column
 	private String phone;
 
+	@Column(name = "google_business_url")
+	private String googleBusinessUrl;
+
 	@Column(nullable = false)
 	private boolean active = true;
 }

@@ -18,7 +18,7 @@ public class BranchService {
 	private final TenantService tenantService;
 
 	@Transactional
-	public Branch create(String name, String address, String phone) {
+	public Branch create(String name, String address, String phone, String googleBusinessUrl) {
 		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
 		if (branchRepository.countByActiveTrue() >= tier.getMaxBranches()) {
 			throw new BranchLimitExceededException(tier);
@@ -28,6 +28,7 @@ public class BranchService {
 		branch.setName(name);
 		branch.setAddress(address);
 		branch.setPhone(phone);
+		branch.setGoogleBusinessUrl(googleBusinessUrl);
 		return branchRepository.save(branch);
 	}
 
@@ -42,11 +43,13 @@ public class BranchService {
 	}
 
 	@Transactional
-	public Branch update(UUID id, String name, String address, String phone, boolean active) {
+	public Branch update(UUID id, String name, String address, String phone, String googleBusinessUrl,
+			boolean active) {
 		Branch branch = findById(id);
 		branch.setName(name);
 		branch.setAddress(address);
 		branch.setPhone(phone);
+		branch.setGoogleBusinessUrl(googleBusinessUrl);
 		branch.setActive(active);
 		return branch;
 	}
