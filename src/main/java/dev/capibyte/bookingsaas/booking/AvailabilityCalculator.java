@@ -21,7 +21,10 @@ public class AvailabilityCalculator {
 				free.addAll(slice(piece, durationMinutes));
 			}
 		}
-		return free;
+		// openWindows can come from more than one source (weekly hours, one-off date availability)
+		// that a caller might set up to overlap for the same date — dedupe so an overlap doesn't
+		// hand the same slot back twice.
+		return free.stream().distinct().toList();
 	}
 
 	private List<TimeSlot> subtract(TimeSlot window, List<TimeSlot> blocked) {

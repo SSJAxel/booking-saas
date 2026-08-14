@@ -155,10 +155,17 @@ public class MercadoPagoClient {
 		// .encode() leaves them alone; percent-encode explicitly and mark the builder as
 		// already-encoded (build(true)) so it doesn't re-escape the '%' we just introduced.
 		String encodedRedirectUri = URLEncoder.encode(redirectUri, StandardCharsets.UTF_8);
+		// Confirmed with MercadoPago support (ticket WCS-45796): platform_id isn't a recognized
+		// param for this grant — only response_type/client_id/redirect_uri/scope are. scope must be
+		// exactly the space-separated grant names (read/write/offline_access), not a dashboard
+		// permission label like "Online Preferences" (that's a functional permission enabled on the
+		// app itself, never sent as a scope value here). Encoded the same way as redirectUri — the
+		// literal spaces aren't legal unescaped in a query value.
+		String encodedScope = URLEncoder.encode("read write offline_access", StandardCharsets.UTF_8);
 		return UriComponentsBuilder.fromUriString("https://auth.mercadopago.com/authorization")
 				.queryParam("client_id", clientId)
 				.queryParam("response_type", "code")
-				.queryParam("platform_id", "mp")
+				.queryParam("scope", encodedScope)
 				.queryParam("state", state)
 				.queryParam("redirect_uri", encodedRedirectUri)
 				.build(true)

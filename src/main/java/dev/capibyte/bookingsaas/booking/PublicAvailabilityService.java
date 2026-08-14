@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.NotFoundException;
 import dev.capibyte.bookingsaas.common.TenantContext;
+import dev.capibyte.bookingsaas.staff.DateAvailabilityService;
 import dev.capibyte.bookingsaas.staff.TimeOff;
 import dev.capibyte.bookingsaas.staff.TimeOffService;
 import dev.capibyte.bookingsaas.staff.WeeklyAvailabilityService;
@@ -25,6 +26,7 @@ public class PublicAvailabilityService {
 	private final ServiceOfferingService serviceOfferingService;
 	private final WeeklyAvailabilityService weeklyAvailabilityService;
 	private final TimeOffService timeOffService;
+	private final DateAvailabilityService dateAvailabilityService;
 	private final AppointmentService appointmentService;
 	private final TenantService tenantService;
 	private final AvailabilityCalculator calculator;
@@ -45,10 +47,18 @@ public class PublicAvailabilityService {
 			return List.of();
 		}
 
-		List<TimeSlot> openWindows = weeklyAvailabilityService.findByProfessionalAndDay(professionalId, date.getDayOfWeek())
+		// Two independent, additive sources of "open" for this date: the recurring weekly pattern
+		// for its day of week, and any specific-date entries (DateAvailability) — for a professional
+		// who releases capacity one calendar date at a time rather than committing to a recurring
+		// rule, e.g. someone who works by season. Neither is exclusive of the other.
+		List<TimeSlot> openWindows = new ArrayList<>();
+		weeklyAvailabilityService.findByProfessionalAndDay(professionalId, date.getDayOfWeek())
 				.stream()
 				.map(w -> new TimeSlot(w.getStartTime(), w.getEndTime()))
-				.toList();
+				.forEach(openWindows::add);
+		dateAvailabilityService.findByProfessionalAndDate(professionalId, date).stream()
+				.map(d -> new TimeSlot(d.getStartTime(), d.getEndTime()))
+				.forEach(openWindows::add);
 
 		List<TimeSlot> blocked = new ArrayList<>();
 		dayTimeOffs.stream()
