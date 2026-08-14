@@ -28,7 +28,13 @@ function emptyDay() {
 
 /** Turns the flat list of (dayOfWeek, startTime, endTime) rows the API stores into one row per
  * weekday for the table — a day with two stored ranges (rest split around a lunch break) collapses
- * into a single toggled-on day with hasBreak=true, since that's how a user thinks about it. */
+ * into a single toggled-on day with hasBreak=true, since that's how a user thinks about it. A day
+ * with MORE than two stored ranges (e.g. a three-block split shift) can't be represented by this
+ * "one day + optional break" model — collapsing it to the first two would silently delete the rest
+ * the next time that day gets saved. Instead it's marked `unsupported`: shown read-only here,
+ * excluded from editing/saving in this view, left untouched unless the user explicitly overwrites
+ * it (e.g. via "Copiar en todos" from another day) — safe to edit per-slot from
+ * SimpleAvailabilityEditor instead, which handles any number of ranges without collapsing. */
 function buildDraft(entries) {
 	const byDay = {};
 	for (const [day] of DAYS) byDay[day] = [];
@@ -44,7 +50,7 @@ function buildDraft(entries) {
 			draft[day] = emptyDay();
 		} else if (ranges.length === 1) {
 			draft[day] = { ...emptyDay(), enabled: true, start: ranges[0].start, end: ranges[0].end };
-		} else {
+		} else if (ranges.length === 2) {
 			const [morning, afternoon] = ranges;
 			draft[day] = {
 				enabled: true,
@@ -54,14 +60,19 @@ function buildDraft(entries) {
 				breakStart: morning.end,
 				breakEnd: afternoon.start,
 			};
+		} else {
+			draft[day] = { unsupported: true, ranges };
 		}
 	}
 	return { draft, idsByDay };
 }
 
 /** The actual (start,end) ranges a day resolves to once saved — one range normally, two if split
- * around a break. Source of truth for both the diff-against-baseline check and what gets sent. */
+ * around a break. Source of truth for both the diff-against-baseline check and what gets sent.
+ * An `unsupported` day (3+ stored ranges, see buildDraft) always resolves back to its own original
+ * ranges unchanged, so it never registers as dirty and handleSave never touches it. */
 function rangesFor(day) {
+	if (day.unsupported) return day.ranges.map(({ start, end }) => ({ start, end }));
 	if (!day.enabled) return [];
 	if (!day.hasBreak) return [{ start: day.start, end: day.end }];
 	return [
@@ -71,6 +82,7 @@ function rangesFor(day) {
 }
 
 function isDayValid(day) {
+	if (day.unsupported) return true;
 	if (!day.enabled) return true;
 	if (day.start >= day.end) return false;
 	if (day.hasBreak && !(day.start < day.breakStart && day.breakStart < day.breakEnd && day.breakEnd < day.end)) {
@@ -113,17 +125,28 @@ export default function WeeklySchedule({ entries, onCreate, onDelete, onSaved, o
 		setDraft(baseline);
 	}
 
+	/**
+	 * Each dirty day is saved independently (own try/catch) — a failure on one day (network blip,
+	 * an expired session mid-edit) must not abort days after it in iteration order, and must not
+	 * leave that day's local `idsByDay`/`baseline` claiming success when the delete-then-recreate
+	 * didn't fully complete (the old bug: a partial failure desynced local state from the DB, and
+	 * every retry after that 404'd trying to delete already-deleted rows). A day only advances its
+	 * baseline/idsByDay once its own save fully succeeds; a failed day stays dirty so its existing
+	 * "Guardar horario" retry picks it up again.
+	 */
 	async function handleSave() {
 		if (!isValid) return;
 		onError?.("");
 		setSaving(true);
-		try {
-			const nextIdsByDay = { ...idsByDay };
-			for (const [day] of DAYS) {
-				const desired = rangesFor(draft[day]);
-				const before = rangesFor(baseline[day]);
-				if (JSON.stringify(desired) === JSON.stringify(before)) continue;
+		const nextIdsByDay = { ...idsByDay };
+		const nextBaseline = { ...baseline };
+		const failedDays = [];
+		for (const [day, label] of DAYS) {
+			const desired = rangesFor(draft[day]);
+			const before = rangesFor(baseline[day]);
+			if (JSON.stringify(desired) === JSON.stringify(before)) continue;
 
+			try {
 				for (const id of idsByDay[day]) {
 					await onDelete(id);
 				}
@@ -133,14 +156,18 @@ export default function WeeklySchedule({ entries, onCreate, onDelete, onSaved, o
 					created.push(response.id);
 				}
 				nextIdsByDay[day] = created;
+				nextBaseline[day] = draft[day];
+			} catch {
+				failedDays.push(label);
 			}
-			setIdsByDay(nextIdsByDay);
-			setBaseline(draft);
+		}
+		setIdsByDay(nextIdsByDay);
+		setBaseline(nextBaseline);
+		setSaving(false);
+		if (failedDays.length > 0) {
+			onError?.(`No se pudo guardar: ${failedDays.join(", ")}. Probá de nuevo.`);
+		} else {
 			onSaved?.();
-		} catch (err) {
-			onError?.(err.message);
-		} finally {
-			setSaving(false);
 		}
 	}
 
@@ -160,6 +187,18 @@ export default function WeeklySchedule({ entries, onCreate, onDelete, onSaved, o
 				<tbody>
 					{DAYS.map(([day, label], index) => {
 						const d = draft[day];
+						if (d.unsupported) {
+							return (
+								<tr key={day}>
+									<td>{label}</td>
+									<td colSpan={4} className="muted">
+										{d.ranges.length} franjas cargadas — esta grilla solo soporta un descanso por día.
+										Editá este día desde la pestaña "Agregar de a poco".
+									</td>
+									<td />
+								</tr>
+							);
+						}
 						return (
 							<tr key={day}>
 								<td>{label}</td>
@@ -230,7 +269,7 @@ export default function WeeklySchedule({ entries, onCreate, onDelete, onSaved, o
 									</td>
 								)}
 								<td>
-									{index === 0 && (
+									{index === 0 && !d.unsupported && (
 										<button type="button" className="link-button" onClick={() => copyToAll(day)}>
 											Copiar en todos
 										</button>
