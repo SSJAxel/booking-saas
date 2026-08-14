@@ -42,6 +42,35 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-14 — Dos bugs reales en producción, encontrados por un reporte de usuario
+
+No son cambios de código — son fixes de configuración/datos directamente contra producción
+(Render + Neon), documentados acá porque afectan a clientes reales.
+
+- **Turnos ya pasados del día quedaban reservables — reportado como "grave" por el dueño de Lusi
+  Tattoo.** Causa: `Tenant.timezone` de ese negocio estaba en `UTC` (el default), nunca configurado
+  a `America/Argentina/Buenos_Aires`. El filtro de "no mostrar horarios ya pasados hoy" (ver
+  `PublicAvailabilityService.findFreeSlots` y su test, `PublicAvailabilityPastTimeTest`) compara la
+  fecha pedida contra `LocalDate.now(zone)`; con `zone=UTC` y hora real de Argentina (UTC-3), entre
+  aproximadamente las 21:00 y las 23:59 ART el backend ya piensa que es "mañana" en UTC, así que la
+  fecha pedida ("hoy" en Argentina) nunca coincide con `LocalDate.now(UTC)` y el filtro completo se
+  salta — coincide exactamente con el horario en el que se vio el bug (22:35). No es un bug de
+  código: el filtro funciona bien si el timezone del tenant está bien configurado. Corregido para
+  `lusi-tattoo`. **Auditados los demás tenants reales de producción — todos en UTC sin configurar
+  salvo Lusi** (`bellamia-peluqueria`, `cortefino-barberia`, `zenspa-estetica`, `tintanegra-tattoo`
+  son tenants de demo, dejados sin corregir a propósito).
+- **`MAIL_VERIFICATION_BASE_URL` nunca se configuró en Render** — el link de verificación de mail
+  de cualquier alta nueva en producción apuntaba a `http://localhost:5180/...`, rompiendo el
+  registro de cualquier cliente real. Encontrado de casualidad haciendo el fix de arriba (al crear
+  una cuenta de super-admin y no poder verificarla). Corregido: la variable ahora apunta a
+  `https://booking-saas-inky.vercel.app/verificar-email`.
+- **Primera cuenta de super-admin en producción**, creada de paso (no existía ninguna hasta ahora):
+  tenant `capibyte-admin`, promovido a `platform_admin=true` a mano vía el SQL Editor de Neon (no
+  hay endpoint de API para esto, es intencional — ver `AppUser.platformAdmin`). La base de
+  producción vive en **Neon**, no en un servicio de Postgres separado de Render — la única forma de
+  correr SQL directo es el propio SQL Editor de Neon, ya que el plan gratuito de Render no incluye
+  acceso a Shell.
+
 ### 2026-08-13 — Rediseño de la página pública de reserva
 
 - **Catálogo en vez de wizard.** `/reservar/:tenantSlug` pasa de un formulario paso a paso a una
