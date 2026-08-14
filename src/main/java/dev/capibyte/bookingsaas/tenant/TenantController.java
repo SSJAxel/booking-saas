@@ -55,7 +55,8 @@ public class TenantController {
 	public TenantResponse updateBranding(@Valid @RequestBody BrandingUpdateRequest request) {
 		return TenantResponse.from(tenantService.updateBranding(TenantContext.getTenantId(), request.logoUrl(),
 				request.bannerUrl(), request.accentColor(), request.tagline(), request.contactEmail(),
-				request.whatsappNumber(), request.transferAlias()));
+				request.whatsappNumber(), request.transferAlias(), request.instagramUrl(), request.facebookUrl(),
+				request.instagramFeedUrl()));
 	}
 
 	/** Owner/admin: uploads a logo image file, stores it, and points logoUrl at it — an

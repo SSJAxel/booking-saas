@@ -81,6 +81,9 @@ export default function TenantPage() {
 					contactEmail: form.get("contactEmail")?.trim() || null,
 					whatsappNumber: form.get("whatsappNumber")?.trim() || null,
 					transferAlias: tenant.transferAlias,
+					instagramUrl: form.get("instagramUrl")?.trim() || null,
+					facebookUrl: form.get("facebookUrl")?.trim() || null,
+					instagramFeedUrl: form.get("instagramFeedUrl")?.trim() || null,
 				}),
 			);
 			setBrandingNotice("Guardado.");
@@ -116,6 +119,9 @@ export default function TenantPage() {
 					contactEmail: tenant.contactEmail,
 					whatsappNumber: tenant.whatsappNumber,
 					transferAlias: tenant.transferAlias,
+					instagramUrl: tenant.instagramUrl,
+					facebookUrl: tenant.facebookUrl,
+					instagramFeedUrl: tenant.instagramFeedUrl,
 				}),
 			);
 		} catch (err) {
@@ -150,6 +156,9 @@ export default function TenantPage() {
 					contactEmail: tenant.contactEmail,
 					whatsappNumber: tenant.whatsappNumber,
 					transferAlias: tenant.transferAlias,
+					instagramUrl: tenant.instagramUrl,
+					facebookUrl: tenant.facebookUrl,
+					instagramFeedUrl: tenant.instagramFeedUrl,
 				}),
 			);
 		} catch (err) {
@@ -172,6 +181,9 @@ export default function TenantPage() {
 					contactEmail: tenant.contactEmail,
 					whatsappNumber: tenant.whatsappNumber,
 					transferAlias: form.get("transferAlias")?.trim() || null,
+					instagramUrl: tenant.instagramUrl,
+					facebookUrl: tenant.facebookUrl,
+					instagramFeedUrl: tenant.instagramFeedUrl,
 				}),
 			);
 			setTransferAliasNotice("Guardado.");
@@ -506,6 +518,24 @@ export default function TenantPage() {
 							name="whatsappNumber"
 							placeholder="WhatsApp (ej: +54 9 11 1234-5678)"
 							defaultValue={tenant.whatsappNumber ?? ""}
+						/>
+						<input
+							name="instagramUrl"
+							type="url"
+							placeholder="Link de Instagram (opcional)"
+							defaultValue={tenant.instagramUrl ?? ""}
+						/>
+						<input
+							name="facebookUrl"
+							type="url"
+							placeholder="Link de Facebook (opcional)"
+							defaultValue={tenant.facebookUrl ?? ""}
+						/>
+						<input
+							name="instagramFeedUrl"
+							type="url"
+							placeholder="Script del feed de Instagram (opcional)"
+							defaultValue={tenant.instagramFeedUrl ?? ""}
 						/>
 						<button type="submit">Guardar</button>
 						{brandingNotice && <span className="notice">{brandingNotice}</span>}

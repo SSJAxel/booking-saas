@@ -17,25 +17,24 @@ Lista viva de lo que el rediseño de `/reservar/:tenantSlug` necesita del backen
 existe. Se actualiza cada vez que se sube trabajo de diseño nuevo — tachar/borrar el ítem acá
 cuando se resuelva, no dejarlo dando vueltas en el chat.
 
-- [ ] **`ServiceOffering.featured`** (boolean, default `false`) — sección "Destacados" en el
-  catálogo público. Migración tipo `ALTER TABLE service_offerings ADD COLUMN featured BOOLEAN NOT
-  NULL DEFAULT false;`, sumarlo a `ServiceOfferingRequest`/`UpdateRequest`/`Response` y a
-  `PublicServiceResponse`, checkbox "Destacado" en `ServicesPage.jsx`.
-- [ ] **`Branch.googleBusinessUrl`** (string, opcional) — botón "Ver perfil de Google" en vez de la
-  búsqueda genérica de Maps. Columna en `branches` + `BranchResponse`/`PublicBranchResponse` +
-  campo de texto en el form de sucursal.
-- [ ] **`Tenant.instagramUrl` / `Tenant.facebookUrl`** (string, opcionales) — íconos de redes en el
-  menú lateral. Dos columnas en `tenants` + `PublicTenantResponse` + `BrandingUpdateRequest`/
-  `TenantResponse`, dos inputs en "Mi negocio".
-- [ ] **`Tenant.instagramFeedUrl`** (string, opcional) — URL del script del proveedor de carrusel
-  de Instagram que el dueño elija (Trustindex/SnapWidget/Elfsight/etc.), para el bloque debajo de
-  "Equipo". Misma mecánica que los dos puntos anteriores.
-- [ ] **Horario semanal público de un profesional** (no solo `bio`) — que el hover del carrusel de
-  equipo muestre el horario real en vez de la bio. Necesita un endpoint nuevo, algo como
-  `GET /api/public/{slug}/professionals/{id}/availability-summary`.
-- [ ] **`timezone` en `PublicTenantResponse`** — ya existe en `Tenant`, solo falta exponerlo. Hoy el
-  widget de "Abierto/Cerrado" asume que el huso horario del visitante coincide con el del negocio
-  (usa la hora del navegador).
+Todo lo de abajo ya está resuelto del lado del backend (2026-08-13) — ver el Registro de cambios
+para el detalle de cada uno. Dejo la lista para referencia rápida de qué campo/endpoint usar desde
+el front, no hace falta seguir mirando el chat para eso:
+
+- [x] **`ServiceOffering.featured`** — hecho, incluido en `ServiceOfferingResponse`/
+  `PublicServiceResponse` (`GET /api/public/{slug}/services`).
+- [x] **`Branch.googleBusinessUrl`** — hecho, incluido en `PublicBranchResponse`
+  (`GET /api/public/{slug}/branches`).
+- [x] **`Tenant.instagramUrl` / `Tenant.facebookUrl`** — hecho, incluidos en
+  `PublicTenantResponse` (`GET /api/public/{slug}`).
+- [x] **`Tenant.instagramFeedUrl`** — hecho, mismo `PublicTenantResponse` que arriba.
+- [x] **Horario semanal público de un profesional** — hecho, pero con una forma distinta a la
+  sugerida: en vez de un endpoint aparte `.../availability-summary`, es un campo `hours` (lista de
+  `{dayOfWeek, startTime, endTime}`) directo en cada profesional de
+  `GET /api/public/{slug}/professionals` — un solo request en vez de N, y da el dato crudo para
+  formatear como se quiera en vez de un texto ya armado. `TeamCarousel.jsx` hoy sigue mostrando
+  `p.bio` en el hover; falta conectarlo a `p.hours`.
+- [x] **`timezone` en `PublicTenantResponse`** — hecho, mismo `PublicTenantResponse` de arriba.
 
 ## Registro de cambios
 
@@ -106,6 +105,20 @@ entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
   sucursal de un negocio multi-sucursal suele tener su propia ficha. Expuesto en
   `PublicBranchResponse`, cargable desde el panel (Sucursales → crear/editar). No toca el sitio
   público — mostrarlo es trabajo de Mica en su propio frontend.
+
+### 2026-08-13 — Redes sociales del tenant y timezone público (resto de la lista de Mica)
+
+- **`Tenant.instagramUrl`/`facebookUrl`/`instagramFeedUrl` (opcionales), migración V36.** Los
+  primeros dos son links de perfil para los íconos del menú lateral; el tercero es la URL del
+  `<script>` de embed de cualquier proveedor de feed de Instagram que el dueño elija
+  (Trustindex/SnapWidget/Elfsight/etc — esta app no tiene opinión sobre cuál, solo lo pasa) —
+  distinto de `instagramUrl`, no es el mismo campo cumpliendo dos funciones. Cargables desde "Mi
+  negocio" en el panel, expuestos en `PublicTenantResponse`.
+- **`timezone` expuesto en `PublicTenantResponse`.** Ya existía en `Tenant` (usado internamente para
+  calcular disponibilidad), solo faltaba en el DTO público — sin esto, un widget de "abierto/cerrado
+  ahora" en el sitio público no tiene forma de saber el huso horario real del negocio.
+- Con esto se cierran los 6 puntos que Mica dejó anotados en "Pendiente para Axel" — ver esa
+  sección más arriba para el detalle de cada uno y su forma final.
 
 ### 2026-08-13 — Servicios destacados (pedido de Mica), con un gotcha real de Jackson en el camino
 

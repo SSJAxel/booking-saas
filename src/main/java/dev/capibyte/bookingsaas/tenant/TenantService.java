@@ -111,7 +111,8 @@ public class TenantService {
 	/** Any field left null clears that piece of branding — an unbranded tenant is a valid state. */
 	@Transactional
 	public Tenant updateBranding(UUID tenantId, String logoUrl, String bannerUrl, String accentColor, String tagline,
-			String contactEmail, String whatsappNumber, String transferAlias) {
+			String contactEmail, String whatsappNumber, String transferAlias, String instagramUrl,
+			String facebookUrl, String instagramFeedUrl) {
 		Tenant tenant = findById(tenantId);
 		tenant.setLogoUrl(logoUrl);
 		tenant.setBannerUrl(bannerUrl);
@@ -120,6 +121,9 @@ public class TenantService {
 		tenant.setContactEmail(contactEmail);
 		tenant.setWhatsappNumber(whatsappNumber);
 		tenant.setTransferAlias(transferAlias);
+		tenant.setInstagramUrl(instagramUrl);
+		tenant.setFacebookUrl(facebookUrl);
+		tenant.setInstagramFeedUrl(instagramFeedUrl);
 		return tenant;
 	}
 

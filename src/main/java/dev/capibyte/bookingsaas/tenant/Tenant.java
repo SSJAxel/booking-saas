@@ -57,6 +57,19 @@ public class Tenant extends BaseEntity {
 	@Column
 	private String tagline;
 
+	/** All optional — the public site's side menu only shows an icon for whichever of these are
+	 * set. instagramFeedUrl is a third-party embed-widget <script> src (Trustindex/SnapWidget/
+	 * Elfsight/etc, tenant's own choice of provider) — distinct from instagramUrl (a plain profile
+	 * link), not the same field doing double duty. */
+	@Column(name = "instagram_url")
+	private String instagramUrl;
+
+	@Column(name = "facebook_url")
+	private String facebookUrl;
+
+	@Column(name = "instagram_feed_url")
+	private String instagramFeedUrl;
+
 	/** Off by default — an extra channel alongside email, never a replacement for it. */
 	@Column(name = "whatsapp_enabled", nullable = false)
 	private boolean whatsappEnabled = false;

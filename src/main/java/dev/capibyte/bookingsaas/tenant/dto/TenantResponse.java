@@ -8,7 +8,8 @@ import java.util.UUID;
 public record TenantResponse(UUID id, String name, String slug, String timezone, TenantStatus status,
 		PlanTier planTier, String logoUrl, String bannerUrl, String accentColor, String tagline,
 		boolean whatsappEnabled, String contactEmail, String whatsappNumber, String transferAlias,
-		int topClientsThreshold, int topClientsCount, int historyRetentionMonths, int depositExpirationMinutes) {
+		int topClientsThreshold, int topClientsCount, int historyRetentionMonths, int depositExpirationMinutes,
+		String instagramUrl, String facebookUrl, String instagramFeedUrl) {
 
 	public static TenantResponse from(Tenant tenant) {
 		return new TenantResponse(tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getTimezone(),
@@ -16,6 +17,7 @@ public record TenantResponse(UUID id, String name, String slug, String timezone,
 				tenant.getAccentColor(), tenant.getTagline(), tenant.isWhatsappEnabled(), tenant.getContactEmail(),
 				tenant.getWhatsappNumber(), tenant.getTransferAlias(), tenant.getTopClientsThreshold(),
 				tenant.getTopClientsCount(), tenant.getHistoryRetentionMonths(),
-				tenant.getDepositExpirationMinutes());
+				tenant.getDepositExpirationMinutes(), tenant.getInstagramUrl(), tenant.getFacebookUrl(),
+				tenant.getInstagramFeedUrl());
 	}
 }
