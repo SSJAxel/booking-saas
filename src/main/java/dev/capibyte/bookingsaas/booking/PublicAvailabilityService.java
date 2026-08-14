@@ -9,6 +9,7 @@ import dev.capibyte.bookingsaas.staff.TimeOff;
 import dev.capibyte.bookingsaas.staff.TimeOffService;
 import dev.capibyte.bookingsaas.staff.WeeklyAvailabilityService;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
@@ -27,13 +28,40 @@ public class PublicAvailabilityService {
 	private final WeeklyAvailabilityService weeklyAvailabilityService;
 	private final TimeOffService timeOffService;
 	private final DateAvailabilityService dateAvailabilityService;
-	private final AppointmentService appointmentService;
+	private final AppointmentRepository appointmentRepository;
 	private final TenantService tenantService;
 	private final AvailabilityCalculator calculator;
 
 	@Transactional(readOnly = true)
 	public List<TimeSlot> findFreeSlots(UUID professionalId, UUID serviceId, LocalDate date) {
 		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		List<TimeSlot> slots = computeSlots(professionalId, serviceId, date, zone);
+		// The calculator only knows about weekly hours/time-off/other bookings — it has no notion
+		// of "now", so a client browsing today's date would otherwise see (and could book) a slot
+		// earlier today that's already gone. Only matters for today; a future date has nothing to
+		// filter since every slot on it is already in the future.
+		if (date.equals(LocalDate.now(zone))) {
+			LocalTime now = LocalTime.now(zone);
+			slots = slots.stream().filter(slot -> !slot.start().isBefore(now)).toList();
+		}
+		return slots;
+	}
+
+	/**
+	 * Same computation as {@link #findFreeSlots}, minus the "exclude slots already past for today"
+	 * filter — used by {@code AppointmentService.book()} to validate an owner's manual booking,
+	 * which must still respect working hours/time-off/other bookings but is deliberately allowed to
+	 * be backdated (e.g. logging a walk-in that already happened this morning; see
+	 * AppointmentController's Javadoc on why the public path enforces "no past" and this one
+	 * doesn't).
+	 */
+	@Transactional(readOnly = true)
+	public List<TimeSlot> computeSlotsIgnoringPast(UUID professionalId, UUID serviceId, LocalDate date) {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		return computeSlots(professionalId, serviceId, date, zone);
+	}
+
+	private List<TimeSlot> computeSlots(UUID professionalId, UUID serviceId, LocalDate date, ZoneId zone) {
 		ServiceOffering service = serviceOfferingService.findById(serviceId);
 
 		List<UUID> eligibleProfessionals = serviceOfferingService.findProfessionalIdsForService(serviceId);
@@ -69,20 +97,16 @@ public class PublicAvailabilityService {
 		// Appointment times are stored as Instants (absolute); converted back to this tenant's own
 		// wall-clock time so they compare correctly against the LocalTime weekly-hours/time-off
 		// windows above, which were always tenant-local wall-clock to begin with.
-		appointmentService.findActiveByProfessionalAndDay(professionalId, date, zone).stream()
+		Instant dayStart = date.atStartOfDay(zone).toInstant();
+		Instant dayEnd = date.plusDays(1).atStartOfDay(zone).toInstant();
+		appointmentRepository
+				.findAllByProfessionalIdAndStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNotIn(professionalId,
+						dayStart, dayEnd, AppointmentService.INACTIVE_STATUSES)
+				.stream()
 				.map(a -> new TimeSlot(LocalTime.ofInstant(a.getStartTime(), zone),
 						LocalTime.ofInstant(a.getEndTime(), zone)))
 				.forEach(blocked::add);
 
-		List<TimeSlot> slots = calculator.freeSlots(openWindows, blocked, service.getDurationMinutes());
-		// The calculator only knows about weekly hours/time-off/other bookings — it has no notion
-		// of "now", so a client browsing today's date would otherwise see (and could book) a slot
-		// earlier today that's already gone. Only matters for today; a future date has nothing to
-		// filter since every slot on it is already in the future.
-		if (date.equals(LocalDate.now(zone))) {
-			LocalTime now = LocalTime.now(zone);
-			slots = slots.stream().filter(slot -> !slot.start().isBefore(now)).toList();
-		}
-		return slots;
+		return calculator.freeSlots(openWindows, blocked, service.getDurationMinutes());
 	}
 }

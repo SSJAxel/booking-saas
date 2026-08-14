@@ -195,6 +195,61 @@ class AppointmentBookingFlowTest extends IntegrationTestBase {
 		assertThat(afterLatePayment.getBody().get("paymentStatus")).isEqualTo("PAID");
 	}
 
+	/**
+	 * The professional only has WeeklyAvailability for MONDAY — a direct POST for Tuesday must be
+	 * rejected even though nothing about it overlaps another appointment, since GET .../availability
+	 * (what the real booking UI is limited to) is only advisory, not enforced server-side before
+	 * this fix.
+	 */
+	@Test
+	void publicBookingOutsideConfiguredAvailabilityIsRejected() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+		Setup setup = setUpProfessionalAndService(tenant, headers, null);
+
+		LocalDate tuesday = nextMonday().plusDays(1);
+		Map<String, Object> body = Map.of(
+				"professionalId", setup.professionalId(),
+				"serviceId", setup.serviceId(),
+				"date", tuesday.toString(),
+				"startTime", "10:00:00",
+				"clientName", "Client out-of-hours",
+				"clientEmail", "out-of-hours@example.com",
+				"clientPhone", "+5411000001");
+		ResponseEntity<Map> response = restTemplate.postForEntity("/api/public/" + tenant.slug() + "/appointments",
+				body, Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+	}
+
+	/**
+	 * The owner's manual "Nuevo turno" (POST /api/appointments) reuses the same book() method as the
+	 * public flow, so a TimeOff block must reject it too — not just the double-booking constraint.
+	 */
+	@Test
+	void ownerManualBookingDuringTimeOffIsRejected() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+		Setup setup = setUpProfessionalAndService(tenant, headers, null);
+
+		LocalDate monday = nextMonday();
+		post("/api/professionals/" + setup.professionalId() + "/time-off", Map.of("date", monday.toString()),
+				headers);
+
+		Map<String, Object> body = Map.of(
+				"professionalId", setup.professionalId(),
+				"serviceId", setup.serviceId(),
+				"date", monday.toString(),
+				"startTime", "10:00:00",
+				"clientName", "Client during time off",
+				"clientEmail", "timeoff@example.com",
+				"clientPhone", "+5411000002");
+		ResponseEntity<Map> response = restTemplate.exchange("/api/appointments", HttpMethod.POST,
+				new HttpEntity<>(body, headers), Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.CONFLICT);
+	}
+
 	private Setup setUpProfessionalAndService(RegisteredTenant tenant, HttpHeaders headers, Double depositAmount) {
 		String branchId = (String) post("/api/branches", Map.of("name", "Main"), headers).get("id");
 		String professionalId = (String) post("/api/professionals",

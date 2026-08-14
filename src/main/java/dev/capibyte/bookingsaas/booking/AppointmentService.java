@@ -17,6 +17,7 @@ import dev.capibyte.bookingsaas.waitlist.WaitlistService;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
@@ -34,7 +35,10 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class AppointmentService {
 
-	private static final List<AppointmentStatus> INACTIVE_STATUSES =
+	// Package-private (not private): PublicAvailabilityService reuses this exact list so both
+	// classes agree on what counts as an "active" (still-blocking) appointment status, instead of
+	// duplicating the CANCELLED/NO_SHOW literal in two places.
+	static final List<AppointmentStatus> INACTIVE_STATUSES =
 			List.of(AppointmentStatus.CANCELLED, AppointmentStatus.NO_SHOW);
 
 	private final AppointmentRepository appointmentRepository;
@@ -46,6 +50,7 @@ public class AppointmentService {
 	private final ClientRatingService clientRatingService;
 	private final ApplicationEventPublisher eventPublisher;
 	private final AppUserService appUserService;
+	private final PublicAvailabilityService publicAvailabilityService;
 
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
@@ -67,9 +72,9 @@ public class AppointmentService {
 			String clientEmail, String clientPhone, String clientInstagram, boolean overtime) {
 		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
 		PlanTier tier = tenant.getPlanTier();
+		ZoneId zone = ZoneId.of(tenant.getTimezone());
+		LocalDate localDate = startTime.atZone(zone).toLocalDate();
 		if (tier.getMaxAppointmentsPerWeek() != null) {
-			ZoneId zone = ZoneId.of(tenant.getTimezone());
-			LocalDate localDate = startTime.atZone(zone).toLocalDate();
 			// minusDays sobre getDayOfWeek().getValue() en vez de LocalDate.with(DayOfWeek.MONDAY):
 			// inequívoco, no depende de la semántica de TemporalAdjuster de DayOfWeek.
 			LocalDate weekStart = localDate.minusDays(localDate.getDayOfWeek().getValue() - 1L);
@@ -89,6 +94,24 @@ public class AppointmentService {
 		}
 		Professional professional = professionalService.findById(professionalId);
 		Instant endTime = startTime.plus(service.getDurationMinutes(), ChronoUnit.MINUTES);
+
+		// "Sobreturno" is the owner's own deliberate override (see this method's Javadoc) and must
+		// keep bypassing this exactly like it already bypasses the no_double_booking constraint —
+		// every other caller (public booking, and the owner's regular manual "Nuevo turno") must
+		// land on a time the professional actually made available: within WeeklyAvailability/
+		// DateAvailability, not inside a TimeOff block, and not already occupied by another
+		// appointment. computeSlotsIgnoringPast (not findFreeSlots) on purpose: the owner's manual
+		// path is allowed to backdate a walk-in that already happened today, which findFreeSlots'
+		// own "exclude past slots for today" filter would otherwise reject.
+		if (!overtime) {
+			LocalTime requestedLocalTime = startTime.atZone(zone).toLocalTime();
+			boolean isFree = publicAvailabilityService.computeSlotsIgnoringPast(professionalId, serviceId, localDate)
+					.stream()
+					.anyMatch(slot -> slot.start().equals(requestedLocalTime));
+			if (!isFree) {
+				throw new SlotAlreadyBookedException();
+			}
+		}
 
 		Client client = findOrCreateClient(clientName, clientEmail, clientPhone, clientInstagram);
 
