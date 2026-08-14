@@ -100,4 +100,32 @@ class MercadoPagoAccountServiceTest {
 		assertThat(token).isEqualTo("refreshed-token");
 		assertThat(account.getRefreshToken()).isEqualTo("refreshed-refresh");
 	}
+
+	@Test
+	void isConnectedReflectsWhetherAnAccountRowExists() {
+		when(accountRepository.findFirstByOrderByCreatedAtDesc()).thenReturn(Optional.empty());
+		assertThat(accountService.isConnected(UUID.randomUUID())).isFalse();
+
+		when(accountRepository.findFirstByOrderByCreatedAtDesc()).thenReturn(Optional.of(new MercadoPagoAccount()));
+		assertThat(accountService.isConnected(UUID.randomUUID())).isTrue();
+	}
+
+	@Test
+	void disconnectDeletesTheStoredAccountWhenOneExists() {
+		MercadoPagoAccount account = new MercadoPagoAccount();
+		when(accountRepository.findFirstByOrderByCreatedAtDesc()).thenReturn(Optional.of(account));
+
+		accountService.disconnect(UUID.randomUUID());
+
+		verify(accountRepository).delete(account);
+	}
+
+	@Test
+	void disconnectIsANoOpWhenNothingIsConnected() {
+		when(accountRepository.findFirstByOrderByCreatedAtDesc()).thenReturn(Optional.empty());
+
+		accountService.disconnect(UUID.randomUUID());
+
+		verify(accountRepository, never()).delete(any());
+	}
 }

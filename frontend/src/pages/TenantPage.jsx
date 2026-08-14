@@ -20,6 +20,8 @@ export default function TenantPage() {
 	const [planUpgradeSending, setPlanUpgradeSending] = useState(false);
 	const [planUpgradeNotice, setPlanUpgradeNotice] = useState("");
 	const [manualOpen, setManualOpen] = useState(false);
+	const [mercadoPagoConnected, setMercadoPagoConnected] = useState(false);
+	const [disconnectingMercadoPago, setDisconnectingMercadoPago] = useState(false);
 	const { session } = useAuth();
 	const canManage = session.role === "OWNER" || session.role === "ADMIN";
 
@@ -30,6 +32,17 @@ export default function TenantPage() {
 			setPlans(p);
 		} catch (err) {
 			setError(err.message);
+			return;
+		}
+		// Owner-only endpoint on the backend too — never call it for ADMIN/STAFF, who don't even see
+		// the connect/disconnect button below.
+		if (session.role === "OWNER") {
+			try {
+				const mp = await api.tenant.mercadoPagoStatus();
+				setMercadoPagoConnected(mp.connected);
+			} catch (err) {
+				setError(err.message);
+			}
 		}
 	}
 
@@ -63,6 +76,26 @@ export default function TenantPage() {
 			window.location.href = authorizationUrl;
 		} catch (err) {
 			setError(err.message);
+		}
+	}
+
+	async function handleDisconnectMercadoPago() {
+		if (
+			!window.confirm(
+				"¿Desconectar tu cuenta de Mercado Pago? Las próximas señas y suscripciones van a cobrarse a la cuenta " +
+					"compartida de la plataforma hasta que conectes otra.",
+			)
+		)
+			return;
+		setError("");
+		setDisconnectingMercadoPago(true);
+		try {
+			await api.tenant.disconnectMercadoPago();
+			setMercadoPagoConnected(false);
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setDisconnectingMercadoPago(false);
 		}
 	}
 
@@ -426,9 +459,23 @@ export default function TenantPage() {
 					cuenta, en vez de una cuenta compartida de la plataforma.
 				</p>
 				{session.role === "OWNER" ? (
-					<button type="button" onClick={handleConnectMercadoPago}>
-						Conectar Mercado Pago
-					</button>
+					mercadoPagoConnected ? (
+						<div className="button-row" style={{ alignItems: "center" }}>
+							<span className="notice">Cuenta de Mercado Pago conectada.</span>
+							<button
+								type="button"
+								className="danger"
+								disabled={disconnectingMercadoPago}
+								onClick={handleDisconnectMercadoPago}
+							>
+								{disconnectingMercadoPago ? "Desconectando..." : "Desconectar Mercado Pago"}
+							</button>
+						</div>
+					) : (
+						<button type="button" onClick={handleConnectMercadoPago}>
+							Conectar Mercado Pago
+						</button>
+					)
 				) : (
 					<p className="muted">Solo el dueño puede conectar la cuenta.</p>
 				)}

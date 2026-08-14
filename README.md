@@ -42,6 +42,26 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-14 — Desconectar Mercado Pago, y OAuth Connect habilitado en producción
+
+- **Botón "Desconectar Mercado Pago", agregado antes de habilitar la conexión para negocios
+  reales.** Hasta ahora solo existía "Conectar" — no había forma de soltar una cuenta ya conectada
+  y volver a la cuenta compartida de la plataforma, salvo reconectando con otra cuenta (que
+  sobrescribe, no limpia). Nuevo `MercadoPagoAccountService.disconnect` (borra la fila de
+  `mercadopago_accounts`, `resolveAccessToken` vuelve a caer en el token de plataforma
+  automáticamente) + `isConnected` para que el panel sepa qué botón mostrar. Endpoints nuevos
+  `GET`/`DELETE /api/tenant/mercadopago/{status,connect}`, ambos owner-only igual que "Conectar".
+  No revoca el permiso del lado de Mercado Pago (no hay API pública para eso) — si el dueño quiere
+  ser prolijo del todo, tiene que revocarlo también desde su propia cuenta de Mercado Pago.
+- **OAuth Connect habilitado en producción**, reusando la misma app de Mercado Pago ya verificada
+  en vivo en local (Client ID `6328748736404873`) — se agregó
+  `https://capibooking.onrender.com/api/mercadopago/oauth/callback` como URL de redirección
+  adicional en el panel de esa app, y las variables `MERCADOPAGO_CLIENT_ID`/`_CLIENT_SECRET`/
+  `_OAUTH_REDIRECT_URI`/`_CONNECT_RETURN_URL` en Render. Importante: conectar no distingue "negocio
+  de prueba" de "negocio real" — lo único que importa es con qué cuenta de Mercado Pago se autoriza
+  el owner. Un tenant cualquiera conectado con una cuenta de Mercado Pago real mueve plata real
+  desde ese momento.
+
 ### 2026-08-14 — Dos bugs reales en producción, encontrados por un reporte de usuario
 
 No son cambios de código — son fixes de configuración/datos directamente contra producción

@@ -99,4 +99,21 @@ public class MercadoPagoAccountService {
 		}
 		return account.getAccessToken();
 	}
+
+	@Transactional(readOnly = true)
+	public boolean isConnected(UUID tenantId) {
+		return accountRepository.findFirstByOrderByCreatedAtDesc().isPresent();
+	}
+
+	/**
+	 * Unlinks this tenant's own MercadoPago account — after this, {@link #resolveAccessToken} falls
+	 * back to the shared platform token again, same as a tenant who never connected one. Doesn't
+	 * revoke the OAuth grant on MercadoPago's side (no API for that), just forgets the token here;
+	 * the tenant can revoke access from their own MercadoPago account settings if they want to be
+	 * thorough about it.
+	 */
+	@Transactional
+	public void disconnect(UUID tenantId) {
+		accountRepository.findFirstByOrderByCreatedAtDesc().ifPresent(accountRepository::delete);
+	}
 }

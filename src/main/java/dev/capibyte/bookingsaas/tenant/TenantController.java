@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.common.FileStorageService;
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.payment.MercadoPagoAccountService;
 import dev.capibyte.bookingsaas.payment.SubscriptionService;
+import dev.capibyte.bookingsaas.payment.dto.MercadoPagoConnectionStatusResponse;
 import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
@@ -19,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -146,6 +148,28 @@ public class TenantController {
 	@PreAuthorize("hasRole('OWNER')")
 	public OAuthConnectResponse connectMercadoPago() {
 		return new OAuthConnectResponse(mercadoPagoAccountService.buildAuthorizationUrl(TenantContext.getTenantId()));
+	}
+
+	/** Owner-only: whether this tenant currently has its own MercadoPago account connected — lets
+	 * the panel show "Conectar" or "Desconectar" without guessing from other state. */
+	@GetMapping("/mercadopago/status")
+	@PreAuthorize("hasRole('OWNER')")
+	public MercadoPagoConnectionStatusResponse mercadoPagoStatus() {
+		return new MercadoPagoConnectionStatusResponse(
+				mercadoPagoAccountService.isConnected(TenantContext.getTenantId()));
+	}
+
+	/**
+	 * Owner-only: unlinks this tenant's own MercadoPago account — checkouts/subscriptions fall back
+	 * to the shared platform account again, same as before ever connecting. Doesn't revoke the
+	 * OAuth grant on MercadoPago's own side (no API for that); see
+	 * MercadoPagoAccountService#disconnect.
+	 */
+	@DeleteMapping("/mercadopago/connect")
+	@PreAuthorize("hasRole('OWNER')")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void disconnectMercadoPago() {
+		mercadoPagoAccountService.disconnect(TenantContext.getTenantId());
 	}
 
 	/** Owner-only: starts a MercadoPago subscription for a paid plan — this is the upgrade path. */
