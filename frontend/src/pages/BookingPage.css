@@ -1,0 +1,1296 @@
+/* Public booking page — visual language ported from the designer's Figma mockup.
+   Scoped entirely under .pb-root (own class prefix, own tokens) so it never collides with the
+   admin panel's global index.css classes (.card, .badge, .chip, etc. are reused there by name). */
+
+.pb-root {
+	/* Isolates this page from the admin panel's global dark-mode tokens (index.css defines
+	   --text-h etc. on :root and flips them under prefers-color-scheme/data-theme) — without this,
+	   a visitor with the admin's dark mode saved in localStorage got white-on-white headings
+	   anywhere a global element rule like `h1 { color: var(--text-h) }` leaked into this page. */
+	--text: var(--pb-ink, #14140f);
+	--text-h: var(--pb-ink, #14140f);
+	--text-dim: var(--pb-ink-dim, #5b5b52);
+	--pb-radius: 20px;
+	--pb-accent: #38c438; /* overridden inline per-tenant via tenant.accentColor */
+	--pb-accent-contrast: #ffffff;
+	--pb-ink: #14140f;
+	--pb-ink-dim: #5b5b52;
+	--pb-surface: #ffffff;
+	--pb-bg: #fbfbf8;
+	--pb-border: rgba(20, 20, 15, 0.1);
+	--pb-shadow: 0 10px 30px rgba(20, 20, 15, 0.08);
+	--pb-footer-green: #38c438;
+	--pb-footer-bg: #f0faf0;
+	--font-serif: "Google Sans", "Josefin Sans", sans-serif;
+	--font-brand: "Google Sans", "Josefin Sans", sans-serif;
+
+	font-family: var(--font-serif);
+	color: var(--pb-ink);
+	background: var(--pb-bg);
+	min-height: 100vh;
+}
+
+.pb-root * {
+	box-sizing: border-box;
+}
+
+/* :where() keeps this reset at zero specificity — index.css's global `button` rule (a plain
+   element selector, color/background/padding/border-radius meant for the admin panel's pill
+   buttons) still leaks into every <button> on this page, so this neutralizes it first. Written
+   with :where() specifically so every .pb-*-btn/.pb-option-card/etc class below — even a single
+   class selector — reliably wins the cascade and doesn't need to out-specificity a "button" tag
+   selector. Without this reset, any button here that forgot to set its own color silently
+   inherited white-on-accent from the admin styles, invisible on this page's light surfaces (see
+   e.g. .pb-option-card, which only styled background/border, not text color). */
+.pb-root :where(button) {
+	font-family: var(--font-serif);
+	letter-spacing: 0;
+	color: var(--pb-ink);
+	background: none;
+	border: none;
+	padding: 0;
+	border-radius: 0;
+	box-shadow: none;
+}
+.pb-root button:hover{
+background-color:white;
+color:var(--pb-accent);
+border:1px solid var(--pb-accent);
+}
+
+
+.pb-loading,
+.pb-fatal-error {
+	min-height: 100vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.1rem;
+	color: var(--pb-ink-dim);
+}
+
+/* Header — sticky, black bar */
+.pb-header {
+	position: sticky;
+	top: 0;
+	z-index: 30;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	background: rgb(68 68 68 / 72%);
+    padding: 0.7rem 1.5rem;
+    backdrop-filter: blur(3px) saturate(160%);
+    -webkit-backdrop-filter: blur(14px) saturate(160%);
+	color: #ffffff;
+	padding: 0.7rem 1.5rem;
+}
+
+.pb-header-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+}
+
+.pb-header-logo {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	object-fit: cover;
+	flex: none;
+	background: #fff;
+}
+
+.pb-header-logo-fallback {
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: #fff;
+	color: #14140f;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-family: var(--font-serif);
+	font-weight: 700;
+	flex: none;
+}
+
+.pb-header-name {
+	font-family: var(--font-brand);
+	font-size: 1.05rem;
+}
+
+.pb-header-actions {
+	display: flex;
+	align-items: center;
+	gap: 0.8rem;
+}
+
+.pb-header-icon-btn {
+	background: none;
+	border: none;
+	color: #fff;
+	font-size: 1.3rem;
+	cursor: pointer;
+	padding: 0.2rem 0.4rem;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.pb-header-reservar {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	border: none;
+	border-radius: var(--pb-radius);
+	padding: 0.5rem 1.1rem;
+	font-weight: 700;
+	font-style: italic;
+	cursor: pointer;
+	letter-spacing: 0.02em;
+}
+
+@media (max-width: 640px) {
+	.pb-header-reservar {
+		padding: 0.55rem;
+	}
+
+	.pb-header-reservar-label {
+		display: none;
+	}
+}
+
+/* Hero */
+.pb-hero {
+	position: relative;
+	min-height:85vh;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: #222 center/cover no-repeat;
+	padding: 2rem 1rem;
+}
+
+/* "Vidrio" (glass) effect ported from the Figma component: dark translucent fill, frosted blur,
+   an accent-colored inset border, and a diagonal light sheen standing in for Figma's -45°/100%
+   light + refraction/dispersion sliders (CSS has no true refraction, so the sheen gradient plus
+   backdrop-filter blur+saturate is the closest visual match). Shared by the hero banner and the
+   team-carousel hover overlay — both are "glass panel over a photo" in the mockup. */
+.pb-glass {
+	position: relative;
+	background: rgba(0, 0, 0, 0.66);
+	backdrop-filter: blur(6px) saturate(160%);
+	-webkit-backdrop-filter: blur(6px) saturate(160%);
+	border: 2px solid var(--pb-accent);
+	border-radius: 30px;
+	overflow: hidden;
+}
+
+.pb-glass::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(-45deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0.03) 45%, rgba(255, 255, 255, 0) 60%);
+	pointer-events: none;
+}
+
+.pb-hero-card {
+	position: relative;
+	width: min(720px, 100%);
+	text-align: center;
+	color: #fff;
+	padding: 2.5rem 2rem;
+}
+
+.pb-hero-logo {
+	width: 68px;
+	height: 68px;
+	border-radius: 50%;
+	object-fit: cover;
+	margin-bottom: 1rem;
+	background: #fff;
+}
+
+.pb-hero-name {
+	font-family: var(--font-brand);
+	font-size: clamp(3em, 4vw, 3.8rem);
+	margin: 0;
+	letter-spacing: 0.02em;
+	color: #ffffff;
+}
+
+.pb-hero-tagline {
+	font-style: italic;
+	margin: 0.5rem 0 0;
+	font-size: 1.5em;
+}
+
+.pb-hero-actions {
+	display: flex;
+	justify-content: center;
+	gap: 0.8rem;
+	margin-top: 1.4rem;
+	flex-wrap: wrap;
+}
+
+.pb-hero-actions button {
+	border-radius: var(--pb-radius);
+	padding: 0.55rem 1.3rem;
+	font-weight: 700;
+	font-style: italic;
+	cursor: pointer;
+	letter-spacing: 0.03em;
+}
+
+.pb-hero-btn-outline {
+	background: transparent;
+	color: #fff;
+	border: 1px solid #fff;
+}
+
+.pb-hero-btn-solid {
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	border: 1px solid var(--pb-accent);
+}
+
+/* Layout: catalog + sticky sidebar */
+.pb-layout {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 1.8rem 1.2rem 3rem;
+	display: grid;
+	grid-template-columns: 1fr 320px;
+	gap: 1.6rem;
+	align-items: start;
+}
+
+.pb-catalog {
+	min-width: 0;
+}
+
+/* Category tabs — scroll-to-anchor, no accordion */
+.pb-tabs {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.6rem;
+	margin-bottom: 1.4rem;
+}
+
+.pb-tab {
+	background: transparent;
+	border: 1px solid var(--pb-accent);
+	color: var(--pb-accent);
+	border-radius: var(--pb-radius);
+	padding: 0.4rem 1rem;
+	font-style: italic;
+	font-weight: 600;
+	cursor: pointer;
+}
+
+.pb-tab.active {
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+}
+
+.pb-category {
+	scroll-margin-top: 5.5rem;
+	margin-bottom: 1.4rem;
+    border: 1px solid var(--pb-accent);
+    border-radius: var(--pb-radius);
+    box-shadow: var(--pb-shadow);
+	padding-bottom: 1em;
+}
+
+
+.pb-category-header {
+	background: var(--pb-accent);
+    color: var(--pb-accent-contrast);
+    border-radius: 15px 15px 0 0;
+    padding: 0.6rem 1.1rem;
+    font-family: var(--font-brand);
+    font-size: 0.95rem;
+    letter-spacing: 0.03em;
+    margin: 0 0 1em;
+}
+
+.pb-category-count {
+	opacity: 0.85;
+	font-family: var(--font-serif);
+	font-style: italic;
+	font-weight: 400;
+	margin-left: 0.3rem;
+}
+
+.pb-service-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.8rem;
+}
+
+.pb-service-card {
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	border-radius: var(--pb-radius);
+	box-shadow: var(--pb-shadow);
+	padding: 1.1rem 1.3rem;
+	margin:.5em 1em;
+}
+
+.pb-service-top {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	border-bottom: 1px solid var(--pb-accent);
+	padding-bottom: 0.6rem;
+	margin-bottom: 0.6rem;
+}
+
+.pb-service-name {
+	font-weight: 700;
+	font-size: 1.15rem;
+	margin: 0;
+}
+
+/* Icon-only on desktop with hover-reveal label; becomes a labeled pill on touch/mobile. */
+.pb-reservar-btn {
+	flex: none;
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	border: none;
+	border-radius: var(--pb-radius);
+	padding: 0.5rem;
+	cursor: pointer;
+	overflow: hidden;
+	transition: padding 0.18s ease;
+}
+.pb-reservar-btn svg {
+    margin-right: -5px;
+}
+
+.pb-reservar-btn .pb-reservar-label {
+	max-width: 0;
+	overflow: hidden;
+	white-space: nowrap;
+	font-weight: 700;
+	font-style: italic;
+	transition: max-width 0.18s ease;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.pb-reservar-btn:hover .pb-reservar-label {
+		max-width: 140px;
+	}
+
+	.pb-reservar-btn:hover {
+		padding: 0.5rem 0.9rem 0.5rem 0.75rem;
+	}
+}
+
+@media (hover: none), (pointer: coarse) {
+	.pb-reservar-btn {
+		padding: 0.5rem 0.9rem 0.5rem 0.75rem;
+	}
+
+	.pb-reservar-btn .pb-reservar-label {
+		max-width: 140px;
+	}
+}
+
+.pb-service-meta {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 1rem;
+	margin-bottom: 0.4rem;
+}
+
+.pb-service-duration {
+	font-style: italic;
+	color: var(--pb-accent);
+	font-size: 0.92rem;
+}
+
+.pb-service-price {
+	font-weight: 700;
+	color: var(--pb-accent);
+}
+
+.pb-service-desc {
+	margin: 0;
+	color: var(--pb-ink-dim);
+	font-size: 0.95rem;
+	line-height: 1.4;
+}
+
+.pb-empty {
+	color: var(--pb-ink-dim);
+	font-style: italic;
+}
+
+/* Sidebar — sticky, follows scroll until the footer */
+.pb-sidebar {
+	position: sticky;
+	top: 4.6rem;
+	align-self: start;
+	display: flex;
+	flex-direction: column;
+	gap: 1rem;
+}
+
+.pb-sidebar-card {
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-accent);
+	border-radius: var(--pb-radius);
+	box-shadow: var(--pb-shadow);
+	overflow: hidden;
+}
+
+.pb-branch-tabs {
+	display: flex;
+}
+
+.pb-branch-tab {
+	flex: 1;
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	padding: 0.6rem;
+	font-style: italic;
+	font-weight: 600;
+	color: var(--pb-ink-dim);
+	cursor: pointer;
+}
+
+.pb-branch-tab.active {
+	color: var(--pb-accent);
+	border-bottom-color: var(--pb-accent);
+}
+
+.pb-branch-info {
+	padding: 0.9rem 1.1rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.55rem;
+	font-size: 0.92rem;
+}
+
+.pb-branch-info-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.55rem;
+}
+
+.pb-branch-info-row svg {
+	flex: none;
+	margin-top: 0.15rem;
+	color: var(--pb-accent);
+}
+
+.pb-schedule-body {
+	flex: 1;
+	min-width: 0;
+}
+
+.pb-schedule-toggle {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	width: 100%;
+	text-align: left;
+	cursor: pointer;
+}
+
+.pb-schedule-open {
+	color: var(--pb-accent);
+	font-weight: 700;
+}
+
+.pb-schedule-closed {
+	color: var(--pb-ink-dim);
+}
+.pb-schedule-toggle:hover{
+	background-color: white!important;
+	border: 0px solid white!important;
+}
+.pb-schedule-toggle:hover span{
+	text-decoration: underline;
+}
+
+.pb-schedule-chevron {
+	flex: none;
+	transition: transform 0.15s ease;
+	color: var(--pb-ink-dim);
+}
+
+.pb-schedule-chevron.open {
+	transform: rotate(180deg);
+}
+
+.pb-schedule-week {
+	list-style: none;
+	margin: 0.5rem 0 0;
+	padding: 0.5rem 0 0;
+	border-top: 1px solid var(--pb-border);
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+}
+
+.pb-schedule-week li {
+	display: flex;
+	justify-content: space-between;
+	gap: 0.6rem;
+	font-size: 0.85rem;
+	padding: 0.15rem 0.4rem;
+	border-radius: 8px;
+}
+
+.pb-schedule-today {
+	background: color-mix(in srgb, var(--pb-accent) 14%, transparent);
+	color: var(--pb-accent);
+	font-weight: 700;
+}
+
+.pb-map-frame {
+	width: 100%;
+	height: 220px;
+	border: none;
+	display: block;
+}
+
+.pb-map-link {
+	display: block;
+	text-align: center;
+	padding: 0.6rem;
+	color: var(--pb-accent);
+	font-weight: 700;
+	font-size: 0.85rem;
+	text-decoration: none;
+	border-top: 1px solid var(--pb-border);
+}
+
+.pb-map-link:hover {
+	text-decoration: underline;
+}
+
+/* Employee carousel */
+.pb-team {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 0 1.2rem 2.5rem;
+	scroll-margin-top: 5.5rem;
+}
+
+.pb-ig {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 0 1.2rem 2.5rem;
+}
+
+.pb-ig-feed {
+	min-height: 40px;
+}
+
+.pb-team-title {
+	font-family: var(--font-brand);
+	font-size: 1.1rem;
+	margin-bottom: 1rem;
+}
+
+.pb-team-track {
+	display: flex;
+	gap: 1rem;
+	overflow-x: auto;
+	padding-bottom: 0.5rem;
+	scroll-snap-type: x mandatory;
+}
+
+.pb-team-card {
+	position: relative;
+	flex: none;
+	width: 170px;
+	aspect-ratio: 3 / 4;
+	border-radius: var(--pb-radius);
+	overflow: hidden;
+	background: #ddd center/cover no-repeat;
+	scroll-snap-align: start;
+	cursor: pointer;
+}
+
+.pb-team-name-bar {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+	color: #fff;
+	padding: 0.6rem 0.7rem 0.5rem;
+	font-family: var(--font-brand);
+	font-size: 0.85rem;
+}
+
+.pb-team-hours {
+	position: absolute;
+	inset: 0;
+	color: #fff;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	text-align: center;
+	padding: 0.8rem;
+	opacity: 0;
+	transition: opacity 0.18s ease;
+	font-size: 0.82rem;
+	border-radius: 0;
+	border-width: 0;
+}
+
+@media (hover: hover) and (pointer: fine) {
+	.pb-team-card:hover .pb-team-hours {
+		opacity: 1;
+	}
+}
+
+/* Footer — fixed brand green/cream, never tenant-themed */
+.pb-footer {
+	background: var(--pb-footer-bg);
+	color: var(--pb-ink);
+	border-top: 3px solid var(--pb-footer-green);
+	font-family: var(--font-brand);
+}
+
+.pb-footer-inner {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 2rem 1.2rem 1.2rem;
+	display: grid;
+	grid-template-columns: 1.2fr 1fr 1fr 1fr;
+	gap: 1.5rem;
+}
+
+.pb-footer-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--pb-footer-green);
+	font-size: 1.15rem;
+	margin-bottom: 0.4rem;
+}
+
+.pb-footer-tag {
+	font-family: var(--font-serif);
+	font-style: italic;
+	font-size: 0.85rem;
+	color: var(--pb-ink-dim);
+}
+
+.pb-footer-col h4 {
+	color: var(--pb-footer-green);
+	font-size: 0.85rem;
+	margin: 0 0 0.6rem;
+}
+
+.pb-footer-col ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	font-family: var(--font-serif);
+	font-size: 0.92rem;
+}
+
+.pb-footer-bottom {
+	text-align: center;
+	font-size: 0.75rem;
+	color: var(--pb-ink-dim);
+	padding: 0.8rem;
+	border-top: 1px solid rgba(56, 196, 56, 0.25);
+}
+
+/* Reservation modal — fullscreen */
+.pb-modal-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(20, 20, 15, 0.55);
+	z-index: 200;
+	display: flex;
+}
+
+.pb-modal {
+	background: var(--pb-bg);
+	width: 100%;
+	height: 100%;
+	overflow-y: auto;
+	position: relative;
+}
+
+.pb-modal-close {
+	position: sticky;
+	top: 1rem;
+	float: right;
+	margin: 1rem 1.2rem 0 0;
+	width: 40px;
+	height: 40px;
+	border-radius: 50%;
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	color: var(--pb-ink);
+	font-size: 1.3rem;
+	cursor: pointer;
+	z-index: 5;
+}
+
+.pb-modal-inner {
+	max-width: 640px;
+	margin: 0 auto;
+	padding: 1rem 1.4rem 3rem;
+	clear: both;
+}
+
+.pb-stepper {
+	display: flex;
+	list-style: none;
+	gap: 0.4rem;
+	padding: 0;
+	margin: 0 0 1.6rem;
+	font-family: var(--font-brand);
+	font-size: 0.68rem;
+}
+
+.pb-stepper li {
+	flex: 1;
+	text-align: center;
+	padding-bottom: 0.5rem;
+	border-bottom: 3px solid var(--pb-border);
+	color: var(--pb-ink-dim);
+}
+
+.pb-stepper li.pb-step-active {
+	color: var(--pb-accent);
+	border-bottom-color: var(--pb-accent);
+}
+
+.pb-option-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.7rem;
+}
+
+.pb-option-card {
+	text-align: left;
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	border-radius: var(--pb-radius);
+	padding: 0.9rem 1.1rem;
+	cursor: pointer;
+	font-family: var(--font-serif);
+}
+
+.pb-option-card:hover {
+	border-color: var(--pb-accent);
+}
+
+.pb-option-card strong {
+	display: block;
+	font-size: 1.05rem;
+}
+
+.pb-option-text {
+	display: block;
+}
+
+.pb-option-text span {
+	display: block;
+	color: var(--pb-ink-dim);
+	font-size: 0.88rem;
+	margin-top: 0.15rem;
+}
+
+/* Professional-picker variant: a photo column so a returning client who forgot the name can still
+   recognize the face, per the designer's request. */
+.pb-option-card-professional {
+	display: flex;
+	align-items: center;
+	gap: 0.9rem;
+}
+
+.pb-option-photo {
+	flex: none;
+	width: 52px;
+	height: 52px;
+	border-radius: 50%;
+	object-fit: cover;
+}
+
+.pb-option-photo-fallback {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	font-family: var(--font-brand);
+	font-weight: 700;
+	font-size: 1.2rem;
+}
+
+.pb-back-link {
+	background: none;
+	border: none;
+	color: var(--pb-accent);
+	font-style: italic;
+	cursor: pointer;
+	padding: 0;
+	margin-bottom: 1rem;
+	font-size: 0.9rem;
+}
+button.pb-back-link:hover{
+	border: none;
+	color: var(--pb-link);
+}
+
+/* Calendar.jsx is reused as-is from the admin panel — it only carries the global .calendar-*
+   classes (index.css), which are themed for the admin's own dark/light tokens. These overrides
+   repaint it with the public page's own palette instead of leaking the admin theme in here. */
+.pb-root .calendar {
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	border-radius: var(--pb-radius);
+}
+
+.pb-root .calendar-title,
+.pb-root .calendar-day {
+	color: var(--pb-ink);
+}
+
+.pb-root .calendar-header button {
+	color: var(--pb-ink);
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	border-radius: 10px;
+	padding: 0.3rem 0.7rem;
+}
+
+.pb-root .calendar-weekdays {
+	color: var(--pb-ink-dim);
+}
+
+.pb-root .calendar-day:hover:not(:disabled) {
+	border-color: var(--pb-accent);
+	background: color-mix(in srgb, var(--pb-accent) 12%, transparent);
+}
+
+.pb-root .calendar-day:disabled {
+	color: var(--pb-ink-dim);
+}
+
+.pb-root .calendar-day-selected {
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+}
+
+.pb-slot-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+	gap: 0.5rem;
+	margin: 0.8rem 0 1.2rem;
+}
+
+.pb-slot-btn {
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	border-radius: var(--pb-radius);
+	padding: 0.5rem;
+	cursor: pointer;
+	font-family: var(--font-serif);
+}
+
+.pb-slot-btn.selected {
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	border-color: var(--pb-accent);
+}
+
+.pb-form {
+	display: flex;
+	flex-direction: column;
+	gap: 0.9rem;
+}
+
+.pb-form label {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3rem;
+	font-weight: 600;
+}
+
+.pb-form input {
+	font-family: var(--font-serif);
+	padding: 0.6rem 0.8rem;
+	border: 1px solid var(--pb-border);
+	border-radius: 12px;
+	background: var(--pb-surface);
+}
+
+.pb-summary-box {
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	border-radius: var(--pb-radius);
+	padding: 0.9rem 1.1rem;
+	margin-bottom: 1rem;
+}
+
+.pb-cta {
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	border: none;
+	border-radius: var(--pb-radius);
+	padding: 0.7rem 1.4rem;
+	font-weight: 700;
+	font-style: italic;
+	cursor: pointer;
+}
+
+.pb-cta:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.pb-deposit-note {
+	background: #fff4de;
+	border: 1px solid #e8c27a;
+	border-radius: var(--pb-radius);
+	padding: 0.9rem 1.1rem;
+	margin-top: 1rem;
+	font-size: 0.92rem;
+}
+
+.pb-error {
+	background: #fde8e8;
+	color: #a3231f;
+	border-radius: 12px;
+	padding: 0.6rem 0.9rem;
+	margin-bottom: 1rem;
+	font-size: 0.9rem;
+}
+
+/* Responsive: tablet/mobile */
+@media (max-width: 960px) {
+	.pb-layout {
+		grid-template-columns: 1fr;
+	}
+
+	.pb-sidebar {
+		position: static;
+		/* Sucursal/mapa comes before the service catalog on mobile — the user wants "where and
+		   when is it open" answered before scrolling through the menu on a small screen. */
+		order: -1;
+	}
+}
+
+@media (max-width: 640px) {
+	.pb-hero-card {
+		padding: 1.6rem 1.2rem;
+	}
+
+	.pb-footer-inner {
+		grid-template-columns: 1fr;
+	}
+
+	.pb-footer-col {
+		border-top: 1px solid rgba(56, 196, 56, 0.25);
+		padding-top: 0.7rem;
+	}
+
+	.pb-footer-col:first-child {
+		border-top: none;
+		padding-top: 0;
+	}
+
+	.pb-footer-col ul {
+		display: none;
+	}
+
+	.pb-footer-col.open ul {
+		display: flex;
+	}
+
+	.pb-footer-col h4 {
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+}
+
+/* Header search */
+.pb-search {
+	position: relative;
+}
+
+.pb-search-backdrop {
+	position: fixed;
+	inset: 0;
+	z-index: 39;
+}
+
+.pb-search-panel {
+	position: absolute;
+	top: calc(100% + 0.6rem);
+	right: 0;
+	width: min(360px, 90vw);
+	z-index: 40;
+	padding: 0.9rem;
+	color: #fff;
+}
+
+.pb-search-input {
+	width: 100%;
+	background: rgba(255, 255, 255, 0.12);
+	border: 1px solid rgba(255, 255, 255, 0.3);
+	border-radius: 12px;
+	padding: 0.6rem 0.8rem;
+	color: #fff;
+	font-family: var(--font-serif);
+}
+
+.pb-search-input::placeholder {
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.pb-search-results {
+	margin-top: 0.7rem;
+	max-height: 50vh;
+	overflow-y: auto;
+}
+
+.pb-search-empty {
+	font-size: 0.85rem;
+	opacity: 0.8;
+	margin: 0;
+}
+
+.pb-search-group {
+	margin-bottom: 0.6rem;
+}
+
+.pb-search-group-title {
+	font-size: 0.68rem;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	opacity: 0.7;
+	margin: 0 0 0.3rem;
+}
+
+.pb-search-group button {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 0.4rem 0.5rem;
+	border-radius: 8px;
+	color: #fff;
+}
+
+.pb-search-group button:hover {
+	background: rgba(255, 255, 255, 0.14);
+}
+
+/* Light glass variant — used where the panel sits over the light catalog/page background rather
+   than a photo, so a dark .pb-glass fill would read as an odd black box. */
+.pb-glass-light {
+	position: relative;
+	background: rgba(255, 255, 255, 0.72);
+	backdrop-filter: blur(14px) saturate(160%);
+	-webkit-backdrop-filter: blur(14px) saturate(160%);
+	border: 2px solid var(--pb-accent);
+	overflow: hidden;
+	color: var(--pb-ink);
+}
+
+.pb-glass-light::before {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: linear-gradient(-45deg, rgba(255, 255, 255, 0.5) 0%, rgba(255, 255, 255, 0.08) 45%, rgba(255, 255, 255, 0) 60%);
+	pointer-events: none;
+}
+
+/* Side menu */
+.pb-sidemenu-backdrop {
+	position: fixed;
+	inset: 0;
+	background: rgba(20, 20, 15, 0.35);
+	z-index: 50;
+	display: flex;
+}
+
+.pb-sidemenu {
+	position: relative;
+	width: min(320px, 84vw);
+	height: 100%;
+	padding: 3.2rem 1.6rem 1.6rem;
+	display: flex;
+	flex-direction: column;
+	gap: 1.4rem;
+	overflow-y: auto;
+	border-radius: 0;
+	border-width: 0 2px 0 0;
+}
+
+.pb-sidemenu-close {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
+	width: 36px;
+	height: 36px;
+	border-radius: 50%;
+	background: var(--pb-surface);
+	border: 1px solid var(--pb-border);
+	font-size: 1.2rem;
+	cursor: pointer;
+}
+
+.pb-sidemenu-search {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	background: rgba(20, 20, 15, 0.06);
+	border: 1px solid var(--pb-border);
+	border-radius: 12px;
+	padding: 0.5rem 0.7rem;
+	color: var(--pb-ink-dim);
+}
+
+.pb-sidemenu-search input {
+	flex: 1;
+	background: none;
+	border: none;
+	color: var(--pb-ink);
+	font-family: var(--font-serif);
+	font-size: 0.95rem;
+}
+
+.pb-sidemenu-search input:focus-visible {
+	outline: none;
+}
+
+.pb-sidemenu-results {
+	display: flex;
+	flex-direction: column;
+	gap: 0.1rem;
+}
+
+.pb-sidemenu-result {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 0.5rem 0.4rem;
+	border-radius: 8px;
+	font-size: 0.95rem;
+}
+
+.pb-sidemenu-result:hover {
+	background: rgba(20, 20, 15, 0.06);
+	color: var(--pb-accent);
+}
+
+.pb-sidemenu-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.2rem;
+}
+
+.pb-sidemenu-list button {
+	display: block;
+	width: 100%;
+	text-align: left;
+	padding: 0.6rem 0.3rem;
+	font-size: 1.1rem;
+	font-weight: 700;
+	font-style: italic;
+	border-bottom: 1px solid var(--pb-border);
+}
+
+.pb-sidemenu-list button:hover {
+	color: var(--pb-accent);
+}
+
+.pb-sidemenu-reservar {
+	background: var(--pb-accent);
+	color: var(--pb-accent-contrast);
+	border-radius: var(--pb-radius);
+	padding: 0.7rem;
+	font-weight: 700;
+	font-style: italic;
+	text-align: center;
+	cursor: pointer;
+}
+
+.pb-sidemenu-branches {
+	display: flex;
+	flex-direction: column;
+	border-top: 1px solid var(--pb-border);
+	padding-top: 0.8rem;
+}
+
+.pb-sidemenu-branch {
+	padding: 0.7rem 0;
+	border-bottom: 1px solid var(--pb-border);
+}
+
+.pb-sidemenu-branch:last-child {
+	border-bottom: none;
+	padding-bottom: 0;
+}
+
+.pb-sidemenu-branch-name {
+	font-weight: 700;
+	font-style: italic;
+	color: var(--pb-accent);
+	margin: 0 0 0.4rem;
+	font-size: 0.95rem;
+}
+
+.pb-sidemenu-contact-row {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.5rem;
+	font-size: 0.85rem;
+	color: var(--pb-ink-dim);
+	margin-bottom: 0.3rem;
+	text-decoration: none;
+}
+
+.pb-sidemenu-contact-row svg {
+	flex: none;
+	margin-top: 0.1rem;
+	color: var(--pb-accent);
+}
+
+a.pb-sidemenu-contact-row:hover {
+	color: var(--pb-accent);
+}
+
+.pb-sidemenu-social {
+	display: flex;
+	gap: 1rem;
+	margin-top: auto;
+	padding-top: 1rem;
+}
+
+.pb-sidemenu-social a {
+	color: var(--pb-accent);
+}

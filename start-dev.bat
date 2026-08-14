@@ -1,7 +1,7 @@
 @echo off
 cd /d "%~dp0"
 
-set "JAVA_HOME=%USERPROFILE%\.jdks\jdk-25.0.2"
+set "JAVA_HOME=C:\Program Files\Eclipse Adoptium\jdk-21.0.12.8-hotspot"
 
 echo Levantando Postgres y MailHog...
 docker compose up -d
