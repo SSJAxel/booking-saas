@@ -56,7 +56,7 @@ public class AuthService {
 		TenantContext.setTenantId(tenant.getId());
 		try {
 			AppUser owner = appUserService.createOwner(request.ownerEmail(), request.ownerPassword());
-			sendVerificationEmail(tenant, owner);
+			sendVerificationEmail(tenant, owner, request.ownerPassword());
 			notifyFounderOfNewTenant(tenant, owner);
 			return new RegisterResponse(tenant.getId(), tenant.getSlug(), owner.getEmail());
 		} catch (RuntimeException ex) {
@@ -111,7 +111,7 @@ public class AuthService {
 			TenantContext.setTenantId(tenant.getId());
 			try {
 				appUserService.regenerateVerificationToken(request.email())
-						.ifPresent(user -> sendVerificationEmail(tenant, user));
+						.ifPresent(user -> sendVerificationEmail(tenant, user, null));
 			} finally {
 				TenantContext.clear();
 			}
@@ -132,11 +132,22 @@ public class AuthService {
 						+ ".\n\nRevisalo y aprobalo desde el panel de admin cuando esté listo.");
 	}
 
-	private void sendVerificationEmail(Tenant tenant, AppUser owner) {
+	/**
+	 * {@code rawPassword} is only ever non-null on the very first send, straight out of the
+	 * register() request body — this is the one and only place in the app the plaintext password
+	 * still exists after AppUserService.createOwner hashes it. Never passed on a resend
+	 * (see resendVerification): showing the password again on a later resend would imply it's
+	 * still retrievable, which it isn't.
+	 */
+	private void sendVerificationEmail(Tenant tenant, AppUser owner, String rawPassword) {
 		String link = verificationBaseUrl + "?tenant=" + tenant.getSlug() + "&token=" + owner.getVerificationToken();
+		String credentialsBlock = rawPassword == null ? "" : "\n\nTus credenciales de acceso "
+				+ "(este es el único mail que las va a mostrar, guardalas en un lugar seguro):\n"
+				+ "Negocio: " + tenant.getSlug() + "\nEmail: " + owner.getEmail() + "\nContraseña: " + rawPassword
+				+ "\n";
 		mailService.send(owner.getEmail(), "Confirm your email",
 				"Hi,\n\nConfirm your email to activate " + tenant.getName() + " on booking-saas:\n" + link
-						+ "\n\nThis link expires in 24 hours.");
+						+ "\n\nThis link expires in 24 hours." + credentialsBlock);
 	}
 
 	private AuthResponse authResponse(Tenant tenant, AppUser user) {
