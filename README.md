@@ -11,11 +11,58 @@ The two hardest correctness properties of this domain (never double-booking a pr
 leaking one tenant's data to another) are enforced structurally rather than just in application
 code — see [Design notes](#design-notes) below.
 
+## Pendiente para Axel (diseño de la página pública)
+
+Lista viva de lo que el rediseño de `/reservar/:tenantSlug` necesita del backend y todavía no
+existe. Se actualiza cada vez que se sube trabajo de diseño nuevo — tachar/borrar el ítem acá
+cuando se resuelva, no dejarlo dando vueltas en el chat.
+
+- [ ] **`ServiceOffering.featured`** (boolean, default `false`) — sección "Destacados" en el
+  catálogo público. Migración tipo `ALTER TABLE service_offerings ADD COLUMN featured BOOLEAN NOT
+  NULL DEFAULT false;`, sumarlo a `ServiceOfferingRequest`/`UpdateRequest`/`Response` y a
+  `PublicServiceResponse`, checkbox "Destacado" en `ServicesPage.jsx`.
+- [ ] **`Branch.googleBusinessUrl`** (string, opcional) — botón "Ver perfil de Google" en vez de la
+  búsqueda genérica de Maps. Columna en `branches` + `BranchResponse`/`PublicBranchResponse` +
+  campo de texto en el form de sucursal.
+- [ ] **`Tenant.instagramUrl` / `Tenant.facebookUrl`** (string, opcionales) — íconos de redes en el
+  menú lateral. Dos columnas en `tenants` + `PublicTenantResponse` + `BrandingUpdateRequest`/
+  `TenantResponse`, dos inputs en "Mi negocio".
+- [ ] **`Tenant.instagramFeedUrl`** (string, opcional) — URL del script del proveedor de carrusel
+  de Instagram que el dueño elija (Trustindex/SnapWidget/Elfsight/etc.), para el bloque debajo de
+  "Equipo". Misma mecánica que los dos puntos anteriores.
+- [ ] **Horario semanal público de un profesional** (no solo `bio`) — que el hover del carrusel de
+  equipo muestre el horario real en vez de la bio. Necesita un endpoint nuevo, algo como
+  `GET /api/public/{slug}/professionals/{id}/availability-summary`.
+- [ ] **`timezone` en `PublicTenantResponse`** — ya existe en `Tenant`, solo falta exponerlo. Hoy el
+  widget de "Abierto/Cerrado" asume que el huso horario del visitante coincide con el del negocio
+  (usa la hora del navegador).
+
 ## Registro de cambios
 
 Bitácora de qué se hizo y por qué, para tener noción del avance sin tener que leer el `git log`
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
+
+### 2026-08-13 — Rediseño de la página pública de reserva
+
+- **Catálogo en vez de wizard.** `/reservar/:tenantSlug` pasa de un formulario paso a paso a una
+  landing tipo vidriera: header sticky, hero con banner/logo del tenant, categorías de servicios
+  (`service.category`) con tabs de scroll-to-anchor, sidebar sticky de sucursal (horario
+  abierto/cerrado calculado en el momento, mapa de Google, teléfono), carrusel de equipo, y footer
+  de marca fijo (no toma el color del tenant, a propósito).
+- **Modal de reserva fullscreen en dos sentidos.** Se abre desde una card de servicio (pide
+  profesional → fecha/hora → datos) o desde una card de profesional en el carrusel de equipo (pide
+  servicio → fecha/hora → datos, filtrado a los servicios que ese profesional realmente ofrece).
+- **Menú lateral y buscador**, ambos nuevos: el menú (`SideMenu.jsx`) desliza desde la izquierda con
+  efecto vidrio, categorías, "Equipo", botón Reservar y contacto (WhatsApp + dirección) de cada
+  sucursal; el buscador (`HeaderSearch.jsx`) filtra categorías/servicios/profesionales y salta a la
+  sección correspondiente.
+- **Componentes nuevos**: `BranchSchedule.jsx` (estado abierto/cerrado + semana desplegable),
+  `TeamCarousel.jsx`, `ReservationModal.jsx`, `HeaderSearch.jsx`, `SideMenu.jsx`,
+  `InstagramFeed.jsx` (embebe el script de un proveedor tipo Trustindex, inactivo hasta que exista
+  `tenant.instagramFeedUrl` — ver "Pendiente para Axel" arriba).
+- Ver la sección **Pendiente para Axel** arriba para lo que este rediseño necesita del backend y
+  todavía no existe.
 
 ### 2026-08-13 — Dos formas de armar la disponibilidad: patrón semanal recurrente o fechas puntuales
 
