@@ -1,28 +1,56 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
 import { api, resolveMediaUrl } from "../api.js";
-import Calendar from "../components/Calendar.jsx";
+import ReservationModal from "../components/ReservationModal.jsx";
+import TeamCarousel from "../components/TeamCarousel.jsx";
+import BranchSchedule from "../components/BranchSchedule.jsx";
+import HeaderSearch from "../components/HeaderSearch.jsx";
+import SideMenu from "../components/SideMenu.jsx";
+import InstagramFeed from "../components/InstagramFeed.jsx";
+import "./BookingPage.css";
 
-const STEP_LABELS = {
-	service: "Servicio",
-	professional: "Profesional",
-	datetime: "Fecha y hora",
-	details: "Tus datos",
-};
+const CalendarIcon = () => (
+	<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+		<rect x="3" y="4" width="18" height="18" rx="3" />
+		<path d="M16 2v4M8 2v4M3 10h18" />
+	</svg>
+);
 
-const DAY_LABELS = {
-	MONDAY: "Lun",
-	TUESDAY: "Mar",
-	WEDNESDAY: "Mié",
-	THURSDAY: "Jue",
-	FRIDAY: "Vie",
-	SATURDAY: "Sáb",
-	SUNDAY: "Dom",
-};
+const PinIcon = () => (
+	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+		<path d="M12 21s7-6.6 7-12a7 7 0 1 0-14 0c0 5.4 7 12 7 12Z" />
+		<circle cx="12" cy="9" r="2.5" />
+	</svg>
+);
 
-function formatDateDisplay(dateKey) {
-	const [y, m, d] = dateKey.split("-").map(Number);
-	return new Date(y, m - 1, d).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+const PhoneIcon = () => (
+	<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+		<path d="M4 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L14 13l5 2v4a2 2 0 0 1-2 2C9.6 21 3 14.4 3 6a2 2 0 0 1 1-2Z" />
+	</svg>
+);
+
+/** Groups services by `service.category` — null/unset falls into a single "Servicios" bucket.
+ * Services flagged `service.featured` also appear a second time, up front, in a synthetic
+ * "Destacados" group (the featured flag doesn't exist on ServiceOffering yet — see the request to
+ * Axel — so `s.featured` is always falsy today and this group simply never renders until it does). */
+function groupByCategory(services) {
+	const groups = new Map();
+	const featured = services.filter((s) => s.featured);
+	if (featured.length > 0) groups.set("Destacados", featured);
+	for (const s of services) {
+		const key = s.category || "Servicios";
+		if (!groups.has(key)) groups.set(key, []);
+		groups.get(key).push(s);
+	}
+	return Array.from(groups.entries()).map(([name, items]) => ({ name, items }));
+}
+
+function slugify(name) {
+	return name
+		.toLowerCase()
+		.normalize("NFD")
+		.replace(/[̀-ͯ]/g, "")
+		.replace(/[^a-z0-9]+/g, "-");
 }
 
 export default function BookingPage() {
@@ -30,27 +58,16 @@ export default function BookingPage() {
 
 	const [tenant, setTenant] = useState(null);
 	const [branches, setBranches] = useState([]);
-	const [services, setServices] = useState([]);
-	const [professionals, setProfessionals] = useState([]);
-	const [slots, setSlots] = useState([]);
-
 	const [branch, setBranch] = useState(null);
-	const [service, setService] = useState(null);
-	const [professional, setProfessional] = useState(null);
-	const [date, setDate] = useState(null);
-	const [slot, setSlot] = useState(null);
-	const [appointment, setAppointment] = useState(null);
+	const [services, setServices] = useState([]);
+	const [teamProfessionals, setTeamProfessionals] = useState([]);
 
-	const [step, setStep] = useState("service");
 	const [initializing, setInitializing] = useState(true);
-	const [loading, setLoading] = useState(false);
-	const [slotsLoading, setSlotsLoading] = useState(false);
 	const [error, setError] = useState("");
-	// Bumped on every availability fetch so a slow response for a professional/date the client has
-	// since navigated away from can't land after a newer one and silently overwrite it — without
-	// this, picking Emanuel's date then quickly switching to Lautaro can leave Lautaro's slot grid
-	// showing Emanuel's busy times if Emanuel's request happens to resolve second.
-	const slotsRequestRef = useRef(0);
+	const [footerOpen, setFooterOpen] = useState({});
+	const [bookingService, setBookingService] = useState(null);
+	const [bookingProfessional, setBookingProfessional] = useState(null);
+	const [menuOpen, setMenuOpen] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -63,13 +80,12 @@ export default function BookingPage() {
 				if (cancelled) return;
 				setTenant(tenantData);
 				setBranches(branchList);
-				if (branchList.length > 1) {
-					setStep("branch");
-				} else {
-					const onlyBranch = branchList[0] ?? null;
-					setBranch(onlyBranch);
-					setServices(await api.public.services(tenantSlug, onlyBranch?.id));
-				}
+				const firstBranch = branchList[0] ?? null;
+				setBranch(firstBranch);
+				const serviceList = await api.public.services(tenantSlug, firstBranch?.id);
+				if (cancelled) return;
+				setServices(serviceList);
+				await loadTeam(serviceList, firstBranch, () => cancelled);
 			} catch (err) {
 				if (!cancelled) setError(err.message);
 			} finally {
@@ -82,319 +98,289 @@ export default function BookingPage() {
 		};
 	}, [tenantSlug]);
 
+	// Stand-in for a public "all professionals for a branch" endpoint, which doesn't exist yet —
+	// /professionals requires a serviceId. Fetches every service's staff in parallel and merges by
+	// id, so a professional only assigned to, say, the branch's 2nd service still shows up (a
+	// single-service fetch was missing anyone not on that one service — e.g. Jacinto, assigned only
+	// to "Lavado de barba", never appeared while the teaser only asked about "Corte de Barba").
+	// Scoped to `forBranch` (not the `branch` state, which may not have updated yet by the time
+	// this runs) so switching branches doesn't leave the previous branch's staff showing.
+	async function loadTeam(serviceList, forBranch, isCancelled) {
+		if (serviceList.length === 0) {
+			setTeamProfessionals([]);
+			return;
+		}
+		const results = await Promise.all(
+			serviceList.map((s) => api.public.professionals(tenantSlug, s.id, forBranch?.id)),
+		);
+		if (isCancelled()) return;
+		const byId = new Map();
+		for (const staff of results) {
+			for (const p of staff) byId.set(p.id, p);
+		}
+		setTeamProfessionals(
+			Array.from(byId.values()).map((p) => ({ ...p, photoUrl: resolveMediaUrl(p.photoUrl) })),
+		);
+	}
+
 	async function handlePickBranch(b) {
 		setBranch(b);
-		setError("");
-		setLoading(true);
 		try {
-			setServices(await api.public.services(tenantSlug, b.id));
-			setStep("service");
+			const serviceList = await api.public.services(tenantSlug, b.id);
+			setServices(serviceList);
+			await loadTeam(serviceList, b, () => false);
 		} catch (err) {
 			setError(err.message);
-		} finally {
-			setLoading(false);
 		}
 	}
 
-	async function handlePickService(s) {
-		setService(s);
-		setError("");
-		setLoading(true);
-		try {
-			setProfessionals(await api.public.professionals(tenantSlug, s.id, branch?.id));
-			setStep("professional");
-		} catch (err) {
-			setError(err.message);
-		} finally {
-			setLoading(false);
-		}
+	const categories = useMemo(() => groupByCategory(services), [services]);
+
+	function scrollToCategory(name) {
+		const el = document.getElementById(`pb-cat-${slugify(name)}`);
+		if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 	}
 
-	function handlePickProfessional(p) {
-		setProfessional(p);
-		setDate(null);
-		setSlot(null);
-		setSlots([]);
-		setStep("datetime");
-	}
-
-	async function handlePickDate(dateKey) {
-		setDate(dateKey);
-		setSlot(null);
-		setSlots([]);
-		setSlotsLoading(true);
-		setError("");
-		const requestId = ++slotsRequestRef.current;
-		try {
-			const result = await api.public.availability(tenantSlug, professional.id, service.id, dateKey);
-			if (requestId !== slotsRequestRef.current) return; // a newer pick has since fired — discard
-			setSlots(result);
-		} catch (err) {
-			if (requestId !== slotsRequestRef.current) return;
-			setError(err.message);
-		} finally {
-			if (requestId === slotsRequestRef.current) setSlotsLoading(false);
-		}
-	}
-
-	async function handleSubmit(event) {
-		event.preventDefault();
-		setError("");
-		setLoading(true);
-		const form = new FormData(event.target);
-		try {
-			const result = await api.public.book(tenantSlug, {
-				professionalId: professional.id,
-				serviceId: service.id,
-				date,
-				startTime: slot.start,
-				clientName: form.get("clientName"),
-				clientEmail: form.get("clientEmail"),
-				clientPhone: form.get("clientPhone") || undefined,
-				clientInstagram: form.get("clientInstagram") || undefined,
-			});
-			setAppointment(result);
-			setStep("done");
-		} catch (err) {
-			setError(err.message);
-		} finally {
-			setLoading(false);
-		}
+	function toggleFooterCol(key) {
+		setFooterOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 	}
 
 	if (initializing) {
 		return (
-			<div className="booking-page">
-				<p className="muted">Cargando...</p>
+			<div className="pb-root">
+				<p className="pb-loading">Cargando...</p>
 			</div>
 		);
 	}
 
 	if (!tenant) {
 		return (
-			<div className="booking-page">
-				<p className="error">{error || "No pudimos cargar este negocio."}</p>
+			<div className="pb-root">
+				<p className="pb-fatal-error">{error || "No pudimos cargar este negocio."}</p>
 			</div>
 		);
 	}
 
+	const accentStyle = tenant.accentColor ? { "--pb-accent": tenant.accentColor } : undefined;
+
 	return (
-		<div className="booking-page" style={tenant.accentColor ? { "--accent": tenant.accentColor } : undefined}>
-			<div className="booking-card">
-				<header className="booking-header">
-					{tenant.bannerUrl ? (
-						<img
-							src={resolveMediaUrl(tenant.bannerUrl)}
-							alt=""
-							style={{ width: "100%", maxHeight: "160px", objectFit: "cover", borderRadius: "8px" }}
-						/>
-					) : null}
+		<div className="pb-root" style={accentStyle}>
+			<header className="pb-header">
+				<div className="pb-header-brand">
 					{tenant.logoUrl ? (
-						<img src={resolveMediaUrl(tenant.logoUrl)} alt={tenant.name} className="booking-logo" />
-					) : null}
-					<h1>{tenant.name}</h1>
-					{tenant.tagline && <p className="muted">{tenant.tagline}</p>}
-					{branch && (branch.phone || branch.hours?.length > 0) && (
-						<p className="muted" style={{ fontSize: "0.85rem" }}>
-							{branch.phone && <span>📞 {branch.phone}</span>}
-							{branch.phone && branch.hours?.length > 0 && " · "}
-							{branch.hours?.length > 0 &&
-								branch.hours
-									.map((h) => `${DAY_LABELS[h.dayOfWeek]} ${h.startTime.slice(0, 5)}–${h.endTime.slice(0, 5)}`)
-									.join(", ")}
-						</p>
+						<img src={resolveMediaUrl(tenant.logoUrl)} alt={tenant.name} className="pb-header-logo" />
+					) : (
+						<span className="pb-header-logo-fallback">{tenant.name?.[0] ?? "?"}</span>
 					)}
-				</header>
+					<span className="pb-header-name">{tenant.name}</span>
+				</div>
+				<div className="pb-header-actions">
+					<HeaderSearch categories={categories} services={services} professionals={teamProfessionals} />
+					<button type="button" className="pb-header-icon-btn" aria-label="Menú" onClick={() => setMenuOpen(true)}>
+						☰
+					</button>
+					<button type="button" className="pb-header-reservar" onClick={() => services[0] && setBookingService(services[0])}>
+						<CalendarIcon />
+						<span className="pb-header-reservar-label">RESERVAR</span>
+					</button>
+				</div>
+			</header>
 
-				{step !== "done" && (
-					<ol className="stepper">
-						{Object.entries(STEP_LABELS).map(([key, label]) => (
-							<li key={key} className={step === key ? "stepper-active" : ""}>
-								{label}
-							</li>
-						))}
-					</ol>
-				)}
+			<SideMenu
+				open={menuOpen}
+				onClose={() => setMenuOpen(false)}
+				categories={categories}
+				services={services}
+				professionals={teamProfessionals}
+				branches={branches}
+				tenant={tenant}
+				onReservar={() => services[0] && setBookingService(services[0])}
+			/>
 
-				{error && <p className="error">{error}</p>}
-
-				{step === "branch" && (
-					<div className="booking-options">
-						{branches.map((b) => (
-							<button key={b.id} type="button" className="booking-option" onClick={() => handlePickBranch(b)}>
-								<strong>{b.name}</strong>
-								{b.address && <span className="muted">{b.address}</span>}
-								{b.phone && <span className="muted">📞 {b.phone}</span>}
-							</button>
-						))}
+			<section
+				className="pb-hero"
+				style={tenant.bannerUrl ? { backgroundImage: `url(${resolveMediaUrl(tenant.bannerUrl)})` } : undefined}
+			>
+				<div className="pb-hero-card pb-glass">
+					{tenant.logoUrl && <img src={resolveMediaUrl(tenant.logoUrl)} alt="" className="pb-hero-logo" />}
+					<h1 className="pb-hero-name">{tenant.name}</h1>
+					{tenant.tagline && <p className="pb-hero-tagline">{tenant.tagline}</p>}
+					<div className="pb-hero-actions">
+						<button type="button" className="pb-hero-btn-outline" onClick={() => scrollToCategory(categories[0]?.name ?? "Servicios")}>
+							SERVICIOS
+						</button>
+						<button
+							type="button"
+							className="pb-hero-btn-solid"
+							onClick={() => services[0] && setBookingService(services[0])}
+						>
+							RESERVAR
+						</button>
 					</div>
-				)}
+				</div>
+			</section>
 
-				{step === "service" && (
-					<div className="booking-options">
-						{services.length === 0 && <p className="muted">No hay servicios disponibles.</p>}
-						{Object.entries(
-							services.reduce((groups, s) => {
-								const key = s.category || "Servicios";
-								(groups[key] ??= []).push(s);
-								return groups;
-							}, {}),
-						).map(([category, categoryServices]) => (
-							<div key={category} className="booking-category-group">
-								{category !== "Servicios" && <p className="label">{category}</p>}
-								{categoryServices.map((s) => (
-									<button key={s.id} type="button" className="booking-option" onClick={() => handlePickService(s)}>
-										<strong>{s.name}</strong>
-										<span className="muted">
-											{s.durationMinutes} min · ${Number(s.price).toLocaleString("es-AR")}
-										</span>
-										{s.depositAmount && (
-											<span className="muted">
-												Requiere seña de ${Number(s.depositAmount).toLocaleString("es-AR")}
-											</span>
-										)}
-										{s.description && <span className="muted">{s.description}</span>}
+			<div className="pb-layout">
+				<main className="pb-catalog">
+					{categories.length > 1 && (
+						<nav className="pb-tabs">
+							{categories.map((c) => (
+								<button key={c.name} type="button" className="pb-tab" onClick={() => scrollToCategory(c.name)}>
+									{c.name}
+								</button>
+							))}
+						</nav>
+					)}
+
+					{error && <p className="pb-error">{error}</p>}
+
+					{services.length === 0 && <p className="pb-empty">No hay servicios disponibles.</p>}
+
+					{categories.map((cat) => (
+						<section key={cat.name} id={`pb-cat-${slugify(cat.name)}`} className="pb-category">
+							<h2 className="pb-category-header">
+								{cat.name.toUpperCase()}
+								<span className="pb-category-count">({cat.items.length})</span>
+							</h2>
+							<div className="pb-service-list">
+								{cat.items.map((s) => (
+									<article key={s.id} id={`pb-service-${s.id}`} className="pb-service-card">
+										<div className="pb-service-top">
+											<h3 className="pb-service-name">{s.name}</h3>
+											<button
+												type="button"
+												className="pb-reservar-btn"
+												onClick={() => setBookingService(s)}
+												aria-label={`Reservar ${s.name}`}
+											>
+												<CalendarIcon />
+												<span className="pb-reservar-label">RESERVAR</span>
+											</button>
+										</div>
+										<div className="pb-service-meta">
+											<span className="pb-service-duration">{s.durationMinutes} min</span>
+											<span className="pb-service-price">${Number(s.price).toLocaleString("es-AR")}</span>
+										</div>
+										{s.description && <p className="pb-service-desc">{s.description}</p>}
+									</article>
+								))}
+							</div>
+						</section>
+					))}
+				</main>
+
+				<aside className="pb-sidebar">
+					<div className="pb-sidebar-card">
+						{branches.length > 1 && (
+							<div className="pb-branch-tabs">
+								{branches.map((b) => (
+									<button
+										key={b.id}
+										type="button"
+										className={`pb-branch-tab${branch?.id === b.id ? " active" : ""}`}
+										onClick={() => handlePickBranch(b)}
+									>
+										{b.name}
 									</button>
 								))}
 							</div>
-						))}
-					</div>
-				)}
-
-				{step === "professional" && (
-					<div className="booking-options">
-						<button type="button" className="link-button" onClick={() => setStep("service")}>
-							‹ Elegir otro servicio
-						</button>
-						{professionals.length === 0 && (
-							<p className="muted">No hay profesionales disponibles para este servicio.</p>
 						)}
-						{professionals.map((p) => (
-							<button
-								key={p.id}
-								type="button"
-								className="booking-option"
-								onClick={() => handlePickProfessional(p)}
-							>
-								{p.photoUrl && (
-									<img
-										src={resolveMediaUrl(p.photoUrl)}
-										alt={p.displayName}
-										style={{ width: "48px", height: "48px", borderRadius: "50%", objectFit: "cover" }}
-									/>
+						{branch && (
+							<div className="pb-branch-info">
+								{branch.address && (
+									<div className="pb-branch-info-row">
+										<PinIcon />
+										<span>{branch.address}</span>
+									</div>
 								)}
-								<strong>{p.displayName}</strong>
-								{p.bio && <span className="muted">{p.bio}</span>}
-							</button>
-						))}
-					</div>
-				)}
-
-				{step === "datetime" && (
-					<div className="booking-datetime">
-						<button type="button" className="link-button" onClick={() => setStep("professional")}>
-							‹ Elegir otro profesional
-						</button>
-						<Calendar selected={date} onSelect={handlePickDate} />
-						<div className="slot-panel">
-							<p className="label">Horarios disponibles</p>
-							{!date && <p className="muted">Elegí un día en el calendario.</p>}
-							{date && slotsLoading && <p className="muted">Buscando horarios...</p>}
-							{date && !slotsLoading && slots.length === 0 && (
-								<p className="muted">No hay horarios disponibles ese día. Probá con otra fecha.</p>
-							)}
-							{date && !slotsLoading && slots.length > 0 && (
-								<div className="slot-grid">
-									{slots.map((s) => (
-										<button
-											key={s.start}
-											type="button"
-											className={`slot-button${slot?.start === s.start ? " slot-button-selected" : ""}`}
-											onClick={() => setSlot(s)}
-										>
-											{s.start.slice(0, 5)}
-										</button>
-									))}
-								</div>
-							)}
-							{slot && (
-								<button type="button" onClick={() => setStep("details")}>
-									Continuar con {slot.start.slice(0, 5)}
-								</button>
-							)}
-						</div>
-					</div>
-				)}
-
-				{step === "details" && (
-					<form onSubmit={handleSubmit} className="booking-details">
-						<button type="button" className="link-button" onClick={() => setStep("datetime")}>
-							‹ Elegir otro horario
-						</button>
-						<div className="card booking-summary">
-							<p>
-								<strong>{service.name}</strong> con {professional.displayName}
-							</p>
-							<p className="muted">
-								{formatDateDisplay(date)} a las {slot.start.slice(0, 5)}
-							</p>
-						</div>
-						<label>
-							Nombre y apellido
-							<input name="clientName" required />
-						</label>
-						<label>
-							Email
-							<input name="clientEmail" type="email" required />
-						</label>
-						<label>
-							Teléfono (opcional)
-							<input name="clientPhone" type="tel" />
-						</label>
-						<label>
-							Instagram (opcional)
-							<input name="clientInstagram" placeholder="@usuario" />
-						</label>
-						<button type="submit" disabled={loading}>
-							{loading ? "Reservando..." : "Confirmar turno"}
-						</button>
-					</form>
-				)}
-
-				{step === "done" && appointment && (
-					<div className="booking-done">
-						<p className="notice">¡Turno reservado!</p>
-						<div className="card booking-summary">
-							<p>
-								<strong>{service.name}</strong> con {professional.displayName}
-							</p>
-							<p className="muted">
-								{formatDateDisplay(date)} a las {slot.start.slice(0, 5)}
-							</p>
-							<p className="muted">Te enviamos la confirmación a tu email.</p>
-						</div>
-						{appointment.paymentStatus === "PENDING" && (
-							<div className="card deposit-instructions">
-								<p>
-									<strong>Este turno todavía no está confirmado.</strong> Requiere una seña de $
-									{Number(service.depositAmount).toLocaleString("es-AR")} para confirmarse.
-								</p>
-								{tenant.transferAlias ? (
-									<p>
-										Transferí ese monto al alias <strong>{tenant.transferAlias}</strong>. Apenas el negocio vea el
-										pago, tu turno queda confirmado.
-									</p>
-								) : (
-									<p className="muted">
-										Este negocio todavía no cargó un alias de transferencia — va a contactarte para coordinar la
-										seña.
-									</p>
+								{branch.phone && (
+									<div className="pb-branch-info-row">
+										<PhoneIcon />
+										<span>{branch.phone}</span>
+									</div>
 								)}
+								<BranchSchedule hours={branch.hours} />
 							</div>
 						)}
+						{branch?.address && (
+							<>
+								<iframe
+									className="pb-map-frame"
+									src={`https://www.google.com/maps?q=${encodeURIComponent(branch.address)}&output=embed`}
+									title="Mapa"
+									loading="lazy"
+								/>
+								<a
+									className="pb-map-link"
+									href={
+										branch.googleBusinessUrl ||
+										`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(branch.address)}`
+									}
+									target="_blank"
+									rel="noopener noreferrer"
+								>
+									{branch.googleBusinessUrl ? "Ver perfil de Google" : "Cómo llegar"}
+								</a>
+							</>
+						)}
 					</div>
-				)}
+				</aside>
 			</div>
+
+			<TeamCarousel professionals={teamProfessionals} onSelect={setBookingProfessional} />
+
+			<InstagramFeed scriptSrc={tenant.instagramFeedUrl} />
+
+			<footer className="pb-footer">
+				<div className="pb-footer-inner">
+					<div className="pb-footer-col">
+						<div className="pb-footer-brand">CapiBooking</div>
+						<p className="pb-footer-tag">Tu marca, tu estilo, todo en un solo lugar.</p>
+					</div>
+					<div className={`pb-footer-col${footerOpen.info ? " open" : ""}`}>
+						<h4 onClick={() => toggleFooterCol("info")}>Información</h4>
+						<ul>
+							<li>Política de privacidad</li>
+							<li>Condiciones del servicio</li>
+							<li>Condiciones de uso</li>
+							<li>Mapa del sitio</li>
+						</ul>
+					</div>
+					<div className={`pb-footer-col${footerOpen.ayudas ? " open" : ""}`}>
+						<h4 onClick={() => toggleFooterCol("ayudas")}>Ayudas</h4>
+						<ul>
+							<li>Soporte</li>
+							<li>Planes y precios</li>
+							<li>Preguntas frecuentes y ayuda</li>
+							<li>Manual de uso</li>
+						</ul>
+					</div>
+					<div className={`pb-footer-col${footerOpen.mas ? " open" : ""}`}>
+						<h4 onClick={() => toggleFooterCol("mas")}>Más servicios</h4>
+						<ul>
+							<li>CapiSpa</li>
+							<li>CapiInk</li>
+							<li>CapiNails</li>
+							<li>Ver todos</li>
+						</ul>
+					</div>
+				</div>
+				<div className="pb-footer-bottom">© {new Date().getFullYear()} CapiBooking — todos los derechos reservados</div>
+			</footer>
+
+			{(bookingService || bookingProfessional) && (
+				<ReservationModal
+					tenant={tenant}
+					tenantSlug={tenantSlug}
+					branch={branch}
+					service={bookingService}
+					professional={bookingProfessional}
+					onClose={() => {
+						setBookingService(null);
+						setBookingProfessional(null);
+					}}
+				/>
+			)}
 		</div>
 	);
 }
