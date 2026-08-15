@@ -65,6 +65,10 @@ public class SubscriptionService {
 			throw new BadRequestException(requestedTier + " doesn't have a price set yet — not available to subscribe to");
 		}
 		Tenant tenant = tenantService.findById(tenantId);
+		// Starting a real checkout is a deliberate re-entry into MercadoPago-tracked billing, so a
+		// founder-granted manual override (see Tenant#planManuallySet) no longer applies — future
+		// webhooks for this new subscription should resume having their normal effect.
+		tenant.setPlanManuallySet(false);
 		AppUser owner = appUserRepository.findFirstByRole(Role.OWNER)
 				.orElseThrow(() -> new NotFoundException("No owner found for tenant: " + tenantId));
 

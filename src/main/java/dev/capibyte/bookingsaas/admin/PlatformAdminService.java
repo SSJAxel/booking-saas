@@ -94,6 +94,7 @@ public class PlatformAdminService {
 	public AdminTenantSummaryResponse updateTenantPlan(UUID tenantId, PlanTier planTier) {
 		Tenant tenant = findTenant(tenantId);
 		tenant.setPlanTier(planTier);
+		tenant.setPlanManuallySet(true);
 		return toSummary(tenant, platformAdminRepository.findLatestSubscriptionStatus(tenantId).orElse(null),
 				platformAdminRepository.countProfessionalsForTenant(tenantId));
 	}
@@ -293,8 +294,9 @@ public class PlatformAdminService {
 		LocalDate dueDate = tenant.getNextPaymentDueAt();
 		Long daysRemaining = dueDate == null ? null : ChronoUnit.DAYS.between(LocalDate.now(), dueDate);
 		return new AdminTenantSummaryResponse(tenant.getId(), tenant.getName(), tenant.getSlug(),
-				tenant.getStatus(), tenant.getPlanTier(), subscriptionStatus, dueDate, daysRemaining,
-				professionalCount, tenant.getCustomMonthlyPrice(), planPricingService.effectivePrice(tenant),
-				tenant.getProfessionalLimitOverride(), tenant.getEffectiveProfessionalLimit());
+				tenant.getStatus(), tenant.getPlanTier(), tenant.isPlanManuallySet(), subscriptionStatus, dueDate,
+				daysRemaining, professionalCount, tenant.getCustomMonthlyPrice(),
+				planPricingService.effectivePrice(tenant), tenant.getProfessionalLimitOverride(),
+				tenant.getEffectiveProfessionalLimit());
 	}
 }
