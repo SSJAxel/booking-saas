@@ -48,6 +48,42 @@ class TenantBrandingFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void rejectsAJavascriptSchemeOnSocialAndFeedUrls() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+
+		ResponseEntity<Map> instagram = restTemplate.exchange("/api/tenant/branding", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("instagramUrl", "javascript:alert(document.cookie)"), headers), Map.class);
+		assertThat(instagram.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+		ResponseEntity<Map> facebook = restTemplate.exchange("/api/tenant/branding", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("facebookUrl", "javascript:alert(document.cookie)"), headers), Map.class);
+		assertThat(facebook.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+		ResponseEntity<Map> feed = restTemplate.exchange("/api/tenant/branding", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("instagramFeedUrl", "javascript:alert(document.cookie)"), headers), Map.class);
+		assertThat(feed.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
+	void acceptsHttpsSocialAndFeedUrls() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders headers = authHeaders(tenant.token());
+
+		ResponseEntity<Map> response = restTemplate.exchange("/api/tenant/branding", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of(
+						"instagramUrl", "https://instagram.com/mystudio",
+						"facebookUrl", "https://facebook.com/mystudio",
+						"instagramFeedUrl", "https://cdn.trustindex.io/widget.js"), headers),
+				Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(response.getBody().get("instagramUrl")).isEqualTo("https://instagram.com/mystudio");
+		assertThat(response.getBody().get("facebookUrl")).isEqualTo("https://facebook.com/mystudio");
+		assertThat(response.getBody().get("instagramFeedUrl")).isEqualTo("https://cdn.trustindex.io/widget.js");
+	}
+
+	@Test
 	void unbrandedTenantHasNullBrandingFields() {
 		String slug = "unbranded-" + UUID.randomUUID().toString().substring(0, 8);
 		restTemplate.postForEntity("/api/auth/register", Map.of(
