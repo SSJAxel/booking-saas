@@ -75,6 +75,11 @@ public class AppointmentService {
 		ZoneId zone = ZoneId.of(tenant.getTimezone());
 		LocalDate localDate = startTime.atZone(zone).toLocalDate();
 		if (tier.getMaxAppointmentsPerWeek() != null) {
+			// Locks the tenant row for the rest of this transaction so two concurrent bookings can't
+			// both read the same stale weekly count and both squeak in past the cap — see
+			// TenantService#findByIdForUpdate. Scoped to this block (not the tenant fetch above,
+			// shared by every booking regardless of tier) since only PERSONAL ever reaches here.
+			tenantService.findByIdForUpdate(tenant.getId());
 			// minusDays sobre getDayOfWeek().getValue() en vez de LocalDate.with(DayOfWeek.MONDAY):
 			// inequívoco, no depende de la semántica de TemporalAdjuster de DayOfWeek.
 			LocalDate weekStart = localDate.minusDays(localDate.getDayOfWeek().getValue() - 1L);

@@ -23,7 +23,7 @@ public class ProfessionalService {
 
 	@Transactional
 	public Professional create(UUID branchId, String displayName, String bio, String photoUrl) {
-		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+		Tenant tenant = tenantService.findByIdForUpdate(TenantContext.getTenantId());
 		if (professionalRepository.countByActiveTrue() >= tenant.getEffectiveProfessionalLimit()) {
 			throw new ProfessionalLimitExceededException(tenant.getPlanTier());
 		}

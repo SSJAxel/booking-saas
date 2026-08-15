@@ -73,6 +73,16 @@ public class TenantService {
 		return tenantRepository.findById(id).orElseThrow(() -> new NotFoundException("Tenant not found: " + id));
 	}
 
+	/** Same as {@link #findById} but takes a pessimistic write lock on the tenant row, held for the
+	 * rest of the caller's transaction — for the handful of check-then-insert call sites (plan
+	 * limits on professionals/branches/services/weekly appointments) where two concurrent requests
+	 * could otherwise both read a stale count and both pass. Deliberately a separate method, not a
+	 * flag on findById: most callers just read the tenant and must not pay for a write lock. */
+	@Transactional
+	public Tenant findByIdForUpdate(UUID id) {
+		return tenantRepository.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Tenant not found: " + id));
+	}
+
 	/**
 	 * Only free tiers can be set directly here — a paid one requires an authorized subscription
 	 * (see SubscriptionService.subscribe), which flips planTier itself once MercadoPago confirms

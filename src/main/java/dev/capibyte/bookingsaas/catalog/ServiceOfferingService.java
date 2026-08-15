@@ -24,7 +24,7 @@ public class ServiceOfferingService {
 	@Transactional
 	public ServiceOffering create(String name, String description, String category, int durationMinutes,
 			BigDecimal price, BigDecimal depositAmount, boolean featured) {
-		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
+		PlanTier tier = tenantService.findByIdForUpdate(TenantContext.getTenantId()).getPlanTier();
 		if (serviceOfferingRepository.countByActiveTrue() >= tier.getMaxServices()) {
 			throw new ServiceLimitExceededException(tier);
 		}

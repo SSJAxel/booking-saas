@@ -19,7 +19,7 @@ public class BranchService {
 
 	@Transactional
 	public Branch create(String name, String address, String phone, String googleBusinessUrl) {
-		PlanTier tier = tenantService.findById(TenantContext.getTenantId()).getPlanTier();
+		PlanTier tier = tenantService.findByIdForUpdate(TenantContext.getTenantId()).getPlanTier();
 		if (branchRepository.countByActiveTrue() >= tier.getMaxBranches()) {
 			throw new BranchLimitExceededException(tier);
 		}
