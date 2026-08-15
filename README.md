@@ -42,6 +42,31 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-14 — Borrado de datos de Lusi Tattoo y alta de Fadep Barber Studio en producción
+
+No son cambios de código — son operaciones directas contra producción (Neon), documentadas acá
+porque afectan datos reales de tenants.
+
+- **Borrado total de turnos, ventas, clientes y lista de espera de `lusi-tattoo`**, a pedido del
+  dueño. Corrido a mano en el SQL Editor de Neon, dentro de una transacción, scopeado por
+  `tenant_id` para no tocar otros tenants: `waitlist_entries` → `sales` (a diferencia del borrado de
+  historial automático de `AppointmentService.purgeHistory`, acá se borró `sales` directamente en
+  vez de conservarlo con `appointment_id = NULL`) → `appointments` (cascada automática a `payments`
+  vía `ON DELETE CASCADE`) → `clients`. Verificado antes y después con un `SELECT count(*)` por
+  tabla (21 turnos, 1 venta, 9 clientes, 0 en lista de espera). Los `products` del inventario no se
+  tocaron.
+- **Nuevo tenant real en producción: `fadep-barber-studio`.** Existía hace tiempo en la base local
+  pero nunca se había migrado — password del owner (`admin@fadepbarberstudio.com`) reseteada primero
+  en local (no se puede leer la anterior, solo se guarda `password_hash` bcrypt) y el mismo hash
+  copiado a producción para que el login funcione igual en ambos lados. Insertado directo por SQL
+  (mismos UUIDs que en local, sin conflicto porque el tenant no existía en Neon) con dos ajustes a
+  propósito respecto a los valores de prueba que tenía en local: `timezone` pasó de `UTC` a
+  `America/Argentina/Buenos_Aires` (mismo bug de horarios ya pasados documentado en la entrada de
+  abajo — se corrigió antes de llegar a producción esta vez) y `plan_tier`/`custom_monthly_price`
+  (`MAX`/`$30000`) se llevaron tal cual, a pedido explícito. En local el tenant no tenía ninguna
+  sucursal/profesional/servicio/horario configurado, así que llegó vacío a producción — falta
+  cargar todo eso desde el panel.
+
 ### 2026-08-14 — Desconectar Mercado Pago, y OAuth Connect habilitado en producción
 
 - **Botón "Desconectar Mercado Pago", agregado antes de habilitar la conexión para negocios
