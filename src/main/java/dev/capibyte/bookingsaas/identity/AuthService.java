@@ -12,6 +12,8 @@ import dev.capibyte.bookingsaas.identity.dto.VerifyEmailRequest;
 import dev.capibyte.bookingsaas.notification.MailService;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -24,6 +26,8 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class AuthService {
+
+	private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
 	private final TenantService tenantService;
 	private final AppUserService appUserService;
@@ -160,9 +164,18 @@ public class AuthService {
 	 * to hook onto, so a plain synchronous call is actually the correct fit, not a shortcut.
 	 */
 	private void notifyFounderOfNewTenant(Tenant tenant, AppUser owner) {
-		mailService.send(founderEmail, "Nuevo negocio registrado — " + tenant.getName(),
+		boolean sent = mailService.send(founderEmail, "Nuevo negocio registrado — " + tenant.getName(),
 				tenant.getName() + " (" + tenant.getSlug() + ") se registró, dueño: " + owner.getEmail()
 						+ ".\n\nRevisalo y aprobalo desde el panel de admin cuando esté listo.");
+		// MailService.send only WARNs on its own — that's the right default for a courtesy email,
+		// but this one IS the founder's only push alert that a tenant is waiting in PENDING_APPROVAL
+		// (the admin panel's "Pendiente" filter is the fallback source of truth), so a failure here
+		// needs to stand out in the logs, not blend into routine mail noise.
+		if (!sent) {
+			log.error("Founder notification email failed to send for new tenant {} ({}), owner {} — it is now "
+							+ "sitting in PENDING_APPROVAL with no alert sent; check the admin panel's Pendiente filter.",
+					tenant.getName(), tenant.getSlug(), owner.getEmail());
+		}
 	}
 
 	/**
