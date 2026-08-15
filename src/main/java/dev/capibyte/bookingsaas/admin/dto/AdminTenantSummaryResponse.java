@@ -17,6 +17,7 @@ public record AdminTenantSummaryResponse(
 		String slug,
 		TenantStatus status,
 		PlanTier planTier,
+		boolean planManuallySet,
 		String subscriptionStatus,
 		LocalDate nextPaymentDueAt,
 		Long daysRemaining,

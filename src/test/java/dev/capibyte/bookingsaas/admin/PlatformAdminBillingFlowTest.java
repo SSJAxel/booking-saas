@@ -59,6 +59,19 @@ class PlatformAdminBillingFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
+	void updatingPlanByHandMarksItAsManuallySetInTheSummary() {
+		RegisteredTenant tenant = registerTenant();
+		HttpHeaders adminHeaders = promoteToPlatformAdminAndLogin(tenant);
+		String tenantId = findTenantId(adminHeaders, tenant.slug());
+
+		ResponseEntity<Map> updated = restTemplate.exchange("/api/admin/tenants/" + tenantId + "/plan",
+				HttpMethod.PATCH, new HttpEntity<>(Map.of("planTier", "MAX"), adminHeaders), Map.class);
+
+		assertThat(updated.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(updated.getBody().get("planManuallySet")).isEqualTo(true);
+	}
+
+	@Test
 	void tenantDetailExposesOwnDataWithoutImpersonation() {
 		RegisteredTenant tenant = registerTenant();
 		HttpHeaders ownerHeaders = authHeaders(tenant.token());

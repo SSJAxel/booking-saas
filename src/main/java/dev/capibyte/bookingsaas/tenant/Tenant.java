@@ -42,6 +42,16 @@ public class Tenant extends BaseEntity {
 	@Column(name = "plan_tier", nullable = false)
 	private PlanTier planTier = PlanTier.TRIAL;
 
+	/** Set by {@code PlatformAdminService.updateTenantPlan} whenever the founder assigns a plan by
+	 * hand (an off-platform deal, a free grant, ...). Read by
+	 * {@code TenantService.applyPlanTierFromSubscription} so a MercadoPago webhook — for a
+	 * subscription that predates the override, or one that's stale/delayed — can't silently
+	 * overwrite it. Cleared when the tenant starts a fresh checkout via
+	 * {@code SubscriptionService.subscribe}, since that's a deliberate re-entry into
+	 * MercadoPago-tracked billing. */
+	@Column(name = "plan_manually_set", nullable = false)
+	private boolean planManuallySet = false;
+
 	/** All optional — an unbranded tenant just gets frontend-public's default look. */
 	@Column(name = "logo_url")
 	private String logoUrl;

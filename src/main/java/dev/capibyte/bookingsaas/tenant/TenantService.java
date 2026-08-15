@@ -8,6 +8,8 @@ import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class TenantService {
+
+	private static final Logger log = LoggerFactory.getLogger(TenantService.class);
 
 	private static final int TRIAL_DAYS = 15;
 
@@ -100,6 +104,12 @@ public class TenantService {
 	@Transactional
 	public void applyPlanTierFromSubscription(UUID tenantId, PlanTier tier) {
 		Tenant tenant = findById(tenantId);
+		if (tenant.isPlanManuallySet()) {
+			log.warn("Ignored a webhook trying to set tenant {} to {} — plan was manually set by the founder "
+					+ "(currently {}). It only resumes reacting to webhooks after a fresh SubscriptionService.subscribe checkout.",
+					tenantId, tier, tenant.getPlanTier());
+			return;
+		}
 		tenant.setPlanTier(tier);
 	}
 

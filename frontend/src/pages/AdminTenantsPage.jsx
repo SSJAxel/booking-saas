@@ -276,6 +276,14 @@ export default function AdminTenantsPage() {
 												</option>
 											))}
 										</select>
+										{t.planManuallySet && (
+											<span
+												title="Plan asignado a mano — los webhooks de MercadoPago no lo van a tocar hasta que el tenant arranque una suscripción nueva"
+												style={{ marginLeft: "0.3rem" }}
+											>
+												🔒
+											</span>
+										)}
 									</td>
 									<td>
 										<input

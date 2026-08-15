@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 
@@ -12,7 +12,14 @@ export default function AccountPage() {
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [saving, setSaving] = useState(false);
-	const [avatarUrl, setAvatarUrl] = useState(me?.avatarUrl ?? null);
+	const [avatarUrl, setAvatarUrl] = useState(null);
+
+	// `me` loads asynchronously (AuthContext.refreshMe), so it's still null on the first render —
+	// a plain useState(me?.avatarUrl) initializer would permanently lock in `null` and silently
+	// wipe the user's saved avatar on their next save. Resync whenever the server value changes.
+	useEffect(() => {
+		setAvatarUrl(me?.avatarUrl ?? null);
+	}, [me?.avatarUrl]);
 
 	async function handleSave(event) {
 		event.preventDefault();
