@@ -3,6 +3,7 @@ package dev.capibyte.bookingsaas.booking;
 import dev.capibyte.bookingsaas.booking.dto.ClientSummaryResponse;
 import dev.capibyte.bookingsaas.booking.dto.ClientVisitResponse;
 import dev.capibyte.bookingsaas.booking.dto.PinClientRequest;
+import dev.capibyte.bookingsaas.booking.dto.RedeemRewardRequest;
 import dev.capibyte.bookingsaas.booking.dto.UpdateClientNotesRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -12,6 +13,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -55,5 +57,13 @@ public class ClientController {
 	@GetMapping("/{id}/history")
 	public List<ClientVisitResponse> history(@PathVariable UUID id) {
 		return clientService.history(id);
+	}
+
+	/** Handing over an already-earned discount at checkout is a day-to-day service action, not a
+	 * business-configuration one — deliberately left at the class-level OWNER/ADMIN/STAFF default,
+	 * unlike /pin and /notes above. */
+	@PostMapping("/{id}/redeem-reward")
+	public ClientSummaryResponse redeemReward(@PathVariable UUID id, @Valid @RequestBody RedeemRewardRequest request) {
+		return ClientSummaryResponse.from(clientService.redeemReward(id, request.rewardTierId()));
 	}
 }

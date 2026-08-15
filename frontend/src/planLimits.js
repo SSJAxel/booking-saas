@@ -8,6 +8,7 @@ export const PLAN_LIMITS = {
 		maxAppointmentsPerWeek: null,
 		mercadoPagoEnabled: false,
 		whatsappEnabled: true,
+		loyaltyRewardsEnabled: false,
 	},
 	PERSONAL: {
 		maxProfessionals: 1,
@@ -17,6 +18,7 @@ export const PLAN_LIMITS = {
 		maxAppointmentsPerWeek: 20,
 		mercadoPagoEnabled: false,
 		whatsappEnabled: false,
+		loyaltyRewardsEnabled: false,
 	},
 	BASIC: {
 		maxProfessionals: 4,
@@ -26,6 +28,7 @@ export const PLAN_LIMITS = {
 		maxAppointmentsPerWeek: null,
 		mercadoPagoEnabled: false,
 		whatsappEnabled: true,
+		loyaltyRewardsEnabled: false,
 	},
 	PRO: {
 		maxProfessionals: 10,
@@ -35,6 +38,7 @@ export const PLAN_LIMITS = {
 		maxAppointmentsPerWeek: null,
 		mercadoPagoEnabled: true,
 		whatsappEnabled: true,
+		loyaltyRewardsEnabled: true,
 	},
 	MAX: {
 		maxProfessionals: 20,
@@ -44,11 +48,16 @@ export const PLAN_LIMITS = {
 		maxAppointmentsPerWeek: null,
 		mercadoPagoEnabled: true,
 		whatsappEnabled: true,
+		loyaltyRewardsEnabled: true,
 	},
 };
 
 export function planHasWhatsApp(tier) {
 	return PLAN_LIMITS[tier]?.whatsappEnabled ?? true;
+}
+
+export function planHasLoyaltyRewards(tier) {
+	return PLAN_LIMITS[tier]?.loyaltyRewardsEnabled ?? false;
 }
 
 export function planHasProducts(tier) {

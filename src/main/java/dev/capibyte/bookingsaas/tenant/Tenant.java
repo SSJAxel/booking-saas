@@ -116,6 +116,19 @@ public class Tenant extends BaseEntity {
 	@Column(name = "top_clients_count", nullable = false)
 	private int topClientsCount = 3;
 
+	/** Gate on the whole loyalty points feature — PRO/MAX only, checked by
+	 * TenantService.updateLoyaltyRewardsSettings against PlanTier#isLoyaltyRewardsEnabled before
+	 * this can be set true. See LoyaltyPointsService for what it actually gates. */
+	@Column(name = "loyalty_rewards_enabled", nullable = false)
+	private boolean loyaltyRewardsEnabled = false;
+
+	/** Max points a client can bank before they have to redeem a RewardTier to keep earning more
+	 * (5–200) — the forcing function that makes redemption matter. Same triple-validation pattern
+	 * as topClientsCount: entity default, DTO @Min/@Max, and a DB CHECK (V39) as the last line of
+	 * defense. */
+	@Column(name = "loyalty_points_cap", nullable = false)
+	private int loyaltyPointsCap = 25;
+
 	/** Cuántos minutos (10–180) tiene un depósito PENDING antes de que
 	 * PendingDepositExpirationScheduler cancele el turno solo — solo se consulta para tenants con
 	 * MercadoPago habilitado en su plan, el scheduler ignora por completo a los que no lo tienen

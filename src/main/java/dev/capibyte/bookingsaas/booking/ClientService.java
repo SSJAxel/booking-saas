@@ -2,8 +2,14 @@ package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.ClientVisitResponse;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
+import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
+import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.staff.ProfessionalService;
+import dev.capibyte.bookingsaas.tenant.RewardTier;
+import dev.capibyte.bookingsaas.tenant.RewardTierRepository;
+import dev.capibyte.bookingsaas.tenant.Tenant;
+import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -18,6 +24,8 @@ public class ClientService {
 	private final AppointmentRepository appointmentRepository;
 	private final ServiceOfferingService serviceOfferingService;
 	private final ProfessionalService professionalService;
+	private final TenantService tenantService;
+	private final RewardTierRepository rewardTierRepository;
 
 	@Transactional(readOnly = true)
 	public List<Client> search(String query) {
@@ -50,6 +58,26 @@ public class ClientService {
 						serviceOfferingService.findById(a.getServiceId()).getName(),
 						professionalService.findById(a.getProfessionalId()).getDisplayName(), a.getStatus()))
 				.toList();
+	}
+
+	/** Spends (not resets) points toward one specific tier the client chooses — a client sitting on
+	 * more points than that tier costs keeps the remainder banked toward whichever tier they pick
+	 * next time, rather than losing it. See RewardTier's Javadoc for the overall design. */
+	@Transactional
+	public Client redeemReward(UUID clientId, UUID rewardTierId) {
+		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+		if (!tenant.isLoyaltyRewardsEnabled()) {
+			throw new BadRequestException("Loyalty rewards aren't enabled for this tenant");
+		}
+		RewardTier tier = rewardTierRepository.findById(rewardTierId)
+				.orElseThrow(() -> new NotFoundException("Reward tier not found: " + rewardTierId));
+		Client client = findById(clientId);
+		if (client.getLoyaltyPoints() < tier.getPointsRequired()) {
+			throw new BadRequestException(
+					"Client only has " + client.getLoyaltyPoints() + " points, this tier needs " + tier.getPointsRequired());
+		}
+		client.setLoyaltyPoints(client.getLoyaltyPoints() - tier.getPointsRequired());
+		return client;
 	}
 
 	private Client findById(UUID id) {

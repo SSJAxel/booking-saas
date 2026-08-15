@@ -11,6 +11,7 @@ import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.ClientRankingSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.DepositExpirationUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.HistoryRetentionUpdateRequest;
+import dev.capibyte.bookingsaas.tenant.dto.LoyaltyRewardsSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
@@ -111,6 +112,15 @@ public class TenantController {
 	public TenantResponse updateClientRanking(@Valid @RequestBody ClientRankingSettingsRequest request) {
 		return TenantResponse.from(tenantService.updateClientRankingSettings(TenantContext.getTenantId(),
 				request.topClientsThreshold(), request.topClientsCount()));
+	}
+
+	/** Owner/admin: turns the loyalty points program on/off (PRO/MAX only) and sets how many points
+	 * a client can bank before they have to redeem something to keep earning more. */
+	@PatchMapping("/loyalty-rewards")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateLoyaltyRewards(@Valid @RequestBody LoyaltyRewardsSettingsRequest request) {
+		return TenantResponse.from(tenantService.updateLoyaltyRewardsSettings(TenantContext.getTenantId(),
+				request.enabled(), request.pointsCap()));
 	}
 
 	/**

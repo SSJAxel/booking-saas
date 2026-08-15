@@ -6,12 +6,15 @@ import { tenantLongDateTimeLabel } from "../tenantTime.js";
 
 /**
  * "Ver historial" popup for a client, opened from ClientInsights' ClientList — every visit (who
- * served them, when, what service, what status) plus a freeform notes field the owner/admin can
- * edit. Same structural pattern as AppointmentDetailModal.jsx (backdrop/panel/header/body,
- * Escape-to-close). `client` carries the name/email/notes already loaded by ClientInsights, so
- * only the visit history needs its own fetch.
+ * served them, when, what service, what status), a freeform notes field the owner/admin can edit,
+ * and (if the tenant has loyalty rewards enabled) the client's points balance with a redeem action
+ * — a second entry point alongside LoyaltyRewardsCard's "Recompensas" list, since a client might be
+ * looked up here before staff thinks to check that list. Same structural pattern as
+ * AppointmentDetailModal.jsx (backdrop/panel/header/body, Escape-to-close). `client` carries the
+ * name/email/notes/loyaltyPoints already loaded by ClientInsights, so only the visit history and
+ * (when relevant) the tier list need their own fetch.
  */
-export default function ClientHistoryModal({ client, timezone, onClose, onNotesSaved }) {
+export default function ClientHistoryModal({ client, tenant, onClose, onNotesSaved, onRewardRedeemed }) {
 	const { session } = useAuth();
 	const canEditNotes = session.role === "OWNER" || session.role === "ADMIN";
 	const [visits, setVisits] = useState(null);
@@ -19,6 +22,9 @@ export default function ClientHistoryModal({ client, timezone, onClose, onNotesS
 	const [notes, setNotes] = useState(client?.notes ?? "");
 	const [saving, setSaving] = useState(false);
 	const [notice, setNotice] = useState("");
+	const [tiers, setTiers] = useState(null);
+	const [selectedTierId, setSelectedTierId] = useState("");
+	const [redeeming, setRedeeming] = useState(false);
 
 	useEffect(() => {
 		if (!client) return;
@@ -29,7 +35,14 @@ export default function ClientHistoryModal({ client, timezone, onClose, onNotesS
 			.history(client.clientId)
 			.then(setVisits)
 			.catch((err) => setError(err.message));
-	}, [client]);
+
+		if (tenant.loyaltyRewardsEnabled) {
+			api.loyaltyTiers
+				.list()
+				.then(setTiers)
+				.catch(() => setTiers([]));
+		}
+	}, [client, tenant.loyaltyRewardsEnabled]);
 
 	useEffect(() => {
 		if (!client) return;
@@ -55,6 +68,22 @@ export default function ClientHistoryModal({ client, timezone, onClose, onNotesS
 			setError(err.message);
 		} finally {
 			setSaving(false);
+		}
+	}
+
+	const eligibleTiers = tiers?.filter((t) => client.loyaltyPoints >= t.pointsRequired) ?? [];
+	const tierIdToRedeem = selectedTierId || eligibleTiers[0]?.id || "";
+
+	async function handleRedeem() {
+		setRedeeming(true);
+		setError("");
+		try {
+			await api.clients.redeemReward(client.clientId, tierIdToRedeem);
+			onRewardRedeemed?.();
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setRedeeming(false);
 		}
 	}
 
@@ -93,6 +122,35 @@ export default function ClientHistoryModal({ client, timezone, onClose, onNotesS
 						</form>
 					)}
 
+					{tenant.loyaltyRewardsEnabled && (
+						<div style={{ marginTop: "1.2rem" }}>
+							<p className="label">Recompensas</p>
+							<p>
+								<span className="badge">{client.loyaltyPoints} pts</span>
+							</p>
+							{eligibleTiers.length === 0 ? (
+								<p className="muted">Todavía no llega a los puntos de ninguna recompensa.</p>
+							) : (
+								<div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap" }}>
+									{eligibleTiers.length > 1 ? (
+										<select value={tierIdToRedeem} onChange={(event) => setSelectedTierId(event.target.value)}>
+											{eligibleTiers.map((t) => (
+												<option key={t.id} value={t.id}>
+													{t.pointsRequired} pts — {t.description}
+												</option>
+											))}
+										</select>
+									) : (
+										<span className="muted">{eligibleTiers[0].description}</span>
+									)}
+									<button type="button" className="secondary" onClick={handleRedeem} disabled={redeeming}>
+										{redeeming ? "Canjeando..." : "Canjear"}
+									</button>
+								</div>
+							)}
+						</div>
+					)}
+
 					<p className="label" style={{ marginTop: "1.2rem" }}>
 						Historial de turnos
 					</p>
@@ -105,7 +163,7 @@ export default function ClientHistoryModal({ client, timezone, onClose, onNotesS
 							{visits.map((v) => (
 								<li key={v.appointmentId}>
 									<span className="client-insight-name">
-										{tenantLongDateTimeLabel(v.startTime, timezone)} · {v.serviceName} con {v.professionalName}
+										{tenantLongDateTimeLabel(v.startTime, tenant.timezone)} · {v.serviceName} con {v.professionalName}
 									</span>
 									<span className={`badge badge-${v.status.toLowerCase()}`}>{statusLabel(v.status)}</span>
 								</li>

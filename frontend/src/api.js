@@ -100,6 +100,14 @@ export const api = {
 			request("/api/tenant/client-ranking", { method: "PATCH", body: { topClientsThreshold, topClientsCount } }),
 		updateHistoryRetention: (historyRetentionMonths) =>
 			request("/api/tenant/history-retention", { method: "PATCH", body: { historyRetentionMonths } }),
+		updateLoyaltyRewards: (enabled, pointsCap) =>
+			request("/api/tenant/loyalty-rewards", { method: "PATCH", body: { enabled, pointsCap } }),
+	},
+	loyaltyTiers: {
+		list: () => request("/api/tenant/loyalty-rewards/tiers"),
+		create: (body) => request("/api/tenant/loyalty-rewards/tiers", { method: "POST", body }),
+		update: (id, body) => request(`/api/tenant/loyalty-rewards/tiers/${id}`, { method: "PUT", body }),
+		delete: (id) => request(`/api/tenant/loyalty-rewards/tiers/${id}`, { method: "DELETE" }),
 	},
 	branches: {
 		list: () => request("/api/branches"),
@@ -173,6 +181,8 @@ export const api = {
 		setPinned: (id, pinned) => request(`/api/clients/${id}/pin`, { method: "PATCH", body: { pinned } }),
 		updateNotes: (id, notes) => request(`/api/clients/${id}/notes`, { method: "PATCH", body: { notes } }),
 		history: (id) => request(`/api/clients/${id}/history`),
+		redeemReward: (id, rewardTierId) =>
+			request(`/api/clients/${id}/redeem-reward`, { method: "POST", body: { rewardTierId } }),
 	},
 	support: {
 		report: (message, imageFile) => {

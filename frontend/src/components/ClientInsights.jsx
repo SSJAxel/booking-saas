@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { planHasLoyaltyRewards } from "../planLimits.js";
 import ClientHistoryModal from "./ClientHistoryModal.jsx";
+import LoyaltyRewardsCard from "./LoyaltyRewardsCard.jsx";
 
 const TOP_N = 10;
 
@@ -127,12 +129,20 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 				</div>
 			</div>
 
+			{planHasLoyaltyRewards(tenant.planTier) && (
+				<LoyaltyRewardsCard stats={stats} tenant={tenant} onChange={onChange} />
+			)}
+
 			<ClientHistoryModal
 				client={selectedClient}
-				timezone={tenant.timezone}
+				tenant={tenant}
 				onClose={() => setSelectedClient(null)}
 				onNotesSaved={(updated) => {
 					setSelectedClient((prev) => (prev ? { ...prev, notes: updated.notes } : prev));
+					onChange();
+				}}
+				onRewardRedeemed={() => {
+					setSelectedClient(null);
 					onChange();
 				}}
 			/>

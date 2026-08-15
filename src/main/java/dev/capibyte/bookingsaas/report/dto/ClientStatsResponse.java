@@ -18,5 +18,6 @@ public record ClientStatsResponse(
 		long noShowCount,
 		int rating,
 		boolean pinned,
-		String notes) {
+		String notes,
+		int loyaltyPoints) {
 }

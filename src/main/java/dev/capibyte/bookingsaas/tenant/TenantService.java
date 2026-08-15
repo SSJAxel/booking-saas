@@ -28,6 +28,7 @@ public class TenantService {
 	private static final int TRIAL_DAYS = 15;
 
 	private final TenantRepository tenantRepository;
+	private final RewardTierRepository rewardTierRepository;
 
 	/** Seeds Tenant.depositExpirationMinutes for every newly-registered tenant — the org-wide
 	 * default, overridable per tenant afterward via updateDepositExpirationMinutes. Written as an
@@ -36,9 +37,10 @@ public class TenantService {
 	 * unrelated @Value annotation of the same simple name. */
 	private final int defaultDepositExpirationMinutes;
 
-	public TenantService(TenantRepository tenantRepository,
+	public TenantService(TenantRepository tenantRepository, RewardTierRepository rewardTierRepository,
 			@Value("${app.booking.deposit-expiration-minutes:30}") int defaultDepositExpirationMinutes) {
 		this.tenantRepository = tenantRepository;
+		this.rewardTierRepository = rewardTierRepository;
 		this.defaultDepositExpirationMinutes = defaultDepositExpirationMinutes;
 	}
 
@@ -194,6 +196,28 @@ public class TenantService {
 			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include WhatsApp notifications");
 		}
 		tenant.setWhatsappEnabled(enabled);
+		return tenant;
+	}
+
+	/** {@code pointsCap} bounds (5–200) are also enforced by validation on the request DTO and a DB
+	 * check constraint (V39) — same three-places-deliberately pattern as updateClientRankingSettings.
+	 * Also refuses to drop the cap below an existing RewardTier's requirement — a tier a client can
+	 * never reach is a silent trap, not a valid configuration. */
+	@Transactional
+	public Tenant updateLoyaltyRewardsSettings(UUID tenantId, boolean enabled, int pointsCap) {
+		Tenant tenant = findById(tenantId);
+		if (enabled && !tenant.getPlanTier().isLoyaltyRewardsEnabled()) {
+			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include loyalty rewards");
+		}
+		if (pointsCap < 5 || pointsCap > 200) {
+			throw new BadRequestException("loyaltyPointsCap must be between 5 and 200");
+		}
+		if (rewardTierRepository.existsByPointsRequiredGreaterThan(pointsCap)) {
+			throw new BadRequestException(
+					"loyaltyPointsCap can't be lower than an existing reward tier's points requirement");
+		}
+		tenant.setLoyaltyRewardsEnabled(enabled);
+		tenant.setLoyaltyPointsCap(pointsCap);
 		return tenant;
 	}
 

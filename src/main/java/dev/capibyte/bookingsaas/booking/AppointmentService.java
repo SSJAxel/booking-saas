@@ -48,6 +48,7 @@ public class AppointmentService {
 	private final WaitlistService waitlistService;
 	private final TenantService tenantService;
 	private final ClientRatingService clientRatingService;
+	private final LoyaltyPointsService loyaltyPointsService;
 	private final ApplicationEventPublisher eventPublisher;
 	private final AppUserService appUserService;
 	private final PublicAvailabilityService publicAvailabilityService;
@@ -243,7 +244,11 @@ public class AppointmentService {
 				waitlistService.notifyNextForFreedSlot(appointment.getProfessionalId(), appointment.getServiceId(), freedDate);
 				clientRatingService.recordCancellation(client);
 			}
-			case COMPLETED -> clientRatingService.recordCompleted(client);
+			case COMPLETED -> {
+				clientRatingService.recordCompleted(client);
+				loyaltyPointsService.awardPointForCompletedVisit(tenantService.findById(TenantContext.getTenantId()),
+						client);
+			}
 			case NO_SHOW -> clientRatingService.recordNoShow(client);
 			default -> {
 			}

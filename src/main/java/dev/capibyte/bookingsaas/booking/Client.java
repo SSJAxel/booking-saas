@@ -56,6 +56,14 @@ public class Client extends BaseTenantEntity {
 	@Column(name = "rescheduled_count", nullable = false)
 	private int rescheduledCount = 0;
 
+	/** Loyalty points balance — +1 per COMPLETED appointment (LoyaltyPointsService, only while the
+	 * tenant has loyalty rewards enabled), clamped at Tenant#loyaltyPointsCap, spent (not reset) on
+	 * redemption (ClientService#redeemReward). Deliberately separate from {@link #rating}: rating is
+	 * a non-spendable reliability score, this is a spendable currency — conflating them would make
+	 * neither make sense. */
+	@Column(name = "loyalty_points", nullable = false)
+	private int loyaltyPoints = 0;
+
 	/** "Cliente fijo": manually kept in the "Mejores clientes" panel regardless of {@code rating} —
 	 * see ClientController#setPinned. Every tenant has that one loyal regular whose history
 	 * predates this system or doesn't fit neatly into the automatic scoring. */

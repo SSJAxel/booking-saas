@@ -11,7 +11,8 @@ import org.junit.jupiter.api.Test;
 class TenantServiceTest {
 
 	private final TenantRepository tenantRepository = mock(TenantRepository.class);
-	private final TenantService tenantService = new TenantService(tenantRepository, 30);
+	private final RewardTierRepository rewardTierRepository = mock(RewardTierRepository.class);
+	private final TenantService tenantService = new TenantService(tenantRepository, rewardTierRepository, 30);
 
 	@Test
 	void applyPlanTierFromSubscriptionAppliesTheTierWhenNotManuallySet() {
