@@ -1,6 +1,7 @@
 package dev.capibyte.bookingsaas.identity;
 
 import dev.capibyte.bookingsaas.booking.PublicTenantResolutionFilter;
+import dev.capibyte.bookingsaas.ratelimit.AuthRateLimitFilter;
 import dev.capibyte.bookingsaas.ratelimit.PublicApiRateLimitFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
@@ -37,6 +38,7 @@ public class SecurityConfig {
 	private final JwtAuthenticationFilter jwtAuthenticationFilter;
 	private final PublicTenantResolutionFilter publicTenantResolutionFilter;
 	private final PublicApiRateLimitFilter publicApiRateLimitFilter;
+	private final AuthRateLimitFilter authRateLimitFilter;
 	private final JsonAuthenticationEntryPoint authenticationEntryPoint;
 
 	@Bean
@@ -51,11 +53,12 @@ public class SecurityConfig {
 						.anyRequest().authenticated())
 				// A custom filter class can't be used as another addFilterBefore's position
 				// anchor (Spring Security requires a filter with a "registered order", i.e. one
-				// of its own known filter types) — so all three are anchored at the same
+				// of its own known filter types) — so all four are anchored at the same
 				// standard filter, and rely on insertion order for their relative placement.
 				// Rate limiting goes first so an over-quota request never reaches the tenant
 				// lookup.
 				.addFilterBefore(publicApiRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
+				.addFilterBefore(authRateLimitFilter, UsernamePasswordAuthenticationFilter.class)
 				.addFilterBefore(publicTenantResolutionFilter, UsernamePasswordAuthenticationFilter.class)
 				.addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
 		return http.build();
@@ -91,6 +94,13 @@ public class SecurityConfig {
 	@Bean
 	FilterRegistrationBean<PublicApiRateLimitFilter> rateLimitFilterAutoRegistration(PublicApiRateLimitFilter filter) {
 		FilterRegistrationBean<PublicApiRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
+		registration.setEnabled(false);
+		return registration;
+	}
+
+	@Bean
+	FilterRegistrationBean<AuthRateLimitFilter> authRateLimitFilterAutoRegistration(AuthRateLimitFilter filter) {
+		FilterRegistrationBean<AuthRateLimitFilter> registration = new FilterRegistrationBean<>(filter);
 		registration.setEnabled(false);
 		return registration;
 	}
