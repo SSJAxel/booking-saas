@@ -47,6 +47,15 @@ export function AuthProvider({ children }) {
 		persist(await api.verifyEmail(body));
 	}, []);
 
+	const forgotPassword = useCallback(async (body) => {
+		return api.forgotPassword(body);
+	}, []);
+
+	// Auto-logs in on success, same as verifyEmail — clicking the mailed link is proof enough.
+	const resetPassword = useCallback(async (body) => {
+		persist(await api.resetPassword(body));
+	}, []);
+
 	const logout = useCallback(() => {
 		localStorage.removeItem("token");
 		localStorage.removeItem("session");
@@ -54,7 +63,8 @@ export function AuthProvider({ children }) {
 	}, []);
 
 	return (
-		<AuthContext.Provider value={{ session, me, refreshMe, login, register, verifyEmail, logout }}>
+		<AuthContext.Provider
+			value={{ session, me, refreshMe, login, register, verifyEmail, forgotPassword, resetPassword, logout }}>
 			{children}
 		</AuthContext.Provider>
 	);

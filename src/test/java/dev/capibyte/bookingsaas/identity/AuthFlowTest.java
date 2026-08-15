@@ -165,4 +165,93 @@ class AuthFlowTest extends IntegrationTestBase {
 				Map.of("tenantSlug", slug, "email", "nobody-" + slug + "@example.com"), Void.class);
 		assertThat(unknownResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
 	}
+
+	@Test
+	void forgotPasswordThenResetAllowsLoginWithNewPassword() {
+		RegisteredTenant tenant = registerTenant();
+		String email = tenant.slug() + "@example.com";
+
+		ResponseEntity<Void> forgotResponse = restTemplate.postForEntity("/api/auth/forgot-password",
+				Map.of("tenantSlug", tenant.slug(), "email", email), Void.class);
+		assertThat(forgotResponse.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+
+		String resetToken = jdbcTemplate.queryForObject(
+				"SELECT reset_token FROM app_users WHERE email = ?", String.class, email);
+		assertThat(resetToken).isNotBlank();
+
+		ResponseEntity<Map> resetResponse = restTemplate.postForEntity("/api/auth/reset-password",
+				Map.of("tenantSlug", tenant.slug(), "token", resetToken, "newPassword", "brand-new-password"),
+				Map.class);
+		assertThat(resetResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat((String) resetResponse.getBody().get("token")).isNotBlank();
+
+		ResponseEntity<Map> loginWithOldPassword = restTemplate.postForEntity("/api/auth/login",
+				Map.of("tenantSlug", tenant.slug(), "email", email, "password", "supersecret123"), Map.class);
+		assertThat(loginWithOldPassword.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+
+		ResponseEntity<Map> loginWithNewPassword = restTemplate.postForEntity("/api/auth/login",
+				Map.of("tenantSlug", tenant.slug(), "email", email, "password", "brand-new-password"), Map.class);
+		assertThat(loginWithNewPassword.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
+
+	@Test
+	void resetPasswordWithAnExpiredTokenIsRejected() {
+		RegisteredTenant tenant = registerTenant();
+		String email = tenant.slug() + "@example.com";
+		restTemplate.postForEntity("/api/auth/forgot-password", Map.of("tenantSlug", tenant.slug(), "email", email),
+				Void.class);
+
+		jdbcTemplate.update("UPDATE app_users SET reset_token_expires_at = ? WHERE email = ?",
+				Timestamp.from(Instant.now().minusSeconds(60)), email);
+		String resetToken = jdbcTemplate.queryForObject(
+				"SELECT reset_token FROM app_users WHERE email = ?", String.class, email);
+
+		ResponseEntity<Map> response = restTemplate.postForEntity("/api/auth/reset-password",
+				Map.of("tenantSlug", tenant.slug(), "token", resetToken, "newPassword", "brand-new-password"),
+				Map.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+	}
+
+	@Test
+	void forgotPasswordAlwaysReturnsNoContentEvenForAnUnknownEmail() {
+		RegisteredTenant tenant = registerTenant();
+
+		ResponseEntity<Void> response = restTemplate.postForEntity("/api/auth/forgot-password",
+				Map.of("tenantSlug", tenant.slug(), "email", "nobody-" + tenant.slug() + "@example.com"), Void.class);
+
+		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+	}
+
+	/**
+	 * The actual regression this feature exists to fix: an owner whose original signup email
+	 * (carrying both the verification link and the one-time password) never arrived is stuck both
+	 * unverified and without a known password — forgot-password must rescue that account too, not
+	 * just one that already verified and later forgot its password.
+	 */
+	@Test
+	void resetPasswordRescuesAnAccountThatNeverVerifiedItsEmail() {
+		String slug = "never-verified-" + UUID.randomUUID().toString().substring(0, 8);
+		String email = slug + "@example.com";
+		restTemplate.postForEntity("/api/auth/register", Map.of(
+				"tenantName", "Never Verified", "tenantSlug", slug, "ownerEmail", email, "ownerPassword",
+				"supersecret123"), Map.class);
+
+		restTemplate.postForEntity("/api/auth/forgot-password", Map.of("tenantSlug", slug, "email", email),
+				Void.class);
+		String resetToken = jdbcTemplate.queryForObject(
+				"SELECT reset_token FROM app_users WHERE email = ?", String.class, email);
+
+		ResponseEntity<Map> resetResponse = restTemplate.postForEntity("/api/auth/reset-password",
+				Map.of("tenantSlug", slug, "token", resetToken, "newPassword", "brand-new-password"), Map.class);
+		assertThat(resetResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+
+		Boolean emailVerified = jdbcTemplate.queryForObject(
+				"SELECT email_verified FROM app_users WHERE email = ?", Boolean.class, email);
+		assertThat(emailVerified).isTrue();
+
+		ResponseEntity<Map> loginResponse = restTemplate.postForEntity("/api/auth/login",
+				Map.of("tenantSlug", slug, "email", email, "password", "brand-new-password"), Map.class);
+		assertThat(loginResponse.getStatusCode()).isEqualTo(HttpStatus.OK);
+	}
 }

@@ -60,6 +60,9 @@ export default function LoginPage() {
 							<button type="submit" disabled={loading}>
 								{loading ? "Ingresando..." : "Ingresar"}
 							</button>
+							<p className="muted" style={{ marginTop: "0.8rem" }}>
+								<Link to="/olvide-password">¿Olvidaste tu contraseña?</Link>
+							</p>
 						</form>
 					</>
 				) : (

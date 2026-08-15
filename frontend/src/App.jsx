@@ -5,6 +5,8 @@ import AdminLayout from "./layout/AdminLayout.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import PricingPage from "./pages/PricingPage.jsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
+import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import BranchesPage from "./pages/BranchesPage.jsx";
 import ProfessionalsPage from "./pages/ProfessionalsPage.jsx";
@@ -47,6 +49,8 @@ export default function App() {
 			<Route path="/login" element={<LoginPage />} />
 			<Route path="/precios" element={<PricingPage />} />
 			<Route path="/verificar-email" element={<VerifyEmailPage />} />
+			<Route path="/olvide-password" element={<ForgotPasswordPage />} />
+			<Route path="/restablecer-password" element={<ResetPasswordPage />} />
 			<Route path="/reservar/:tenantSlug" element={<BookingPage />} />
 			<Route
 				path="/"

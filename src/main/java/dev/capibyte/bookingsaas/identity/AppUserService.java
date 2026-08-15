@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class AppUserService {
 
 	private static final Duration VERIFICATION_TOKEN_TTL = Duration.ofHours(24);
+	// Shorter than the verification TTL on purpose — a password-reset link is a higher-value
+	// credential action than confirming an email address.
+	private static final Duration RESET_TOKEN_TTL = Duration.ofHours(1);
 
 	private final AppUserRepository appUserRepository;
 	private final PasswordEncoder passwordEncoder;
@@ -99,5 +102,45 @@ public class AppUserService {
 	private void issueVerificationToken(AppUser user) {
 		user.setVerificationToken(UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", ""));
 		user.setVerificationTokenExpiresAt(Instant.now().plus(VERIFICATION_TOKEN_TTL));
+	}
+
+	/**
+	 * Deliberately NOT filtered on {@code isEmailVerified()} the way {@link #regenerateVerificationToken}
+	 * is — an account whose original signup email (carrying both the verification link and the
+	 * one-time password, see AuthService.sendVerificationEmail) never arrived is simultaneously
+	 * unverified AND has an unknown password. Clicking a mailed reset-password link is exactly the
+	 * same proof of mailbox ownership a verification link gives, so this must also be able to rescue
+	 * that account, not just one that already verified and later forgot its password. Empty result
+	 * covers both "no such user" and "inactive" — same enumeration-safety reasoning as
+	 * regenerateVerificationToken.
+	 */
+	@Transactional
+	public Optional<AppUser> issuePasswordResetToken(String email) {
+		return appUserRepository.findByEmail(email)
+				.filter(AppUser::isActive)
+				.map(user -> {
+					user.setResetToken(UUID.randomUUID().toString().replace("-", "") + UUID.randomUUID().toString().replace("-", ""));
+					user.setResetTokenExpiresAt(Instant.now().plus(RESET_TOKEN_TTL));
+					return user;
+				});
+	}
+
+	/**
+	 * Also marks the account verified (see {@link #issuePasswordResetToken}'s Javadoc for why) — a
+	 * successful reset is strictly stronger proof of mailbox ownership than the original
+	 * verification link ever was.
+	 */
+	@Transactional
+	public AppUser resetPassword(String token, String newRawPassword) {
+		AppUser user = appUserRepository.findByResetToken(token)
+				.orElseThrow(() -> new BadRequestException("Invalid or already-used reset link"));
+		if (user.getResetTokenExpiresAt() == null || user.getResetTokenExpiresAt().isBefore(Instant.now())) {
+			throw new BadRequestException("This reset link expired — request a new one");
+		}
+		user.setPasswordHash(passwordEncoder.encode(newRawPassword));
+		user.setResetToken(null);
+		user.setResetTokenExpiresAt(null);
+		user.setEmailVerified(true);
+		return user;
 	}
 }

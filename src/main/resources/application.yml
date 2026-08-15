@@ -77,6 +77,8 @@ app:
     # Where the emailed "confirm your email" link points — the admin panel's own verification
     # page, not a backend URL, since it needs to call the API and then redirect into the app.
     verification-base-url: ${MAIL_VERIFICATION_BASE_URL:http://localhost:5180/verificar-email}
+    # Where the emailed "reset your password" link points — same reasoning as verification-base-url.
+    reset-password-base-url: ${MAIL_RESET_PASSWORD_BASE_URL:http://localhost:5180/restablecer-password}
     resend:
       # When set, MailService sends via Resend's HTTPS API instead of SMTP — see its Javadoc for
       # why (some PaaS free tiers block outbound SMTP). Blank means "use SMTP", same as today.

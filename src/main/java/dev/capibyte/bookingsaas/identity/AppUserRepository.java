@@ -15,4 +15,6 @@ public interface AppUserRepository extends JpaRepository<AppUser, UUID> {
 	Optional<AppUser> findFirstByRole(Role role);
 
 	Optional<AppUser> findByVerificationToken(String verificationToken);
+
+	Optional<AppUser> findByResetToken(String resetToken);
 }

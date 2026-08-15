@@ -68,6 +68,8 @@ export const api = {
 	login: (body) => request("/api/auth/login", { method: "POST", body, auth: false }),
 	verifyEmail: (body) => request("/api/auth/verify-email", { method: "POST", body, auth: false }),
 	resendVerification: (body) => request("/api/auth/resend-verification", { method: "POST", body, auth: false }),
+	forgotPassword: (body) => request("/api/auth/forgot-password", { method: "POST", body, auth: false }),
+	resetPassword: (body) => request("/api/auth/reset-password", { method: "POST", body, auth: false }),
 	me: {
 		get: () => request("/api/me"),
 		update: (body) => request("/api/me", { method: "PATCH", body }),

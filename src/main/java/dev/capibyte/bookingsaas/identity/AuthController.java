@@ -1,10 +1,12 @@
 package dev.capibyte.bookingsaas.identity;
 
 import dev.capibyte.bookingsaas.identity.dto.AuthResponse;
+import dev.capibyte.bookingsaas.identity.dto.ForgotPasswordRequest;
 import dev.capibyte.bookingsaas.identity.dto.LoginRequest;
 import dev.capibyte.bookingsaas.identity.dto.RegisterRequest;
 import dev.capibyte.bookingsaas.identity.dto.RegisterResponse;
 import dev.capibyte.bookingsaas.identity.dto.ResendVerificationRequest;
+import dev.capibyte.bookingsaas.identity.dto.ResetPasswordRequest;
 import dev.capibyte.bookingsaas.identity.dto.VerifyEmailRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -46,5 +48,20 @@ public class AuthController {
 	@ResponseStatus(HttpStatus.NO_CONTENT)
 	public void resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
 		authService.resendVerification(request);
+	}
+
+	/**
+	 * Always 204, whether or not the email/tenant combination exists — see
+	 * AuthService.forgotPassword for why the response can't reveal that.
+	 */
+	@PostMapping("/forgot-password")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+		authService.forgotPassword(request);
+	}
+
+	@PostMapping("/reset-password")
+	public AuthResponse resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+		return authService.resetPassword(request);
 	}
 }

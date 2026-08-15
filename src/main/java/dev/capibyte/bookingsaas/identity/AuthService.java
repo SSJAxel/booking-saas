@@ -2,10 +2,12 @@ package dev.capibyte.bookingsaas.identity;
 
 import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.identity.dto.AuthResponse;
+import dev.capibyte.bookingsaas.identity.dto.ForgotPasswordRequest;
 import dev.capibyte.bookingsaas.identity.dto.LoginRequest;
 import dev.capibyte.bookingsaas.identity.dto.RegisterRequest;
 import dev.capibyte.bookingsaas.identity.dto.RegisterResponse;
 import dev.capibyte.bookingsaas.identity.dto.ResendVerificationRequest;
+import dev.capibyte.bookingsaas.identity.dto.ResetPasswordRequest;
 import dev.capibyte.bookingsaas.identity.dto.VerifyEmailRequest;
 import dev.capibyte.bookingsaas.notification.MailService;
 import dev.capibyte.bookingsaas.tenant.Tenant;
@@ -29,11 +31,13 @@ public class AuthService {
 	private final JwtService jwtService;
 	private final MailService mailService;
 	private final String verificationBaseUrl;
+	private final String resetPasswordBaseUrl;
 	private final String founderEmail;
 
 	public AuthService(TenantService tenantService, AppUserService appUserService, PasswordEncoder passwordEncoder,
 			JwtService jwtService, MailService mailService,
 			@Value("${app.mail.verification-base-url}") String verificationBaseUrl,
+			@Value("${app.mail.reset-password-base-url}") String resetPasswordBaseUrl,
 			@Value("${app.support.founder-email}") String founderEmail) {
 		this.tenantService = tenantService;
 		this.appUserService = appUserService;
@@ -41,6 +45,7 @@ public class AuthService {
 		this.jwtService = jwtService;
 		this.mailService = mailService;
 		this.verificationBaseUrl = verificationBaseUrl;
+		this.resetPasswordBaseUrl = resetPasswordBaseUrl;
 		this.founderEmail = founderEmail;
 	}
 
@@ -118,6 +123,34 @@ public class AuthService {
 		});
 	}
 
+	/** Always succeeds from the caller's point of view, whether or not the email is registered — see AppUserService.issuePasswordResetToken. */
+	public void forgotPassword(ForgotPasswordRequest request) {
+		tenantService.findBySlug(request.tenantSlug()).ifPresent(tenant -> {
+			TenantContext.setTenantId(tenant.getId());
+			try {
+				appUserService.issuePasswordResetToken(request.email())
+						.ifPresent(user -> sendPasswordResetEmail(tenant, user));
+			} finally {
+				TenantContext.clear();
+			}
+		});
+	}
+
+	/** Auto-logs the owner in on success, same as {@link #verifyEmail} — one less step after
+	 * they've already proven the email is real by clicking the mailed link. */
+	public AuthResponse resetPassword(ResetPasswordRequest request) {
+		Tenant tenant = tenantService.findBySlug(request.tenantSlug())
+				.orElseThrow(InvalidCredentialsException::new);
+
+		TenantContext.setTenantId(tenant.getId());
+		try {
+			AppUser user = appUserService.resetPassword(request.token(), request.newPassword());
+			return authResponse(tenant, user);
+		} finally {
+			TenantContext.clear();
+		}
+	}
+
 	/**
 	 * Alerts the founder that a new tenant needs review (see TenantStatus#PENDING_APPROVAL) — a
 	 * direct send, not an event, on purpose: this class is deliberately NOT @Transactional (see its
@@ -148,6 +181,14 @@ public class AuthService {
 		mailService.send(owner.getEmail(), "Confirm your email",
 				"Hi,\n\nConfirm your email to activate " + tenant.getName() + " on booking-saas:\n" + link
 						+ "\n\nThis link expires in 24 hours." + credentialsBlock);
+	}
+
+	private void sendPasswordResetEmail(Tenant tenant, AppUser owner) {
+		String link = resetPasswordBaseUrl + "?tenant=" + tenant.getSlug() + "&token=" + owner.getResetToken();
+		mailService.send(owner.getEmail(), "Reset your password",
+				"Hi,\n\nSomeone asked to reset the password for your " + tenant.getName()
+						+ " account on booking-saas. If this was you, set a new password here:\n" + link
+						+ "\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.");
 	}
 
 	private AuthResponse authResponse(Tenant tenant, AppUser user) {
