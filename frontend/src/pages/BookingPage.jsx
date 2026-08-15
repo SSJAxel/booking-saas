@@ -7,6 +7,7 @@ import BranchSchedule from "../components/BranchSchedule.jsx";
 import HeaderSearch from "../components/HeaderSearch.jsx";
 import SideMenu from "../components/SideMenu.jsx";
 import InstagramFeed from "../components/InstagramFeed.jsx";
+import PublicReviews from "../components/PublicReviews.jsx";
 import "./BookingPage.css";
 
 const CalendarIcon = () => (
@@ -328,6 +329,8 @@ export default function BookingPage() {
 			</div>
 
 			<TeamCarousel professionals={teamProfessionals} onSelect={setBookingProfessional} />
+
+			<PublicReviews tenantSlug={tenantSlug} />
 
 			<InstagramFeed scriptSrc={tenant.instagramFeedUrl} />
 

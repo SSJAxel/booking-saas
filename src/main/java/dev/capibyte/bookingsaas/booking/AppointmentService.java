@@ -49,6 +49,7 @@ public class AppointmentService {
 	private final TenantService tenantService;
 	private final ClientRatingService clientRatingService;
 	private final LoyaltyPointsService loyaltyPointsService;
+	private final ReviewService reviewService;
 	private final ApplicationEventPublisher eventPublisher;
 	private final AppUserService appUserService;
 	private final PublicAvailabilityService publicAvailabilityService;
@@ -246,8 +247,9 @@ public class AppointmentService {
 			}
 			case COMPLETED -> {
 				clientRatingService.recordCompleted(client);
-				loyaltyPointsService.awardPointForCompletedVisit(tenantService.findById(TenantContext.getTenantId()),
-						client);
+				Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+				loyaltyPointsService.awardPointForCompletedVisit(tenant, client);
+				reviewService.issueInviteIfEnabled(tenant, appointment, client, professional, service);
 			}
 			case NO_SHOW -> clientRatingService.recordNoShow(client);
 			default -> {

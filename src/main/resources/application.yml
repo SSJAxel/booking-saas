@@ -79,6 +79,9 @@ app:
     verification-base-url: ${MAIL_VERIFICATION_BASE_URL:http://localhost:5180/verificar-email}
     # Where the emailed "reset your password" link points — same reasoning as verification-base-url.
     reset-password-base-url: ${MAIL_RESET_PASSWORD_BASE_URL:http://localhost:5180/restablecer-password}
+    # Where the emailed "leave a review" link (post-COMPLETED, PRO/MAX only) points — same
+    # reasoning as verification-base-url.
+    review-base-url: ${MAIL_REVIEW_BASE_URL:http://localhost:5180/dejar-resena}
     resend:
       # When set, MailService sends via Resend's HTTPS API instead of SMTP — see its Javadoc for
       # why (some PaaS free tiers block outbound SMTP). Blank means "use SMTP", same as today.

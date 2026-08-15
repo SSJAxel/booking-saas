@@ -67,6 +67,18 @@ public class Appointment extends BaseTenantEntity {
 	@Column(name = "is_overtime", nullable = false)
 	private boolean overtime;
 
+	/** Single-use invite token for leaving a post-visit review — same two-UUID-concatenation shape
+	 * and lookup/expiry/clear-on-use lifecycle as {@code AppUser}'s reset-password token (see
+	 * {@code ReviewService#issueInviteIfEnabled}/{@code #submit}), just scoped to this appointment
+	 * instead of a login account (there are no client accounts). Null until a COMPLETED transition
+	 * issues one, and null again once the client submits (or the tenant disables reviews before
+	 * they do). */
+	@Column(name = "review_token")
+	private String reviewToken;
+
+	@Column(name = "review_token_expires_at")
+	private Instant reviewTokenExpiresAt;
+
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;
 

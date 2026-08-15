@@ -136,6 +136,14 @@ public class Tenant extends BaseEntity {
 	@Column(name = "commissions_enabled", nullable = false)
 	private boolean commissionsEnabled = false;
 
+	/** Gate on the whole public-reviews feature — PRO/MAX only, checked by
+	 * TenantService.updateReviewsEnabled against PlanTier#isReviewsEnabled before this can be set
+	 * true. See ReviewService for what it actually gates: while false, invite emails are never
+	 * sent and the public review list always returns empty, regardless of any reviews already on
+	 * file. */
+	@Column(name = "reviews_enabled", nullable = false)
+	private boolean reviewsEnabled = false;
+
 	/** Cuántos minutos (10–180) tiene un depósito PENDING antes de que
 	 * PendingDepositExpirationScheduler cancele el turno solo — solo se consulta para tenants con
 	 * MercadoPago habilitado en su plan, el scheduler ignora por completo a los que no lo tienen

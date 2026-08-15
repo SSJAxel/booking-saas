@@ -598,6 +598,51 @@ border:1px solid var(--pb-accent);
 	min-height: 40px;
 }
 
+.pb-reviews {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 0 1.2rem 2.5rem;
+}
+
+.pb-reviews-average {
+	color: var(--pb-ink);
+	opacity: 0.75;
+	margin-bottom: 1rem;
+	font-size: 0.95rem;
+}
+
+.pb-reviews-track {
+	display: flex;
+	gap: 1rem;
+	overflow-x: auto;
+	padding-bottom: 0.5rem;
+}
+
+.pb-reviews-card {
+	flex: none;
+	width: 260px;
+	border-radius: var(--pb-radius);
+	padding: 1rem 1.1rem;
+}
+
+.pb-reviews-stars {
+	color: var(--pb-accent);
+	font-size: 1.1rem;
+	letter-spacing: 0.1em;
+}
+
+.pb-reviews-comment {
+	margin: 0.5rem 0;
+	font-size: 0.9rem;
+	line-height: 1.4;
+}
+
+.pb-reviews-client {
+	font-size: 0.8rem;
+	opacity: 0.7;
+	margin: 0;
+}
+
 .pb-team-title {
 	font-family: var(--font-brand);
 	font-size: 1.1rem;

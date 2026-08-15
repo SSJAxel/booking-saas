@@ -15,6 +15,7 @@ import dev.capibyte.bookingsaas.tenant.dto.HistoryRetentionUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.LoyaltyRewardsSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
+import dev.capibyte.bookingsaas.tenant.dto.ReviewsSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.TenantResponse;
 import dev.capibyte.bookingsaas.tenant.dto.TimezoneUpdateRequest;
 import jakarta.validation.Valid;
@@ -130,6 +131,13 @@ public class TenantController {
 	public TenantResponse updateCommissions(@Valid @RequestBody CommissionsSettingsRequest request) {
 		return TenantResponse
 				.from(tenantService.updateCommissionsEnabled(TenantContext.getTenantId(), request.enabled()));
+	}
+
+	/** Owner/admin: turns public client reviews on/off (PRO/MAX only). */
+	@PatchMapping("/reviews")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateReviews(@Valid @RequestBody ReviewsSettingsRequest request) {
+		return TenantResponse.from(tenantService.updateReviewsEnabled(TenantContext.getTenantId(), request.enabled()));
 	}
 
 	/**

@@ -103,6 +103,7 @@ export const api = {
 		updateLoyaltyRewards: (enabled, pointsCap) =>
 			request("/api/tenant/loyalty-rewards", { method: "PATCH", body: { enabled, pointsCap } }),
 		updateCommissions: (enabled) => request("/api/tenant/commissions", { method: "PATCH", body: { enabled } }),
+		updateReviews: (enabled) => request("/api/tenant/reviews", { method: "PATCH", body: { enabled } }),
 	},
 	loyaltyTiers: {
 		list: () => request("/api/tenant/loyalty-rewards/tiers"),
@@ -178,6 +179,11 @@ export const api = {
 		purgeHistory: (window) => request(`/api/appointments/history${toQuery({ window })}`, { method: "DELETE" }),
 		delete: (id) => request(`/api/appointments/${id}`, { method: "DELETE" }),
 	},
+	reviews: {
+		list: () => request("/api/reviews"),
+		setVisibility: (id, visible) => request(`/api/reviews/${id}/visibility`, { method: "PATCH", body: { visible } }),
+		delete: (id) => request(`/api/reviews/${id}`, { method: "DELETE" }),
+	},
 	clients: {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),
 		setPinned: (id, pinned) => request(`/api/clients/${id}/pin`, { method: "PATCH", body: { pinned } }),
@@ -233,5 +239,10 @@ export const api = {
 				auth: false,
 			}),
 		book: (tenantSlug, body) => request(`/api/public/${tenantSlug}/appointments`, { method: "POST", body, auth: false }),
+		reviewInvite: (tenantSlug, token) =>
+			request(`/api/public/${tenantSlug}/reviews/invite/${token}`, { auth: false }),
+		submitReview: (tenantSlug, token, body) =>
+			request(`/api/public/${tenantSlug}/reviews/invite/${token}`, { method: "POST", body, auth: false }),
+		publicReviews: (tenantSlug) => request(`/api/public/${tenantSlug}/reviews`, { auth: false }),
 	},
 };

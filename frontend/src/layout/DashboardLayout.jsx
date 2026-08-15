@@ -3,7 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { getStoredTheme, setTheme, systemPrefersDark } from "../theme.js";
-import { planHasProducts } from "../planLimits.js";
+import { planHasProducts, planHasReviews } from "../planLimits.js";
 import ReportBugModal from "../components/ReportBugModal.jsx";
 import HelpManual from "../components/HelpManual.jsx";
 
@@ -18,6 +18,7 @@ const NAV_LINKS = [
 	{ to: "professionals", label: "Profesionales" },
 	{ to: "services", label: "Servicios" },
 	{ to: "products", label: "Productos", requiresProducts: true },
+	{ to: "reviews", label: "Reseñas", roles: ["OWNER", "ADMIN"], requiresReviews: true },
 ];
 
 function MenuIcon() {
@@ -106,9 +107,9 @@ export default function DashboardLayout() {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [tenant, setTenant] = useState(null);
 	const menuRef = useRef(null);
-	const links = NAV_LINKS.filter((link) => !link.roles || link.roles.includes(session.role)).filter(
-		(link) => !link.requiresProducts || !tenant || planHasProducts(tenant.planTier),
-	);
+	const links = NAV_LINKS.filter((link) => !link.roles || link.roles.includes(session.role))
+		.filter((link) => !link.requiresProducts || !tenant || planHasProducts(tenant.planTier))
+		.filter((link) => !link.requiresReviews || !tenant || planHasReviews(tenant.planTier));
 
 	useEffect(() => {
 		api.tenant

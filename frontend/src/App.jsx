@@ -7,6 +7,7 @@ import PricingPage from "./pages/PricingPage.jsx";
 import VerifyEmailPage from "./pages/VerifyEmailPage.jsx";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage.jsx";
 import ResetPasswordPage from "./pages/ResetPasswordPage.jsx";
+import ReviewFormPage from "./pages/ReviewFormPage.jsx";
 import AppointmentsPage from "./pages/AppointmentsPage.jsx";
 import BranchesPage from "./pages/BranchesPage.jsx";
 import ProfessionalsPage from "./pages/ProfessionalsPage.jsx";
@@ -14,6 +15,7 @@ import ServicesPage from "./pages/ServicesPage.jsx";
 import ProductsPage from "./pages/ProductsPage.jsx";
 import TenantPage from "./pages/TenantPage.jsx";
 import AccountPage from "./pages/AccountPage.jsx";
+import ReviewsPage from "./pages/ReviewsPage.jsx";
 import BookingPage from "./pages/BookingPage.jsx";
 import AdminTenantsPage from "./pages/AdminTenantsPage.jsx";
 import AdminSupportReportsPage from "./pages/AdminSupportReportsPage.jsx";
@@ -51,6 +53,7 @@ export default function App() {
 			<Route path="/verificar-email" element={<VerifyEmailPage />} />
 			<Route path="/olvide-password" element={<ForgotPasswordPage />} />
 			<Route path="/restablecer-password" element={<ResetPasswordPage />} />
+			<Route path="/dejar-resena" element={<ReviewFormPage />} />
 			<Route path="/reservar/:tenantSlug" element={<BookingPage />} />
 			<Route
 				path="/"
@@ -68,6 +71,7 @@ export default function App() {
 				<Route path="services" element={<ServicesPage />} />
 				<Route path="products" element={<ProductsPage />} />
 				<Route path="tenant" element={<TenantPage />} />
+				<Route path="reviews" element={<ReviewsPage />} />
 				<Route path="account" element={<AccountPage />} />
 			</Route>
 			<Route
