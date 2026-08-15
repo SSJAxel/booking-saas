@@ -102,6 +102,7 @@ export const api = {
 			request("/api/tenant/history-retention", { method: "PATCH", body: { historyRetentionMonths } }),
 		updateLoyaltyRewards: (enabled, pointsCap) =>
 			request("/api/tenant/loyalty-rewards", { method: "PATCH", body: { enabled, pointsCap } }),
+		updateCommissions: (enabled) => request("/api/tenant/commissions", { method: "PATCH", body: { enabled } }),
 	},
 	loyaltyTiers: {
 		list: () => request("/api/tenant/loyalty-rewards/tiers"),
@@ -145,6 +146,7 @@ export const api = {
 		traffic: (days = 7) => request(`/api/reports/traffic${toQuery({ days })}`),
 		productSales: (days = 7) => request(`/api/reports/product-sales${toQuery({ days })}`),
 		clients: () => request("/api/reports/clients"),
+		commissions: (from, to) => request(`/api/reports/commissions${toQuery({ from, to })}`),
 	},
 	services: {
 		list: () => request("/api/services"),

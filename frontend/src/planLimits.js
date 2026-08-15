@@ -9,6 +9,7 @@ export const PLAN_LIMITS = {
 		mercadoPagoEnabled: false,
 		whatsappEnabled: true,
 		loyaltyRewardsEnabled: false,
+		commissionsEnabled: false,
 	},
 	PERSONAL: {
 		maxProfessionals: 1,
@@ -19,6 +20,7 @@ export const PLAN_LIMITS = {
 		mercadoPagoEnabled: false,
 		whatsappEnabled: false,
 		loyaltyRewardsEnabled: false,
+		commissionsEnabled: false,
 	},
 	BASIC: {
 		maxProfessionals: 4,
@@ -29,6 +31,7 @@ export const PLAN_LIMITS = {
 		mercadoPagoEnabled: false,
 		whatsappEnabled: true,
 		loyaltyRewardsEnabled: false,
+		commissionsEnabled: false,
 	},
 	PRO: {
 		maxProfessionals: 10,
@@ -39,6 +42,7 @@ export const PLAN_LIMITS = {
 		mercadoPagoEnabled: true,
 		whatsappEnabled: true,
 		loyaltyRewardsEnabled: true,
+		commissionsEnabled: true,
 	},
 	MAX: {
 		maxProfessionals: 20,
@@ -49,6 +53,7 @@ export const PLAN_LIMITS = {
 		mercadoPagoEnabled: true,
 		whatsappEnabled: true,
 		loyaltyRewardsEnabled: true,
+		commissionsEnabled: true,
 	},
 };
 
@@ -58,6 +63,10 @@ export function planHasWhatsApp(tier) {
 
 export function planHasLoyaltyRewards(tier) {
 	return PLAN_LIMITS[tier]?.loyaltyRewardsEnabled ?? false;
+}
+
+export function planHasCommissions(tier) {
+	return PLAN_LIMITS[tier]?.commissionsEnabled ?? false;
 }
 
 export function planHasProducts(tier) {

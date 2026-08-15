@@ -199,6 +199,16 @@ public class TenantService {
 		return tenant;
 	}
 
+	@Transactional
+	public Tenant updateCommissionsEnabled(UUID tenantId, boolean enabled) {
+		Tenant tenant = findById(tenantId);
+		if (enabled && !tenant.getPlanTier().isCommissionsEnabled()) {
+			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include staff commissions");
+		}
+		tenant.setCommissionsEnabled(enabled);
+		return tenant;
+	}
+
 	/** {@code pointsCap} bounds (5–200) are also enforced by validation on the request DTO and a DB
 	 * check constraint (V39) — same three-places-deliberately pattern as updateClientRankingSettings.
 	 * Also refuses to drop the cap below an existing RewardTier's requirement — a tier a client can

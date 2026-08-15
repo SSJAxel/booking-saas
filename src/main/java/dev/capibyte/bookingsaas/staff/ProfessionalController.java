@@ -46,13 +46,14 @@ public class ProfessionalController {
 	@ResponseStatus(HttpStatus.CREATED)
 	public ProfessionalResponse create(@Valid @RequestBody ProfessionalRequest request) {
 		return ProfessionalResponse.from(professionalService.create(request.branchId(), request.displayName(),
-				request.bio(), request.photoUrl()));
+				request.bio(), request.photoUrl(), request.serviceCommissionRate(), request.productCommissionRate()));
 	}
 
 	@PutMapping("/{id}")
 	public ProfessionalResponse update(@PathVariable UUID id, @Valid @RequestBody ProfessionalUpdateRequest request) {
 		return ProfessionalResponse.from(professionalService.update(id, request.branchId(), request.displayName(),
-				request.bio(), request.photoUrl(), request.active()));
+				request.bio(), request.photoUrl(), request.active(), request.serviceCommissionRate(),
+				request.productCommissionRate()));
 	}
 
 	@DeleteMapping("/{id}")

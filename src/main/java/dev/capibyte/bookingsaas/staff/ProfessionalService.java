@@ -6,6 +6,7 @@ import dev.capibyte.bookingsaas.common.TenantContext;
 import dev.capibyte.bookingsaas.tenant.BranchService;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +23,8 @@ public class ProfessionalService {
 	private final TenantService tenantService;
 
 	@Transactional
-	public Professional create(UUID branchId, String displayName, String bio, String photoUrl) {
+	public Professional create(UUID branchId, String displayName, String bio, String photoUrl,
+			BigDecimal serviceCommissionRate, BigDecimal productCommissionRate) {
 		Tenant tenant = tenantService.findByIdForUpdate(TenantContext.getTenantId());
 		if (professionalRepository.countByActiveTrue() >= tenant.getEffectiveProfessionalLimit()) {
 			throw new ProfessionalLimitExceededException(tenant.getPlanTier());
@@ -33,6 +35,8 @@ public class ProfessionalService {
 		professional.setDisplayName(displayName);
 		professional.setBio(bio);
 		professional.setPhotoUrl(photoUrl);
+		professional.setServiceCommissionRate(serviceCommissionRate);
+		professional.setProductCommissionRate(productCommissionRate);
 		return professionalRepository.save(professional);
 	}
 
@@ -49,7 +53,7 @@ public class ProfessionalService {
 
 	@Transactional
 	public Professional update(UUID id, UUID branchId, String displayName, String bio, String photoUrl,
-			boolean active) {
+			boolean active, BigDecimal serviceCommissionRate, BigDecimal productCommissionRate) {
 		branchService.findById(branchId); // 404s (not FK violation) if missing or belongs to another tenant
 		Professional professional = findById(id);
 		professional.setBranchId(branchId);
@@ -57,6 +61,8 @@ public class ProfessionalService {
 		professional.setBio(bio);
 		professional.setPhotoUrl(photoUrl);
 		professional.setActive(active);
+		professional.setServiceCommissionRate(serviceCommissionRate);
+		professional.setProductCommissionRate(productCommissionRate);
 		return professional;
 	}
 

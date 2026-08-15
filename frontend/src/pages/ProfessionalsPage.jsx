@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, resolveMediaUrl } from "../api.js";
 import { planLabel } from "../labels.js";
-import { PLAN_LIMITS } from "../planLimits.js";
+import { PLAN_LIMITS, planHasCommissions } from "../planLimits.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
 import SimpleAvailabilityEditor from "../components/SimpleAvailabilityEditor.jsx";
 import MonthCalendar from "../components/MonthCalendar.jsx";
@@ -19,7 +19,16 @@ export default function ProfessionalsPage() {
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [editingId, setEditingId] = useState(null);
-	const [editDraft, setEditDraft] = useState({ displayName: "", bio: "", photoUrl: "", active: true, branchId: "" });
+	const [editDraft, setEditDraft] = useState({
+		displayName: "",
+		bio: "",
+		photoUrl: "",
+		active: true,
+		branchId: "",
+		serviceCommissionRate: "",
+		productCommissionRate: "",
+	});
+	const [commissionsNotice, setCommissionsNotice] = useState("");
 	const [uploadingPhotoFor, setUploadingPhotoFor] = useState(null);
 	const [rangePickerFor, setRangePickerFor] = useState(null);
 	const [selectedDates, setSelectedDates] = useState(new Set());
@@ -75,9 +84,23 @@ export default function ProfessionalsPage() {
 				branchId: form.get("branchId"),
 				displayName: form.get("displayName"),
 				bio: form.get("bio") || null,
+				serviceCommissionRate: form.get("serviceCommissionRate") || null,
+				productCommissionRate: form.get("productCommissionRate") || null,
 			});
 			event.target.reset();
 			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleToggleCommissions(event) {
+		const enabled = event.target.checked;
+		setError("");
+		setCommissionsNotice("");
+		try {
+			setTenant(await api.tenant.updateCommissions(enabled));
+			setCommissionsNotice("Guardado.");
 		} catch (err) {
 			setError(err.message);
 		}
@@ -91,6 +114,8 @@ export default function ProfessionalsPage() {
 			photoUrl: p.photoUrl ?? "",
 			active: p.active,
 			branchId: p.branchId,
+			serviceCommissionRate: p.serviceCommissionRate ?? "",
+			productCommissionRate: p.productCommissionRate ?? "",
 		});
 	}
 
@@ -104,6 +129,8 @@ export default function ProfessionalsPage() {
 				bio: editDraft.bio || null,
 				photoUrl: editDraft.photoUrl || null,
 				active: editDraft.active,
+				serviceCommissionRate: editDraft.serviceCommissionRate || null,
+				productCommissionRate: editDraft.productCommissionRate || null,
 			});
 			setEditingId(null);
 			await refresh();
@@ -140,6 +167,11 @@ export default function ProfessionalsPage() {
 				bio: professional.bio,
 				photoUrl: null,
 				active: professional.active,
+				// Pass through, don't omit — PUT sets whatever's sent, and this endpoint is only
+				// meant to touch photoUrl (same wipe-on-omission gotcha AccountPage.jsx had earlier
+				// this session with avatarUrl).
+				serviceCommissionRate: professional.serviceCommissionRate,
+				productCommissionRate: professional.productCommissionRate,
 			});
 			await refresh();
 		} catch (err) {
@@ -292,6 +324,22 @@ export default function ProfessionalsPage() {
 			)}
 			{error && <p className="error">{error}</p>}
 			{notice && <p className="notice">{notice}</p>}
+
+			{tenant && planHasCommissions(tenant.planTier) && (
+				<div className="card" style={{ marginBottom: "1rem" }}>
+					<label className="inline-form" style={{ alignItems: "center", gap: "0.5rem" }}>
+						<input type="checkbox" checked={tenant.commissionsEnabled} onChange={handleToggleCommissions} />
+						Activar comisiones por empleado
+						{commissionsNotice && <span className="notice">{commissionsNotice}</span>}
+					</label>
+					<p className="muted" style={{ marginTop: "0.4rem" }}>
+						Definí un % de comisión por servicio y por venta de producto en cada profesional (abajo).
+						Se calcula sobre los turnos completados y las ventas registradas — mirá el reporte en
+						Inicio → Comisiones.
+					</p>
+				</div>
+			)}
+
 			{branches.length === 0 && <p className="muted">Cargá una sucursal primero.</p>}
 			{atLimit ? (
 				<p className="muted">Llegaste al límite de profesionales de tu plan {planLabel(tenant.planTier)}.</p>
@@ -309,6 +357,28 @@ export default function ProfessionalsPage() {
 					</select>
 					<input name="displayName" placeholder="Nombre" required />
 					<input name="bio" placeholder="Bio (opcional)" />
+					{tenant && planHasCommissions(tenant.planTier) && (
+						<>
+							<input
+								name="serviceCommissionRate"
+								type="number"
+								min="0"
+								max="100"
+								step="0.01"
+								placeholder="% comisión servicio"
+								style={{ width: "9rem" }}
+							/>
+							<input
+								name="productCommissionRate"
+								type="number"
+								min="0"
+								max="100"
+								step="0.01"
+								placeholder="% comisión producto"
+								style={{ width: "9rem" }}
+							/>
+						</>
+					)}
 					<button type="submit">Agregar</button>
 				</form>
 			)}
@@ -351,6 +421,32 @@ export default function ProfessionalsPage() {
 											onChange={(e) => setEditDraft({ ...editDraft, bio: e.target.value })}
 										/>
 									</label>
+									{tenant && planHasCommissions(tenant.planTier) && (
+										<>
+											<label>
+												% comisión servicio
+												<input
+													type="number"
+													min="0"
+													max="100"
+													step="0.01"
+													value={editDraft.serviceCommissionRate}
+													onChange={(e) => setEditDraft({ ...editDraft, serviceCommissionRate: e.target.value })}
+												/>
+											</label>
+											<label>
+												% comisión producto
+												<input
+													type="number"
+													min="0"
+													max="100"
+													step="0.01"
+													value={editDraft.productCommissionRate}
+													onChange={(e) => setEditDraft({ ...editDraft, productCommissionRate: e.target.value })}
+												/>
+											</label>
+										</>
+									)}
 								</div>
 								<div className="card-header" style={{ marginTop: "0.8rem" }}>
 									<label className="form-check">

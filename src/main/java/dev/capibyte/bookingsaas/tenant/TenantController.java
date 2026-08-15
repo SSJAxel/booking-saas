@@ -9,6 +9,7 @@ import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.ClientRankingSettingsRequest;
+import dev.capibyte.bookingsaas.tenant.dto.CommissionsSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.DepositExpirationUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.HistoryRetentionUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.LoyaltyRewardsSettingsRequest;
@@ -121,6 +122,14 @@ public class TenantController {
 	public TenantResponse updateLoyaltyRewards(@Valid @RequestBody LoyaltyRewardsSettingsRequest request) {
 		return TenantResponse.from(tenantService.updateLoyaltyRewardsSettings(TenantContext.getTenantId(),
 				request.enabled(), request.pointsCap()));
+	}
+
+	/** Owner/admin: turns the staff-commissions report on/off (PRO/MAX only). */
+	@PatchMapping("/commissions")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateCommissions(@Valid @RequestBody CommissionsSettingsRequest request) {
+		return TenantResponse
+				.from(tenantService.updateCommissionsEnabled(TenantContext.getTenantId(), request.enabled()));
 	}
 
 	/**

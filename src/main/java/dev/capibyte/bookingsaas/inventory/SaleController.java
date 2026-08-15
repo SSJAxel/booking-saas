@@ -27,7 +27,8 @@ public class SaleController {
 	@PostMapping
 	@ResponseStatus(HttpStatus.CREATED)
 	public SaleResponse create(@Valid @RequestBody SaleRequest request) {
-		return SaleResponse.from(saleService.recordSale(request.productId(), request.quantity(), request.appointmentId()));
+		return SaleResponse.from(saleService.recordSale(request.productId(), request.quantity(),
+				request.appointmentId(), request.professionalId()));
 	}
 
 	@GetMapping("/{id}")

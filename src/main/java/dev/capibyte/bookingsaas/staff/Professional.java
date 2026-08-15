@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.common.BaseTenantEntity;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -36,4 +37,15 @@ public class Professional extends BaseTenantEntity {
 
 	@Column(nullable = false)
 	private boolean active = true;
+
+	/** % of a completed service's price this professional earns, and % of a product sale attributed
+	 * to them (see Sale#professionalId) — null means "not set", excluded from
+	 * ReportService#commissions entirely. Only meaningful while Tenant#commissionsEnabled (PRO/MAX
+	 * only) — setting a rate here doesn't itself require the plan or the toggle, same as reward
+	 * tiers can be defined before loyalty rewards is switched on. */
+	@Column(name = "service_commission_rate", precision = 5, scale = 2)
+	private BigDecimal serviceCommissionRate;
+
+	@Column(name = "product_commission_rate", precision = 5, scale = 2)
+	private BigDecimal productCommissionRate;
 }

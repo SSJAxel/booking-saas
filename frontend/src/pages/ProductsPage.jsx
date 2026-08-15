@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel } from "../labels.js";
-import { PLAN_LIMITS, planHasProducts } from "../planLimits.js";
+import { PLAN_LIMITS, planHasCommissions, planHasProducts } from "../planLimits.js";
 
 export default function ProductsPage() {
 	const [products, setProducts] = useState([]);
 	const [tenant, setTenant] = useState(null);
+	const [professionals, setProfessionals] = useState([]);
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -24,6 +25,17 @@ export default function ProductsPage() {
 			const [p, t] = await Promise.all([api.products.list(), api.tenant.get()]);
 			setProducts(p);
 			setTenant(t);
+			// GET /api/professionals is OWNER/ADMIN-only, but this page (and selling a product) is
+			// also open to STAFF — a 403 here is expected for them, not a real error, so it's caught
+			// on its own rather than surfacing the page-wide error banner. STAFF just won't see the
+			// "which professional" picker, same as before this feature existed.
+			if (planHasCommissions(t.planTier) && t.commissionsEnabled) {
+				try {
+					setProfessionals(await api.professionals.list());
+				} catch {
+					setProfessionals([]);
+				}
+			}
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -57,7 +69,11 @@ export default function ProductsPage() {
 		setError("");
 		const form = new FormData(event.target);
 		try {
-			await api.sales.create({ productId, quantity: Number(form.get("quantity")) });
+			await api.sales.create({
+				productId,
+				quantity: Number(form.get("quantity")),
+				professionalId: form.get("professionalId") || null,
+			});
 			event.target.reset();
 			refresh();
 		} catch (err) {
@@ -211,6 +227,16 @@ export default function ProductsPage() {
 									<td>
 										<form className="inline-form small" onSubmit={(event) => handleSell(p.id, event)}>
 											<input name="quantity" type="number" min="1" defaultValue="1" required />
+											{professionals.length > 0 && (
+												<select name="professionalId" defaultValue="" title="Quién la vendió (para comisión)">
+													<option value="">Sin asignar</option>
+													{professionals.map((pr) => (
+														<option key={pr.id} value={pr.id}>
+															{pr.displayName}
+														</option>
+													))}
+												</select>
+											)}
 											<button type="submit" disabled={p.stock === 0}>
 												Vender
 											</button>

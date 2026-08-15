@@ -129,6 +129,13 @@ public class Tenant extends BaseEntity {
 	@Column(name = "loyalty_points_cap", nullable = false)
 	private int loyaltyPointsCap = 25;
 
+	/** Gate on the whole staff-commissions feature — PRO/MAX only, checked by
+	 * TenantService.updateCommissionsEnabled against PlanTier#isCommissionsEnabled before this can
+	 * be set true. See ReportService#commissions for what it actually gates: while false, that
+	 * report always returns empty regardless of any rates configured on Professional. */
+	@Column(name = "commissions_enabled", nullable = false)
+	private boolean commissionsEnabled = false;
+
 	/** Cuántos minutos (10–180) tiene un depósito PENDING antes de que
 	 * PendingDepositExpirationScheduler cancele el turno solo — solo se consulta para tenants con
 	 * MercadoPago habilitado en su plan, el scheduler ignora por completo a los que no lo tienen

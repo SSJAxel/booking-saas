@@ -2,9 +2,32 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import BarChart from "../components/BarChart.jsx";
 import StatTile from "../components/StatTile.jsx";
+import { planHasCommissions } from "../planLimits.js";
 
 const WEEKDAY_FORMAT = new Intl.DateTimeFormat("es-AR", { weekday: "short" });
 const TODAY_FORMAT = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" });
+
+function todayIsoDate() {
+	return new Date().toISOString().slice(0, 10);
+}
+
+function firstOfMonthIsoDate() {
+	const d = new Date();
+	return new Date(d.getFullYear(), d.getMonth(), 1).toISOString().slice(0, 10);
+}
+
+// "to" is exclusive on the backend (Instant), so a date picked as the last day of the range needs
+// to become the start of the *next* day to actually include everything on that day.
+function dateRangeToInstants(fromIsoDate, toIsoDate) {
+	const from = fromIsoDate ? new Date(fromIsoDate + "T00:00:00").toISOString() : undefined;
+	let to;
+	if (toIsoDate) {
+		const toDate = new Date(toIsoDate + "T00:00:00");
+		toDate.setDate(toDate.getDate() + 1);
+		to = toDate.toISOString();
+	}
+	return { from, to };
+}
 
 function dayLabel(isoDate) {
 	// new Date("YYYY-MM-DD") parses as UTC midnight — fine here since we only read the
@@ -80,20 +103,22 @@ export default function DashboardHomePage() {
 	const [today, setToday] = useState(null);
 	const [traffic, setTraffic] = useState(null);
 	const [sales, setSales] = useState(null);
+	const [tenant, setTenant] = useState(null);
 	const [error, setError] = useState("");
 
 	useEffect(() => {
-		Promise.all([api.reports.today(), api.reports.traffic(7), api.reports.productSales(7)])
-			.then(([t, tr, s]) => {
+		Promise.all([api.reports.today(), api.reports.traffic(7), api.reports.productSales(7), api.tenant.get()])
+			.then(([t, tr, s, tn]) => {
 				setToday(t);
 				setTraffic(tr);
 				setSales(s);
+				setTenant(tn);
 			})
 			.catch((err) => setError(err.message));
 	}, []);
 
 	if (error) return <p className="error">{error}</p>;
-	if (!today || !traffic || !sales) return <DashboardSkeleton />;
+	if (!today || !traffic || !sales || !tenant) return <DashboardSkeleton />;
 
 	const confirmed = today.byStatus.CONFIRMED ?? 0;
 	const pending = today.byStatus.PENDING ?? 0;
@@ -146,6 +171,99 @@ export default function DashboardHomePage() {
 				color="var(--ok-text)"
 				emptyText="Sin ventas de productos en los últimos 7 días."
 			/>
+
+			{planHasCommissions(tenant.planTier) && tenant.commissionsEnabled && <CommissionsSection />}
 		</div>
+	);
+}
+
+/** Per-professional commission breakdown for a picked period — only rendered when the tenant's
+ * plan supports it *and* they've turned it on (see ProfessionalsPage.jsx's toggle). Separate
+ * component so its own date-range state/fetch don't get tangled with the rest of the dashboard's
+ * fixed-7-days charts above. */
+function CommissionsSection() {
+	const [from, setFrom] = useState(firstOfMonthIsoDate());
+	const [to, setTo] = useState(todayIsoDate());
+	const [rows, setRows] = useState(null);
+	const [error, setError] = useState("");
+
+	function refresh() {
+		setError("");
+		const { from: fromInstant, to: toInstant } = dateRangeToInstants(from, to);
+		api.reports
+			.commissions(fromInstant, toInstant)
+			.then(setRows)
+			.catch((err) => setError(err.message));
+	}
+
+	useEffect(() => {
+		refresh();
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, []);
+
+	const total = (rows ?? []).reduce((sum, r) => sum + Number(r.totalCommission), 0);
+
+	return (
+		<>
+			<p className="label">Comisiones</p>
+			<div className="card">
+				<form
+					className="inline-form small"
+					onSubmit={(event) => {
+						event.preventDefault();
+						refresh();
+					}}
+				>
+					<label>
+						Desde
+						<input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+					</label>
+					<label>
+						Hasta
+						<input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+					</label>
+					<button type="submit">Ver</button>
+					{rows && <span className="muted">Total: ${total.toLocaleString("es-AR")}</span>}
+				</form>
+
+				{error && <p className="error">{error}</p>}
+
+				{!rows ? (
+					<p className="muted">Cargando...</p>
+				) : rows.length === 0 ? (
+					<p className="muted">
+						Nadie tiene comisión configurada, o nadie generó turnos/ventas en este período. Configurá los % en
+						Profesionales.
+					</p>
+				) : (
+					<table>
+						<thead>
+							<tr>
+								<th>Profesional</th>
+								<th>Ventas servicios</th>
+								<th>Comisión servicios</th>
+								<th>Ventas productos</th>
+								<th>Comisión productos</th>
+								<th>Total</th>
+							</tr>
+						</thead>
+						<tbody>
+							{rows.map((r) => (
+								<tr key={r.professionalId}>
+									<td>{r.professionalName}</td>
+									<td>${Number(r.serviceRevenue).toLocaleString("es-AR")}</td>
+									<td>${Number(r.serviceCommission).toLocaleString("es-AR")}</td>
+									<td>${Number(r.productRevenue).toLocaleString("es-AR")}</td>
+									<td>${Number(r.productCommission).toLocaleString("es-AR")}</td>
+									<td>
+										<strong>${Number(r.totalCommission).toLocaleString("es-AR")}</strong>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
+				)}
+			</div>
+		</>
 	);
 }

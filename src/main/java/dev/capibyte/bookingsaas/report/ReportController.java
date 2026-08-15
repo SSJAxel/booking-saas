@@ -1,6 +1,7 @@
 package dev.capibyte.bookingsaas.report;
 
 import dev.capibyte.bookingsaas.report.dto.ClientStatsResponse;
+import dev.capibyte.bookingsaas.report.dto.CommissionResponse;
 import dev.capibyte.bookingsaas.report.dto.DailyCountResponse;
 import dev.capibyte.bookingsaas.report.dto.DailySalesResponse;
 import dev.capibyte.bookingsaas.report.dto.ReportSummaryResponse;
@@ -50,5 +51,12 @@ public class ReportController {
 	@GetMapping("/clients")
 	public List<ClientStatsResponse> clients() {
 		return reportService.clientStats();
+	}
+
+	@GetMapping("/commissions")
+	public List<CommissionResponse> commissions(
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
+			@RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to) {
+		return reportService.commissions(from, to);
 	}
 }

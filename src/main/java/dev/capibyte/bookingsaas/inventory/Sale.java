@@ -31,6 +31,14 @@ public class Sale extends BaseTenantEntity {
 	@Column(name = "appointment_id")
 	private UUID appointmentId;
 
+	/** Who rang this sale up, for product-commission attribution (see
+	 * ReportService#commissions) — independent of {@link #appointmentId}: SaleService derives this
+	 * from the appointment when one is linked, otherwise it's whatever the register picked (still
+	 * nullable — an unattributed walk-in sale, same as before this field existed, is a valid
+	 * state). */
+	@Column(name = "professional_id")
+	private UUID professionalId;
+
 	@Column(nullable = false)
 	private int quantity;
 
