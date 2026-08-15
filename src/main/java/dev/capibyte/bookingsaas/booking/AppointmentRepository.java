@@ -19,4 +19,8 @@ public interface AppointmentRepository extends JpaRepository<Appointment, UUID> 
 
 	long countByStartTimeGreaterThanEqualAndStartTimeLessThanAndStatusNotIn(Instant from, Instant to,
 			List<AppointmentStatus> excludedStatuses);
+
+	/** Backs ClientService#history — a direct DB filter, not a scan over every appointment the
+	 * tenant has like AppointmentService.search does, since this only ever needs one client's. */
+	List<Appointment> findByClientIdOrderByStartTimeDesc(UUID clientId);
 }

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import ClientHistoryModal from "./ClientHistoryModal.jsx";
 
 const TOP_N = 10;
 
@@ -64,6 +65,7 @@ export default function ClientInsights() {
 
 function ClientInsightLists({ stats, tenant, onChange }) {
 	const [editing, setEditing] = useState(false);
+	const [selectedClient, setSelectedClient] = useState(null);
 
 	const pinnedClients = [...stats].filter((c) => c.pinned).sort((a, b) => b.rating - a.rating);
 	const pinnedIds = new Set(pinnedClients.map((c) => c.clientId));
@@ -98,28 +100,42 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 					</p>
 				) : (
 					<div className="client-insight-scroll">
-						<ClientList clients={topRated} countKey="rating" countLabel="puntos" showPinned />
+						<ClientList clients={topRated} countKey="rating" countLabel="puntos" showPinned
+							onSelectClient={setSelectedClient} />
 					</div>
 				)}
 			</div>
 			<div className="card">
 				<p className="label">Clientes frecuentes</p>
 				<div className="client-insight-scroll">
-					<ClientList clients={topFrequent} countKey="completedCount" countLabel="completados" />
+					<ClientList clients={topFrequent} countKey="completedCount" countLabel="completados"
+						onSelectClient={setSelectedClient} />
 				</div>
 			</div>
 			<div className="card">
 				<p className="label">Cancelan seguido</p>
 				<div className="client-insight-scroll">
-					<ClientList clients={topCancellers} countKey="cancelledCount" countLabel="cancelados" />
+					<ClientList clients={topCancellers} countKey="cancelledCount" countLabel="cancelados"
+						onSelectClient={setSelectedClient} />
 				</div>
 			</div>
 			<div className="card">
 				<p className="label">No aparecen</p>
 				<div className="client-insight-scroll">
-					<ClientList clients={topNoShows} countKey="noShowCount" countLabel="ausencias" tone="danger" />
+					<ClientList clients={topNoShows} countKey="noShowCount" countLabel="ausencias" tone="danger"
+						onSelectClient={setSelectedClient} />
 				</div>
 			</div>
+
+			<ClientHistoryModal
+				client={selectedClient}
+				timezone={tenant.timezone}
+				onClose={() => setSelectedClient(null)}
+				onNotesSaved={(updated) => {
+					setSelectedClient((prev) => (prev ? { ...prev, notes: updated.notes } : prev));
+					onChange();
+				}}
+			/>
 		</div>
 	);
 }
@@ -227,16 +243,16 @@ function TopClientsEditor({ tenant, onChange }) {
 	);
 }
 
-function ClientList({ clients, countKey, countLabel, tone, showPinned }) {
+function ClientList({ clients, countKey, countLabel, tone, showPinned, onSelectClient }) {
 	return (
 		<ul className="client-insight-list">
 			{clients.map((c) => (
 				<li key={c.clientId}>
-					<span className="client-insight-name">
+					<button type="button" className="link-button client-insight-name" onClick={() => onSelectClient(c)}>
 						{c.rating === 0 && <span className="rating-flag" title="Calificación en 0" />}
 						{showPinned && c.pinned && <span className="pinned-flag" title="Cliente fijo">📌</span>}
 						{c.clientName} <span className="muted">({c.clientEmail})</span>
-					</span>
+					</button>
 					<span className={`badge${tone ? ` badge-${tone}` : ""}`}>
 						{c[countKey]} {countLabel}
 					</span>

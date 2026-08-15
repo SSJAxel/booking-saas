@@ -17,5 +17,6 @@ public record ClientStatsResponse(
 		long cancelledCount,
 		long noShowCount,
 		int rating,
-		boolean pinned) {
+		boolean pinned,
+		String notes) {
 }

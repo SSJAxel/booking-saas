@@ -1,7 +1,9 @@
 package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.ClientSummaryResponse;
+import dev.capibyte.bookingsaas.booking.dto.ClientVisitResponse;
 import dev.capibyte.bookingsaas.booking.dto.PinClientRequest;
+import dev.capibyte.bookingsaas.booking.dto.UpdateClientNotesRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
@@ -38,5 +40,20 @@ public class ClientController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public ClientSummaryResponse setPinned(@PathVariable UUID id, @Valid @RequestBody PinClientRequest request) {
 		return ClientSummaryResponse.from(clientService.setPinned(id, request.pinned()));
+	}
+
+	/** Owner/admin: freeform notes about this client — "keep track of this client" tool, not a
+	 * receptionist action, so it doesn't share STAFF's default read access below. */
+	@PatchMapping("/{id}/notes")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public ClientSummaryResponse updateNotes(@PathVariable UUID id, @Valid @RequestBody UpdateClientNotesRequest request) {
+		return ClientSummaryResponse.from(clientService.updateNotes(id, request.notes()));
+	}
+
+	/** Every visit this client has ever had, most recent first — who served them, when, what
+	 * service, what status. Backs ClientHistoryModal.jsx. */
+	@GetMapping("/{id}/history")
+	public List<ClientVisitResponse> history(@PathVariable UUID id) {
+		return clientService.history(id);
 	}
 }

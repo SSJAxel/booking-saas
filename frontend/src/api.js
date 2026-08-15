@@ -171,6 +171,8 @@ export const api = {
 	clients: {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),
 		setPinned: (id, pinned) => request(`/api/clients/${id}/pin`, { method: "PATCH", body: { pinned } }),
+		updateNotes: (id, notes) => request(`/api/clients/${id}/notes`, { method: "PATCH", body: { notes } }),
+		history: (id) => request(`/api/clients/${id}/history`),
 	},
 	support: {
 		report: (message, imageFile) => {
