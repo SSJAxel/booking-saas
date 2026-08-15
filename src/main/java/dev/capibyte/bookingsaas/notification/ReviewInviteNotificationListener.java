@@ -24,10 +24,10 @@ public class ReviewInviteNotificationListener {
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onReviewInvite(ReviewInviteEvent event) {
 		String link = reviewBaseUrl + "?tenant=" + event.tenantSlug() + "&token=" + event.token();
-		mailService.send(event.clientEmail(), "How was your visit?",
-				"Hi " + event.clientName() + ",\n\nThanks for visiting! We'd love to hear how your \""
-						+ event.serviceName() + "\" with " + event.professionalName()
-						+ " went. If you have a minute, leave a review here:\n" + link
-						+ "\n\nThis is completely optional, and the link expires in 30 days.");
+		mailService.send(event.clientEmail(), "¿Cómo estuvo tu visita?",
+				"Hola " + event.clientName() + ",\n\n¡Gracias por tu visita! Nos encantaría saber cómo estuvo tu \""
+						+ event.serviceName() + "\" con " + event.professionalName()
+						+ ". Si tenés un minuto, dejanos tu reseña acá:\n" + link
+						+ "\n\nEsto es totalmente opcional, y el link vence en 30 días.");
 	}
 }

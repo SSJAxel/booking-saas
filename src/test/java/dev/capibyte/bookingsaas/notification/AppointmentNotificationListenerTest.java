@@ -21,21 +21,21 @@ class AppointmentNotificationListenerTest {
 	void pendingBookingSendsAReceivedEmail() {
 		listener.onAppointmentNotification(event(AppointmentStatus.PENDING));
 
-		verify(mailService).send(eq("client@example.com"), contains("received"), anyString());
+		verify(mailService).send(eq("client@example.com"), contains("recibida"), anyString());
 	}
 
 	@Test
 	void confirmedSendsAConfirmationEmail() {
 		listener.onAppointmentNotification(event(AppointmentStatus.CONFIRMED));
 
-		verify(mailService).send(eq("client@example.com"), contains("confirmed"), anyString());
+		verify(mailService).send(eq("client@example.com"), contains("confirmada"), anyString());
 	}
 
 	@Test
 	void cancelledSendsACancellationEmail() {
 		listener.onAppointmentNotification(event(AppointmentStatus.CANCELLED));
 
-		verify(mailService).send(eq("client@example.com"), contains("cancelled"), anyString());
+		verify(mailService).send(eq("client@example.com"), contains("cancelada"), anyString());
 	}
 
 	@Test

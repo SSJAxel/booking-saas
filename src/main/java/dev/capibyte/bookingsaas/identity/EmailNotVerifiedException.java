@@ -5,6 +5,6 @@ import dev.capibyte.bookingsaas.common.UnauthorizedException;
 public class EmailNotVerifiedException extends UnauthorizedException {
 
 	public EmailNotVerifiedException() {
-		super("Confirm your email before logging in — check your inbox for the verification link");
+		super("Confirmá tu email antes de iniciar sesión — revisá tu casilla por el link de verificación");
 	}
 }

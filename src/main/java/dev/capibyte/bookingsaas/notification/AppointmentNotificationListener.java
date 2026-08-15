@@ -18,12 +18,12 @@ import org.springframework.transaction.event.TransactionalEventListener;
 public class AppointmentNotificationListener {
 
 	// Locale pinned explicitly — DateTimeFormatter otherwise falls back to the JVM's default
-	// locale, which would silently mix Spanish month/day names into this English-language email
-	// on any host whose default locale isn't English (verified: happened on this very machine).
+	// locale, which would silently mix in the wrong month/day names on a host whose default
+	// locale isn't Spanish (verified: this bit us the other way around on this very machine).
 	// No zone baked in here (unlike before this carried per-tenant zones) — event.zone() supplies
 	// it per email, via withZone() below, since different tenants can be in different zones.
 	private static final DateTimeFormatter WHEN_FORMAT =
-			DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", Locale.ENGLISH);
+			DateTimeFormatter.ofPattern("EEEE d MMMM yyyy, HH:mm", new Locale("es", "AR"));
 
 	private final MailService mailService;
 
@@ -31,15 +31,15 @@ public class AppointmentNotificationListener {
 	public void onAppointmentNotification(AppointmentNotificationEvent event) {
 		String when = WHEN_FORMAT.withZone(event.zone()).format(event.startTime()) + " (" + event.zone() + ")";
 		switch (event.status()) {
-			case PENDING -> mailService.send(event.clientEmail(), "Booking received",
-					greeting(event) + "We received your booking for \"" + event.serviceName() + "\" with "
-							+ event.professionalName() + " on " + when + ". It's pending confirmation.");
-			case CONFIRMED -> mailService.send(event.clientEmail(), "Booking confirmed",
-					greeting(event) + "Your appointment for \"" + event.serviceName() + "\" with "
-							+ event.professionalName() + " on " + when + " has been confirmed.");
-			case CANCELLED -> mailService.send(event.clientEmail(), "Booking cancelled",
-					greeting(event) + "Your appointment for \"" + event.serviceName() + "\" with "
-							+ event.professionalName() + " on " + when + " has been cancelled.");
+			case PENDING -> mailService.send(event.clientEmail(), "Reserva recibida",
+					greeting(event) + "Recibimos tu reserva para \"" + event.serviceName() + "\" con "
+							+ event.professionalName() + " el " + when + ". Está pendiente de confirmación.");
+			case CONFIRMED -> mailService.send(event.clientEmail(), "Reserva confirmada",
+					greeting(event) + "Tu turno para \"" + event.serviceName() + "\" con "
+							+ event.professionalName() + " el " + when + " fue confirmado.");
+			case CANCELLED -> mailService.send(event.clientEmail(), "Reserva cancelada",
+					greeting(event) + "Tu turno para \"" + event.serviceName() + "\" con "
+							+ event.professionalName() + " el " + when + " fue cancelado.");
 			case COMPLETED, NO_SHOW -> {
 				// No client-facing email for these — they're operational statuses, not booking updates.
 			}
@@ -47,6 +47,6 @@ public class AppointmentNotificationListener {
 	}
 
 	private String greeting(AppointmentNotificationEvent event) {
-		return "Hi " + event.clientName() + ",\n\n";
+		return "Hola " + event.clientName() + ",\n\n";
 	}
 }

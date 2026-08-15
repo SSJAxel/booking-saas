@@ -13,15 +13,16 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class WaitlistNotificationListener {
 
-	private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.ENGLISH);
+	private static final DateTimeFormatter DATE_FORMAT =
+			DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", new Locale("es", "AR"));
 
 	private final MailService mailService;
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onWaitlistSlotAvailable(WaitlistNotificationEvent event) {
-		mailService.send(event.clientEmail(), "A slot opened up",
-				"Hi " + event.clientName() + ",\n\nA spot for \"" + event.serviceName() + "\" with "
-						+ event.professionalName() + " on " + DATE_FORMAT.format(event.date())
-						+ " just opened up. Book again soon — it may not last!");
+		mailService.send(event.clientEmail(), "Se liberó un turno",
+				"Hola " + event.clientName() + ",\n\nSe liberó un lugar para \"" + event.serviceName() + "\" con "
+						+ event.professionalName() + " el " + DATE_FORMAT.format(event.date())
+						+ ". Reservá pronto, ¡puede que no dure!");
 	}
 }

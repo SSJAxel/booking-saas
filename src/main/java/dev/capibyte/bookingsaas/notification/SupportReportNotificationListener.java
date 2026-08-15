@@ -21,8 +21,8 @@ public class SupportReportNotificationListener {
 
 	@TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
 	public void onSupportReportSubmitted(SupportReportSubmittedEvent event) {
-		String body = "From: " + event.submitterEmail() + " (" + event.tenantName() + ")\n\n" + event.message();
-		mailService.sendWithAttachment(founderEmail, "Bug report — " + event.tenantName(), body,
+		String body = "De: " + event.submitterEmail() + " (" + event.tenantName() + ")\n\n" + event.message();
+		mailService.sendWithAttachment(founderEmail, "Reporte de error — " + event.tenantName(), body,
 				event.imagePath(), event.imageContentType());
 	}
 }

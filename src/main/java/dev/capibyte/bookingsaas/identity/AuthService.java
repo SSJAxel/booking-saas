@@ -191,17 +191,17 @@ public class AuthService {
 				+ "(este es el único mail que las va a mostrar, guardalas en un lugar seguro):\n"
 				+ "Negocio: " + tenant.getSlug() + "\nEmail: " + owner.getEmail() + "\nContraseña: " + rawPassword
 				+ "\n";
-		mailService.send(owner.getEmail(), "Confirm your email",
-				"Hi,\n\nConfirm your email to activate " + tenant.getName() + " on booking-saas:\n" + link
-						+ "\n\nThis link expires in 24 hours." + credentialsBlock);
+		mailService.send(owner.getEmail(), "Confirmá tu email",
+				"Hola,\n\nConfirmá tu email para activar " + tenant.getName() + " en booking-saas:\n" + link
+						+ "\n\nEste link vence en 24 horas." + credentialsBlock);
 	}
 
 	private void sendPasswordResetEmail(Tenant tenant, AppUser owner) {
 		String link = resetPasswordBaseUrl + "?tenant=" + tenant.getSlug() + "&token=" + owner.getResetToken();
-		mailService.send(owner.getEmail(), "Reset your password",
-				"Hi,\n\nSomeone asked to reset the password for your " + tenant.getName()
-						+ " account on booking-saas. If this was you, set a new password here:\n" + link
-						+ "\n\nThis link expires in 1 hour. If you didn't request this, you can safely ignore this email.");
+		mailService.send(owner.getEmail(), "Restablecé tu contraseña",
+				"Hola,\n\nAlguien pidió restablecer la contraseña de tu cuenta " + tenant.getName()
+						+ " en booking-saas. Si fuiste vos, configurá una nueva contraseña acá:\n" + link
+						+ "\n\nEste link vence en 1 hora. Si no lo pediste vos, podés ignorar este mail tranquilamente.");
 	}
 
 	private AuthResponse authResponse(Tenant tenant, AppUser user) {
