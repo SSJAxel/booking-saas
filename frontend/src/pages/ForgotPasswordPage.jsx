@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { StoreIcon, MailIcon } from "../components/icons.jsx";
 
 /**
  * Always shows the same generic success message once the request completes, regardless of whether
@@ -43,11 +44,17 @@ export default function ForgotPasswordPage() {
 						{error && <p className="error">{error}</p>}
 						<label>
 							Identificador del negocio
-							<input name="tenantSlug" required />
+							<span className="input-icon-wrap">
+								<StoreIcon width="16" height="16" />
+								<input name="tenantSlug" required />
+							</span>
 						</label>
 						<label>
 							Email
-							<input name="email" type="email" required />
+							<span className="input-icon-wrap">
+								<MailIcon width="16" height="16" />
+								<input name="email" type="email" required />
+							</span>
 						</label>
 						<button type="submit" disabled={loading}>
 							{loading ? "Enviando..." : "Enviar instrucciones"}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { StoreIcon, MailIcon, LockIcon, PlusIcon } from "./icons.jsx";
 
 /**
  * Just the form + post-submit "revisá tu mail" state, no page/card wrapper — shared between
@@ -66,21 +67,34 @@ export default function RegisterForm() {
 			{error && <p className="error">{error}</p>}
 			<label>
 				Nombre del negocio
-				<input name="tenantName" required />
+				<span className="input-icon-wrap">
+					<StoreIcon width="16" height="16" />
+					<input name="tenantName" required />
+				</span>
 			</label>
 			<label>
 				Identificador del negocio (minúsculas, sin espacios)
-				<input name="tenantSlug" required pattern="[a-z0-9](-?[a-z0-9])*" />
+				<span className="input-icon-wrap">
+					<StoreIcon width="16" height="16" />
+					<input name="tenantSlug" required pattern="[a-z0-9](-?[a-z0-9])*" />
+				</span>
 			</label>
 			<label>
 				Email del dueño
-				<input name="ownerEmail" type="email" required />
+				<span className="input-icon-wrap">
+					<MailIcon width="16" height="16" />
+					<input name="ownerEmail" type="email" required />
+				</span>
 			</label>
 			<label>
 				Contraseña (mín. 8 caracteres)
-				<input name="ownerPassword" type="password" minLength={8} required />
+				<span className="input-icon-wrap">
+					<LockIcon width="16" height="16" />
+					<input name="ownerPassword" type="password" minLength={8} required />
+				</span>
 			</label>
 			<button type="submit" disabled={loading}>
+				<PlusIcon />
 				{loading ? "Creando..." : "Crear negocio"}
 			</button>
 		</form>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { UserIcon } from "../components/icons.jsx";
 
 // Placeholder avatar set — see README "Avatares de perfil" for the designer handoff. Replacing
 // these files under frontend/public/avatars/ with real artwork (same filenames) is enough, no
@@ -45,7 +46,12 @@ export default function AccountPage() {
 
 	return (
 		<div>
-			<h1>Mi cuenta</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<UserIcon />
+				</span>
+				<h1>Mi cuenta</h1>
+			</div>
 			{error && <p className="error">{error}</p>}
 			{notice && <p className="notice">{notice}</p>}
 

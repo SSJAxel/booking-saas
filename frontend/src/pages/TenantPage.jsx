@@ -4,6 +4,7 @@ import { useAuth } from "../auth/AuthContext.jsx";
 import HelpManual from "../components/HelpManual.jsx";
 import { planLabel } from "../labels.js";
 import { planHasWhatsApp } from "../planLimits.js";
+import { LayersIcon } from "../components/icons.jsx";
 
 export default function TenantPage() {
 	const [tenant, setTenant] = useState(null);
@@ -294,7 +295,12 @@ export default function TenantPage() {
 
 	return (
 		<div>
-			<h1>Mi Plan</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<LayersIcon />
+				</span>
+				<h1>Mi Plan</h1>
+			</div>
 			{error && <p className="error">{error}</p>}
 
 			<p className="label">Accesos rápidos</p>

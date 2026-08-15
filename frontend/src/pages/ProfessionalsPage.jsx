@@ -6,6 +6,7 @@ import WeeklySchedule from "../components/WeeklySchedule.jsx";
 import SimpleAvailabilityEditor from "../components/SimpleAvailabilityEditor.jsx";
 import MonthCalendar from "../components/MonthCalendar.jsx";
 import { professionalColor } from "../professionalColor.js";
+import { TeamIcon, PlusIcon, EditIcon, TrashIcon } from "../components/icons.jsx";
 
 export default function ProfessionalsPage() {
 	const [branches, setBranches] = useState([]);
@@ -316,7 +317,12 @@ export default function ProfessionalsPage() {
 
 	return (
 		<div>
-			<h1>Profesionales</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<TeamIcon />
+				</span>
+				<h1>Profesionales</h1>
+			</div>
 			{tenant && (
 				<p className="muted">
 					Plan {planLabel(tenant.planTier)} · {professionals.length}/{limit} profesionales
@@ -379,7 +385,10 @@ export default function ProfessionalsPage() {
 							/>
 						</>
 					)}
-					<button type="submit">Agregar</button>
+					<button type="submit">
+						<PlusIcon />
+						Agregar
+					</button>
 				</form>
 			)}
 			{branches.length > 0 && !atLimit && (
@@ -509,9 +518,11 @@ export default function ProfessionalsPage() {
 								</div>
 								<div className="button-row">
 									<button type="button" className="secondary" onClick={() => startEdit(p)}>
+										<EditIcon />
 										Editar
 									</button>
 									<button type="button" className="danger" onClick={() => handleDelete(p.id)}>
+										<TrashIcon />
 										Eliminar
 									</button>
 								</div>

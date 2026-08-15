@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
 import RegisterForm from "../components/RegisterForm.jsx";
+import { CalendarIcon, MailIcon, LockIcon, StoreIcon } from "../components/icons.jsx";
 
 export default function LoginPage() {
 	const [mode, setMode] = useState("login");
@@ -32,7 +33,10 @@ export default function LoginPage() {
 	return (
 		<div className="auth-page">
 			<div className="auth-card">
-				<h1>booking-saas</h1>
+				<div className="auth-brand-mark">
+					<CalendarIcon width="24" height="24" />
+				</div>
+				<h1>CapiBooking</h1>
 				<div className="tabs">
 					<button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>
 						Ingresar
@@ -47,15 +51,24 @@ export default function LoginPage() {
 						<form onSubmit={handleLogin}>
 							<label>
 								Identificador del negocio
-								<input name="tenantSlug" required />
+								<span className="input-icon-wrap">
+									<StoreIcon width="16" height="16" />
+									<input name="tenantSlug" required />
+								</span>
 							</label>
 							<label>
 								Email
-								<input name="email" type="email" required />
+								<span className="input-icon-wrap">
+									<MailIcon width="16" height="16" />
+									<input name="email" type="email" required />
+								</span>
 							</label>
 							<label>
 								Contraseña
-								<input name="password" type="password" required />
+								<span className="input-icon-wrap">
+									<LockIcon width="16" height="16" />
+									<input name="password" type="password" required />
+								</span>
 							</label>
 							<button type="submit" disabled={loading}>
 								{loading ? "Ingresando..." : "Ingresar"}

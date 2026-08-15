@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel } from "../labels.js";
 import { PLAN_LIMITS } from "../planLimits.js";
+import { ScissorsIcon, PlusIcon, EditIcon, TrashIcon } from "../components/icons.jsx";
 
 const EMPTY_DRAFT = {
 	name: "",
@@ -143,7 +144,12 @@ export default function ServicesPage() {
 
 	return (
 		<div>
-			<h1>Servicios</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<ScissorsIcon />
+				</span>
+				<h1>Servicios</h1>
+			</div>
 			{tenant && (
 				<p className="muted">
 					Plan {planLabel(tenant.planTier)} · {services.length}/{limit} servicios
@@ -165,7 +171,10 @@ export default function ServicesPage() {
 						<input type="checkbox" name="featured" />
 						Destacado
 					</label>
-					<button type="submit">Agregar</button>
+					<button type="submit">
+						<PlusIcon />
+						Agregar
+					</button>
 				</form>
 			)}
 
@@ -269,9 +278,11 @@ export default function ServicesPage() {
 							</p>
 							<div className="button-row">
 								<button type="button" className="secondary" onClick={() => startEdit(s)}>
+									<EditIcon />
 									Editar
 								</button>
 								<button type="button" className="danger" onClick={() => handleDelete(s.id)}>
+									<TrashIcon />
 									Eliminar
 								</button>
 							</div>

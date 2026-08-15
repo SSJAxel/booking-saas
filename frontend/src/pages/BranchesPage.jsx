@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { planLabel } from "../labels.js";
 import { PLAN_LIMITS } from "../planLimits.js";
 import WeeklySchedule from "../components/WeeklySchedule.jsx";
+import { BranchIcon, PlusIcon, EditIcon, TrashIcon, InboxIcon } from "../components/icons.jsx";
 
 export default function BranchesPage() {
 	const [branches, setBranches] = useState([]);
@@ -115,7 +116,12 @@ export default function BranchesPage() {
 
 	return (
 		<div>
-			<h1>Sucursales</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<BranchIcon />
+				</span>
+				<h1>Sucursales</h1>
+			</div>
 			{tenant && (
 				<p className="muted">
 					Plan {planLabel(tenant.planTier)} · {branches.length}/{limit} sucursales
@@ -131,12 +137,18 @@ export default function BranchesPage() {
 					<input name="address" placeholder="Dirección" />
 					<input name="phone" placeholder="Teléfono" />
 					<input name="googleBusinessUrl" type="url" placeholder="Link de Google Business (opcional)" />
-					<button type="submit">Agregar</button>
+					<button type="submit">
+						<PlusIcon />
+						Agregar
+					</button>
 				</form>
 			)}
 
 			{branches.length === 0 ? (
-				<p className="muted">Todavía no hay sucursales.</p>
+				<div className="empty-state">
+					<InboxIcon />
+					<p className="muted">Todavía no hay sucursales.</p>
+				</div>
 			) : (
 				<div className="cards stacked">
 					{branches.map((b) => (
@@ -209,9 +221,11 @@ export default function BranchesPage() {
 									</div>
 									<div className="button-row">
 										<button type="button" className="secondary" onClick={() => startEdit(b)}>
+											<EditIcon />
 											Editar
 										</button>
 										<button type="button" className="danger" onClick={() => handleDelete(b.id)}>
+											<TrashIcon />
 											Eliminar
 										</button>
 									</div>

@@ -9,6 +9,7 @@ import RescheduleModal from "../components/RescheduleModal.jsx";
 import ClientInsights from "../components/ClientInsights.jsx";
 import { paymentStatusLabel, statusLabel } from "../labels.js";
 import { tenantDateKey, tenantDateTimeLabel, tenantMinutesOfDay } from "../tenantTime.js";
+import { CalendarIcon, PlusIcon } from "../components/icons.jsx";
 
 const STATUSES = ["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"];
 const NEXT_STATUS = {
@@ -363,8 +364,14 @@ export default function AppointmentsPage() {
 	return (
 		<div>
 			<div className="card-header">
-				<h1>Turnos</h1>
+				<div className="page-title" style={{ marginBottom: 0 }}>
+					<span className="page-title-icon">
+						<CalendarIcon />
+					</span>
+					<h1>Turnos</h1>
+				</div>
 				<button type="button" onClick={openCreate}>
+					<PlusIcon />
 					Nuevo turno
 				</button>
 			</div>

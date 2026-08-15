@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { paymentStatusLabel, statusLabel } from "../labels.js";
 import { tenantLongDateTimeLabel } from "../tenantTime.js";
+import { TrashIcon } from "./icons.jsx";
 
 const NEXT_STATUS = {
 	PENDING: ["CONFIRMED", "CANCELLED"],
@@ -77,6 +78,7 @@ export default function AppointmentDetailModal({ appointment, onClose, professio
 						)}
 						{onDelete && (
 							<button type="button" className="danger" onClick={onDelete} title="Borrado permanente, no afecta al cliente">
+								<TrashIcon />
 								Eliminar turno
 							</button>
 						)}

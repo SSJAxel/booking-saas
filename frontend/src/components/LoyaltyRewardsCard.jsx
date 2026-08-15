@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
+import { TrashIcon } from "./icons.jsx";
 
 /**
  * "Recompensas" card inside Turnos → Lista → Clientes — own file since ClientInsights.jsx is
@@ -205,6 +206,7 @@ function LoyaltyRewardsEditor({ tenant, tiers, onChange }) {
 								{t.pointsRequired} pts — {t.description}
 							</span>
 							<button type="button" className="secondary" onClick={() => handleDeleteTier(t.id)}>
+								<TrashIcon />
 								Eliminar
 							</button>
 						</li>

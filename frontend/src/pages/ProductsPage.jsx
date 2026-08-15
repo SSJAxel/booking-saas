@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel } from "../labels.js";
 import { PLAN_LIMITS, planHasCommissions, planHasProducts } from "../planLimits.js";
+import { BoxIcon, PlusIcon, EditIcon, TrashIcon, InboxIcon } from "../components/icons.jsx";
 
 export default function ProductsPage() {
 	const [products, setProducts] = useState([]);
@@ -135,7 +136,12 @@ export default function ProductsPage() {
 
 	return (
 		<div>
-			<h1>Productos</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<BoxIcon />
+				</span>
+				<h1>Productos</h1>
+			</div>
 			{tenant && (
 				<p className="muted">
 					Plan {planLabel(tenant.planTier)}
@@ -148,11 +154,17 @@ export default function ProductsPage() {
 				<input name="name" placeholder="Nombre" required />
 				<input name="price" type="number" step="0.01" min="0" placeholder="Precio" required />
 				<input name="stock" type="number" min="0" placeholder="Stock" required />
-				<button type="submit">Agregar</button>
+				<button type="submit">
+					<PlusIcon />
+					Agregar
+				</button>
 			</form>
 
 			{products.length === 0 ? (
-				<p className="muted">Todavía no hay productos.</p>
+				<div className="empty-state">
+					<InboxIcon />
+					<p className="muted">Todavía no hay productos.</p>
+				</div>
 			) : (
 				<table>
 					<thead>
@@ -244,9 +256,11 @@ export default function ProductsPage() {
 									</td>
 									<td className="button-row">
 										<button type="button" className="secondary" onClick={() => startEdit(p)}>
+											<EditIcon />
 											Editar
 										</button>
 										<button type="button" className="danger" onClick={() => handleDelete(p.id)}>
+											<TrashIcon />
 											Eliminar
 										</button>
 									</td>

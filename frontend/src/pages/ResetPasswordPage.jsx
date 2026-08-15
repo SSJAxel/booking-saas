@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { useAuth } from "../auth/AuthContext.jsx";
+import { LockIcon } from "../components/icons.jsx";
 
 export default function ResetPasswordPage() {
 	const [searchParams] = useSearchParams();
@@ -58,11 +59,17 @@ export default function ResetPasswordPage() {
 						<form onSubmit={handleSubmit}>
 							<label>
 								Nueva contraseña
-								<input name="newPassword" type="password" required minLength={8} />
+								<span className="input-icon-wrap">
+									<LockIcon width="16" height="16" />
+									<input name="newPassword" type="password" required minLength={8} />
+								</span>
 							</label>
 							<label>
 								Confirmar contraseña
-								<input name="confirmPassword" type="password" required minLength={8} />
+								<span className="input-icon-wrap">
+									<LockIcon width="16" height="16" />
+									<input name="confirmPassword" type="password" required minLength={8} />
+								</span>
 							</label>
 							<button type="submit" disabled={loading}>
 								{loading ? "Guardando..." : "Guardar nueva contraseña"}

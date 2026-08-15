@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import BarChart from "../components/BarChart.jsx";
 import StatTile from "../components/StatTile.jsx";
 import { planHasCommissions } from "../planLimits.js";
+import { HomeIcon, InboxIcon } from "../components/icons.jsx";
 
 const WEEKDAY_FORMAT = new Intl.DateTimeFormat("es-AR", { weekday: "short" });
 const TODAY_FORMAT = new Intl.DateTimeFormat("es-AR", { weekday: "long", day: "numeric", month: "long" });
@@ -76,7 +77,10 @@ function ChartCard({ title, total, data, color, valueFormatter, emptyText }) {
 				</span>
 			</div>
 			{isEmpty ? (
-				<p className="muted chart-empty">{emptyText}</p>
+				<div className="chart-empty">
+					<InboxIcon />
+					<p className="muted">{emptyText}</p>
+				</div>
 			) : (
 				<BarChart data={data} color={color} valueFormatter={valueFormatter} />
 			)}
@@ -131,7 +135,12 @@ export default function DashboardHomePage() {
 
 	return (
 		<div>
-			<h1>Inicio</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<HomeIcon />
+				</span>
+				<h1>Inicio</h1>
+			</div>
 			<p className="muted dashboard-date">{capitalize(TODAY_FORMAT.format(new Date()))}</p>
 
 			<p className="label">Turnos de hoy</p>

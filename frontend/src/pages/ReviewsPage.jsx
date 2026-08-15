@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { planLabel } from "../labels.js";
 import { planHasReviews } from "../planLimits.js";
+import { StarIcon, EyeIcon, EyeOffIcon, TrashIcon, InboxIcon } from "../components/icons.jsx";
 
 export default function ReviewsPage() {
 	const [tenant, setTenant] = useState(null);
@@ -65,7 +66,12 @@ export default function ReviewsPage() {
 	if (tenant && !planHasReviews(tenant.planTier)) {
 		return (
 			<div>
-				<h1>Reseñas</h1>
+				<div className="page-title">
+					<span className="page-title-icon">
+						<StarIcon />
+					</span>
+					<h1>Reseñas</h1>
+				</div>
 				<p className="muted">
 					Tu plan {planLabel(tenant.planTier)} no incluye reseñas públicas de clientes. Mejorá tu plan
 					desde "Mi Plan" para habilitar esta sección.
@@ -76,7 +82,12 @@ export default function ReviewsPage() {
 
 	return (
 		<div>
-			<h1>Reseñas</h1>
+			<div className="page-title">
+				<span className="page-title-icon">
+					<StarIcon />
+				</span>
+				<h1>Reseñas</h1>
+			</div>
 			{error && <p className="error">{error}</p>}
 
 			<div className="card" style={{ marginBottom: "1rem" }}>
@@ -93,7 +104,10 @@ export default function ReviewsPage() {
 			</div>
 
 			{reviews.length === 0 ? (
-				<p className="muted">Todavía no hay reseñas.</p>
+				<div className="empty-state">
+					<InboxIcon />
+					<p className="muted">Todavía no hay reseñas.</p>
+				</div>
 			) : (
 				<table>
 					<thead>
@@ -120,9 +134,11 @@ export default function ReviewsPage() {
 										className="secondary"
 										onClick={() => handleToggleVisibility(r.id, !r.visible)}
 									>
+										{r.visible ? <EyeOffIcon /> : <EyeIcon />}
 										{r.visible ? "Ocultar" : "Mostrar"}
 									</button>
 									<button type="button" className="danger" onClick={() => handleDelete(r.id)}>
+										<TrashIcon />
 										Eliminar
 									</button>
 								</td>

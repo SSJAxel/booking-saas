@@ -6,19 +6,28 @@ import { getStoredTheme, setTheme, systemPrefersDark } from "../theme.js";
 import { planHasProducts, planHasReviews } from "../planLimits.js";
 import ReportBugModal from "../components/ReportBugModal.jsx";
 import HelpManual from "../components/HelpManual.jsx";
+import {
+	HomeIcon,
+	CalendarIcon,
+	BranchIcon,
+	TeamIcon,
+	ScissorsIcon,
+	BoxIcon,
+	StarIcon,
+} from "../components/icons.jsx";
 
 const ROLE_LABELS = { OWNER: "Dueño/a", ADMIN: "Administrador/a", STAFF: "Staff" };
 
 // The main horizontal nav — "Mi Plan" and "Mi cuenta" live in the "⋯ más opciones" menu instead,
 // alongside settings/account actions rather than day-to-day operative pages.
 const NAV_LINKS = [
-	{ to: "dashboard", label: "Inicio", roles: ["OWNER", "ADMIN"] },
-	{ to: "appointments", label: "Turnos" },
-	{ to: "branches", label: "Sucursales" },
-	{ to: "professionals", label: "Profesionales" },
-	{ to: "services", label: "Servicios" },
-	{ to: "products", label: "Productos", requiresProducts: true },
-	{ to: "reviews", label: "Reseñas", roles: ["OWNER", "ADMIN"], requiresReviews: true },
+	{ to: "dashboard", label: "Inicio", icon: <HomeIcon />, roles: ["OWNER", "ADMIN"] },
+	{ to: "appointments", label: "Turnos", icon: <CalendarIcon /> },
+	{ to: "branches", label: "Sucursales", icon: <BranchIcon /> },
+	{ to: "professionals", label: "Profesionales", icon: <TeamIcon /> },
+	{ to: "services", label: "Servicios", icon: <ScissorsIcon /> },
+	{ to: "products", label: "Productos", icon: <BoxIcon />, requiresProducts: true },
+	{ to: "reviews", label: "Reseñas", icon: <StarIcon />, roles: ["OWNER", "ADMIN"], requiresReviews: true },
 ];
 
 function MenuIcon() {
@@ -154,6 +163,7 @@ export default function DashboardLayout() {
 				<nav className="topbar-nav">
 					{links.map((link) => (
 						<NavLink key={link.to} to={link.to} className={({ isActive }) => (isActive ? "active" : "")}>
+							{link.icon}
 							{link.label}
 						</NavLink>
 					))}

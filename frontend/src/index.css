@@ -1,26 +1,33 @@
-/* Design language ported from booking-saas-admin's admin.css ("Apple Human Interface"-inspired:
-   blurred sidebar, pill buttons/badges, SF Pro system font stack). Same class names as before —
-   only tokens/typography/shape changed, so no JSX had to move. Dark mode kept (admin.css doesn't
-   have one) as a strict Apple-dark variant of the same palette. */
+/* CapiBooking brand identity — anchored on the logo capybara's green (#4BB649, see
+   public/favicon.svg), which the public booking page (BookingPage.css, --pb-accent) already uses.
+   --accent is a deepened, WCAG-AA-safe version of that green (raw #4BB649 only clears ~2.4:1
+   against white — not enough for filled-button text): used for buttons/links/focus/active nav.
+   --accent-bright keeps the true logo hue for decorative, non-text-bearing uses (icon strokes,
+   accent borders, the topbar brand-mark). --ok intentionally sits in the same green family as
+   --accent (thematically right for this brand — confirmed ≈ brand, same as WhatsApp's green
+   doing double duty) while staying a visibly different shade so a status pill and an action
+   button don't read as identical. Same class names as before this pass — only token values and
+   the shared CSS built on them changed, so no JSX had to move. */
 :root {
-	--text: #1d1d1f;
-	--text-h: #1d1d1f;
-	--text-dim: #6e6e73;
-	--bg: #fbfbfd;
+	--text: #17241b;
+	--text-h: #0d160f;
+	--text-dim: #5f6f64;
+	--bg: #f6f9f5;
 	--surface: #ffffff;
-	--surface-2: #f5f5f7;
-	--border: rgba(0, 0, 0, 0.08);
-	--border-strong: #d2d2d7;
-	--accent: #0071e3;
-	--accent-hover: #0077ed;
-	--accent-soft: rgba(0, 113, 227, 0.08);
+	--surface-2: #eef3ec;
+	--border: rgba(15, 35, 20, 0.09);
+	--border-strong: #cdd9d0;
+	--accent: #1b7a3b;
+	--accent-hover: #156530;
+	--accent-soft: rgba(27, 122, 59, 0.1);
 	--accent-contrast: #ffffff;
-	--danger: #ff3b30;
-	--danger-bg: rgba(255, 59, 48, 0.1);
-	--warning: #bf4800;
-	--warning-bg: rgba(255, 149, 0, 0.12);
-	--ok-bg: rgba(52, 199, 89, 0.12);
-	--ok-text: #248a3d;
+	--accent-bright: #4bb649;
+	--danger: #d92d20;
+	--danger-bg: rgba(217, 45, 32, 0.1);
+	--warning: #b45309;
+	--warning-bg: rgba(180, 83, 9, 0.12);
+	--ok-bg: rgba(43, 138, 71, 0.12);
+	--ok-text: #2b8a47;
 
 	--font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Helvetica, Arial, sans-serif;
 	--font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
@@ -28,9 +35,21 @@
 	--r-md: 12px;
 	--r-xl: 18px;
 	--r-pill: 980px;
-	--shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-	--shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.12);
+	--shadow-resting: 0 1px 2px rgba(15, 35, 20, 0.05), 0 1px 3px rgba(15, 35, 20, 0.04);
+	--shadow-hover: 0 20px 60px rgba(15, 35, 20, 0.14);
 	--transition: 0.22s cubic-bezier(0.25, 0.1, 0.25, 1);
+
+	/* Spacing scale — introduced with this redesign pass. Existing rules keep their own ad hoc
+	   rem/px values (a wall-to-wall retrofit of 2000+ lines is high-risk, low-reward); new/redesigned
+	   rules use these instead of picking another one-off number. */
+	--space-1: 0.25rem;
+	--space-2: 0.5rem;
+	--space-3: 0.75rem;
+	--space-4: 1rem;
+	--space-5: 1.5rem;
+	--space-6: 2rem;
+	--space-7: 2.5rem;
+	--space-8: 3rem;
 
 	font: 500 15px/1.47059 var(--font-body);
 	letter-spacing: -0.022em;
@@ -42,24 +61,27 @@
 
 @media (prefers-color-scheme: dark) {
 	:root {
-		--text: #f5f5f7;
+		--text: #eaf1e8;
 		--text-h: #ffffff;
-		--text-dim: #98989d;
-		--bg: #000000;
-		--surface: #1c1c1e;
-		--surface-2: #2c2c2e;
+		--text-dim: #9db1a2;
+		--bg: #0a0f0b;
+		--surface: #141b15;
+		--surface-2: #1d271f;
 		--border: rgba(255, 255, 255, 0.09);
-		--border-strong: #3a3a3c;
-		--accent: #0a84ff;
-		--accent-hover: #409cff;
-		--accent-soft: rgba(10, 132, 255, 0.16);
-		--accent-contrast: #ffffff;
-		--danger: #ff453a;
-		--danger-bg: rgba(255, 69, 58, 0.16);
+		--border-strong: #334135;
+		--accent: #3fbf5f;
+		--accent-hover: #55d174;
+		--accent-soft: rgba(63, 191, 95, 0.18);
+		/* Bright green on a dark surface reads better with dark text than white — raw #3fbf5f only
+		   clears ~2.4:1 against white, but ~8.8:1 against near-black. */
+		--accent-contrast: #07210d;
+		--accent-bright: #59cf72;
+		--danger: #ff6b5f;
+		--danger-bg: rgba(255, 107, 95, 0.16);
 		--warning: #ffb340;
-		--warning-bg: rgba(255, 159, 10, 0.16);
-		--ok-bg: rgba(48, 209, 88, 0.16);
-		--ok-text: #30d158;
+		--warning-bg: rgba(255, 179, 64, 0.16);
+		--ok-bg: rgba(78, 203, 117, 0.16);
+		--ok-text: #4ecb75;
 		--shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.3);
 		--shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.5);
 	}
@@ -68,49 +90,51 @@
 /* Manual toggle (DashboardLayout + theme.js) — must win over the OS-level media query in both
    directions, since a user who picks "Claro" on a dark-mode OS still expects light. */
 :root[data-theme="dark"] {
-	--text: #f5f5f7;
+	--text: #eaf1e8;
 	--text-h: #ffffff;
-	--text-dim: #98989d;
-	--bg: #000000;
-	--surface: #1c1c1e;
-	--surface-2: #2c2c2e;
+	--text-dim: #9db1a2;
+	--bg: #0a0f0b;
+	--surface: #141b15;
+	--surface-2: #1d271f;
 	--border: rgba(255, 255, 255, 0.09);
-	--border-strong: #3a3a3c;
-	--accent: #0a84ff;
-	--accent-hover: #409cff;
-	--accent-soft: rgba(10, 132, 255, 0.16);
-	--accent-contrast: #ffffff;
-	--danger: #ff453a;
-	--danger-bg: rgba(255, 69, 58, 0.16);
+	--border-strong: #334135;
+	--accent: #3fbf5f;
+	--accent-hover: #55d174;
+	--accent-soft: rgba(63, 191, 95, 0.18);
+	--accent-contrast: #07210d;
+	--accent-bright: #59cf72;
+	--danger: #ff6b5f;
+	--danger-bg: rgba(255, 107, 95, 0.16);
 	--warning: #ffb340;
-	--warning-bg: rgba(255, 159, 10, 0.16);
-	--ok-bg: rgba(48, 209, 88, 0.16);
-	--ok-text: #30d158;
+	--warning-bg: rgba(255, 179, 64, 0.16);
+	--ok-bg: rgba(78, 203, 117, 0.16);
+	--ok-text: #4ecb75;
 	--shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.3);
 	--shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.5);
 }
 
 :root[data-theme="light"] {
-	--text: #1d1d1f;
-	--text-h: #1d1d1f;
-	--text-dim: #6e6e73;
-	--bg: #fbfbfd;
+	--text: #17241b;
+	--text-h: #0d160f;
+	--text-dim: #5f6f64;
+	--bg: #f6f9f5;
 	--surface: #ffffff;
-	--surface-2: #f5f5f7;
-	--border: rgba(0, 0, 0, 0.08);
-	--border-strong: #d2d2d7;
-	--accent: #0071e3;
-	--accent-hover: #0077ed;
-	--accent-soft: rgba(0, 113, 227, 0.08);
+	--surface-2: #eef3ec;
+	--border: rgba(15, 35, 20, 0.09);
+	--border-strong: #cdd9d0;
+	--accent: #1b7a3b;
+	--accent-hover: #156530;
+	--accent-soft: rgba(27, 122, 59, 0.1);
 	--accent-contrast: #ffffff;
-	--danger: #ff3b30;
-	--danger-bg: rgba(255, 59, 48, 0.1);
-	--warning: #bf4800;
-	--warning-bg: rgba(255, 149, 0, 0.12);
-	--ok-bg: rgba(52, 199, 89, 0.12);
-	--ok-text: #248a3d;
-	--shadow-resting: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
-	--shadow-hover: 0 20px 60px rgba(0, 0, 0, 0.12);
+	--accent-bright: #4bb649;
+	--danger: #d92d20;
+	--danger-bg: rgba(217, 45, 32, 0.1);
+	--warning: #b45309;
+	--warning-bg: rgba(180, 83, 9, 0.12);
+	--ok-bg: rgba(43, 138, 71, 0.12);
+	--ok-text: #2b8a47;
+	--shadow-resting: 0 1px 2px rgba(15, 35, 20, 0.05), 0 1px 3px rgba(15, 35, 20, 0.04);
+	--shadow-hover: 0 20px 60px rgba(15, 35, 20, 0.14);
 }
 
 * {
@@ -129,12 +153,45 @@ h1 {
 	text-wrap: balance;
 }
 
+/* Page header icon badge — same circular-icon treatment as .stat-icon, sized down for inline use
+   next to an <h1>. Wraps the page title text so pages don't have to also add layout of their own. */
+.page-title {
+	display: flex;
+	align-items: center;
+	gap: 0.7rem;
+	margin-bottom: 1.3rem;
+}
+
+.page-title h1 {
+	margin-bottom: 0;
+}
+
+.page-title-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 2.1rem;
+	height: 2.1rem;
+	border-radius: var(--r-md);
+	background: var(--accent-soft);
+	color: var(--accent);
+	flex-shrink: 0;
+}
+
 h3 {
 	font-family: var(--font-display);
 	font-weight: 600;
 	letter-spacing: -0.02em;
 	color: var(--text-h);
 	margin: 0 0 0.25rem;
+}
+
+a {
+	color: var(--accent);
+}
+
+a:visited {
+	color: var(--accent);
 }
 
 .muted {
@@ -213,7 +270,7 @@ h3 {
 	width: 38px;
 	height: 38px;
 	border-radius: 11px;
-	background: linear-gradient(145deg, #1d1d1f 0%, #424245 100%);
+	background: linear-gradient(145deg, var(--accent-bright) 0%, var(--accent) 100%);
 	color: #ffffff;
 	display: flex;
 	align-items: center;
@@ -222,6 +279,7 @@ h3 {
 	font-weight: 700;
 	font-size: 0.85rem;
 	letter-spacing: -0.02em;
+	box-shadow: 0 2px 6px rgba(27, 122, 59, 0.3);
 }
 
 /* "Mi cuenta" — the user's own photo/initial, distinct from the tenant's brand-mark even though
@@ -323,13 +381,9 @@ h3 {
 }
 
 .sidebar nav a.active {
-	background: var(--text-h);
-	color: var(--bg);
+	background: var(--accent);
+	color: var(--accent-contrast);
 	font-weight: 600;
-}
-
-:root[data-theme="dark"] .sidebar nav a.active {
-	color: #000000;
 }
 
 .theme-toggle {
@@ -402,12 +456,13 @@ h3 {
 	z-index: 40;
 	display: flex;
 	align-items: center;
-	gap: 1.5rem;
-	padding: 0.75rem 1.5rem;
+	gap: var(--space-6);
+	padding: var(--space-3) var(--space-6);
 	background: color-mix(in srgb, var(--surface) 72%, transparent);
 	backdrop-filter: saturate(180%) blur(20px);
 	-webkit-backdrop-filter: saturate(180%) blur(20px);
 	border-bottom: 1px solid var(--border);
+	box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent-bright) 22%, transparent);
 }
 
 .topbar-brand {
@@ -426,6 +481,9 @@ h3 {
 }
 
 .topbar-nav a {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.4rem;
 	padding: 0.5rem 0.85rem;
 	border-radius: var(--r-sm);
 	color: var(--text);
@@ -437,18 +495,24 @@ h3 {
 	transition: background var(--transition), color var(--transition);
 }
 
+.topbar-nav a svg {
+	flex-shrink: 0;
+	opacity: 0.7;
+	transition: opacity var(--transition);
+}
+
 .topbar-nav a:hover {
 	background: var(--surface-2);
 }
 
 .topbar-nav a.active {
-	background: var(--text-h);
-	color: var(--bg);
+	background: var(--accent);
+	color: var(--accent-contrast);
 	font-weight: 600;
 }
 
-:root[data-theme="dark"] .topbar-nav a.active {
-	color: #000000;
+.topbar-nav a.active svg {
+	opacity: 1;
 }
 
 .topbar-actions {
@@ -538,8 +602,8 @@ h3 {
 }
 
 .topbar-menu-item.active {
-	background: var(--surface-2);
-	color: var(--text-h);
+	background: var(--accent-soft);
+	color: var(--accent);
 	font-weight: 600;
 }
 
@@ -593,7 +657,7 @@ h3 {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	background: var(--surface-2);
+	background: radial-gradient(120% 120% at 50% -10%, var(--accent-soft) 0%, var(--surface-2) 55%);
 }
 
 .auth-card {
@@ -606,9 +670,42 @@ h3 {
 	text-align: center;
 }
 
+.auth-brand-mark {
+	width: 52px;
+	height: 52px;
+	margin: 0 auto 1rem;
+	border-radius: 15px;
+	background: linear-gradient(145deg, var(--accent-bright) 0%, var(--accent) 100%);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #ffffff;
+	box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
 .auth-card h1 {
 	font-size: 1.5rem;
 	text-align: center;
+}
+
+/* Wraps a label's <input> with a leading icon (Login/Crear negocio fields) — the icon is
+   absolutely positioned over the input's own left padding, not a sibling that pushes layout. */
+.input-icon-wrap {
+	position: relative;
+	display: flex;
+	align-items: center;
+}
+
+.input-icon-wrap svg {
+	position: absolute;
+	left: 0.8rem;
+	color: var(--text-dim);
+	pointer-events: none;
+}
+
+.input-icon-wrap input {
+	width: 100%;
+	padding-left: 2.5rem;
 }
 
 .tabs {
@@ -833,6 +930,46 @@ textarea:focus-visible {
 	box-shadow: 0 0 0 4px var(--accent-soft);
 }
 
+/* Native controls (checkbox/radio/date/time pickers) can't be restyled with border/background the
+   way text inputs are — accent-color is the one property the browser honors for its own built-in
+   check/dot/calendar-icon rendering, so at least the color matches the rest of the app instead of
+   defaulting to browser blue. */
+input[type="checkbox"],
+input[type="radio"] {
+	accent-color: var(--accent);
+	width: auto;
+	padding: 0;
+}
+
+input[type="date"],
+input[type="time"] {
+	color-scheme: light dark;
+}
+
+/* The file input's only stylable part — MDN-standard pseudo-element, no browser prefix needed in
+   any evergreen browser. Left as a compact button matching .secondary rather than the raw OS
+   control, so it doesn't look like an unstyled leftover next to the rest of a form. */
+input[type="file"] {
+	padding: 0.4rem 0.6rem;
+	font-size: 0.85rem;
+}
+
+input[type="file"]::file-selector-button {
+	font: inherit;
+	margin-right: 0.6rem;
+	padding: 0.4rem 0.8rem;
+	border: 1px solid var(--border-strong);
+	border-radius: var(--r-pill);
+	background: var(--surface);
+	color: var(--text);
+	cursor: pointer;
+	transition: background var(--transition), border-color var(--transition);
+}
+
+input[type="file"]::file-selector-button:hover {
+	background: var(--surface-2);
+}
+
 .star-rating {
 	display: flex;
 	gap: 0.3rem;
@@ -849,20 +986,28 @@ textarea:focus-visible {
 }
 
 button {
-	padding: 0.6rem 1.15rem;
+	padding: var(--space-2) var(--space-4);
 	border: 1px solid var(--accent);
 	border-radius: var(--r-pill);
 	background: var(--accent);
 	color: var(--accent-contrast);
 	cursor: pointer;
 	font-weight: 600;
-	transition: background var(--transition), border-color var(--transition), transform 0.12s var(--transition);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 0.4rem;
+	transition: background var(--transition), border-color var(--transition), box-shadow var(--transition), transform 0.12s var(--transition);
+}
+
+button svg {
+	flex-shrink: 0;
 }
 
 button:hover:not(:disabled) {
 	background: var(--accent-hover);
 	border-color: var(--accent-hover);
-	box-shadow: none;
+	box-shadow: 0 4px 14px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
 button:active:not(:disabled) {
@@ -980,7 +1125,7 @@ table {
 th,
 td {
 	text-align: left;
-	padding: 0.85rem 1.1rem;
+	padding: var(--space-3) var(--space-4);
 	border-bottom: 1px solid var(--border);
 	font-size: 0.88rem;
 	vertical-align: middle;
@@ -994,6 +1139,7 @@ th {
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 	color: var(--text-dim);
+	box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 tbody tr {
@@ -1001,7 +1147,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-	background: var(--surface-2);
+	background: var(--accent-soft);
 }
 
 tr:last-child td {
@@ -1012,7 +1158,7 @@ tr:last-child td {
 .cards {
 	display: grid;
 	grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-	gap: 1rem;
+	gap: var(--space-4);
 }
 
 /* One full-width card per row — for cards with enough internal content (multiple sections,
@@ -1031,7 +1177,7 @@ tr:last-child td {
 	background: var(--surface);
 	border: 1px solid var(--border);
 	border-radius: var(--r-xl);
-	padding: 1.3rem 1.4rem;
+	padding: var(--space-5) var(--space-6);
 	box-shadow: var(--shadow-resting);
 	transition: box-shadow var(--transition), transform var(--transition);
 }
@@ -1199,7 +1345,11 @@ tr:last-child td {
 	font-weight: 600;
 }
 
-/* Badges */
+/* Badges — .badge-{pending,confirmed,cancelled,no_show,completed} (turno), .badge-{basic,pro,
+   trial,personal,max} (plan) and .appt-block.status-* (calendario) are three separate class
+   families, but they all pull their colors from these same semantic tokens (--warning-bg/--ok-bg/
+   --danger-bg/--accent-soft/--accent) — a single palette change cascades to all three without
+   needing to touch each variant. */
 .badge {
 	display: inline-block;
 	padding: 0.22rem 0.65rem;
@@ -1401,11 +1551,35 @@ button.danger:hover:not(:disabled) {
 }
 
 .chart-empty {
-	height: 180px;
+	height: 140px;
 	display: flex;
+	flex-direction: column;
 	align-items: center;
 	justify-content: center;
+	gap: 0.6rem;
 	text-align: center;
+}
+
+.chart-empty svg {
+	color: var(--text-dim);
+	opacity: 0.6;
+}
+
+/* Same treatment for any other "nothing here yet" message outside the dashboard charts (tables,
+   card lists) — an icon reads faster than a wall of muted text. */
+.empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 0.6rem;
+	padding: var(--space-6) var(--space-4);
+	text-align: center;
+}
+
+.empty-state svg {
+	color: var(--text-dim);
+	opacity: 0.6;
 }
 
 /* Month calendar (frontend/src/components/MonthCalendar.jsx) — multi-day time-off picker */
