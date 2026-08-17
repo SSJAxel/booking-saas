@@ -19,8 +19,6 @@
 	--pb-bg: #fbfbf8;
 	--pb-border: rgba(20, 20, 15, 0.1);
 	--pb-shadow: 0 10px 30px rgba(20, 20, 15, 0.08);
-	--pb-footer-green: #38c438;
-	--pb-footer-bg: #f0faf0;
 	--font-serif: "Google Sans", "Josefin Sans", sans-serif;
 	--font-brand: "Google Sans", "Josefin Sans", sans-serif;
 
@@ -704,63 +702,8 @@ border:1px solid var(--pb-accent);
 	}
 }
 
-/* Footer — fixed brand green/cream, never tenant-themed */
-.pb-footer {
-	background: var(--pb-footer-bg);
-	color: var(--pb-ink);
-	border-top: 3px solid var(--pb-footer-green);
-	font-family: var(--font-brand);
-}
-
-.pb-footer-inner {
-	max-width: 1180px;
-	margin: 0 auto;
-	padding: 2rem 1.2rem 1.2rem;
-	display: grid;
-	grid-template-columns: 1.2fr 1fr 1fr 1fr;
-	gap: 1.5rem;
-}
-
-.pb-footer-brand {
-	display: flex;
-	align-items: center;
-	gap: 0.5rem;
-	color: var(--pb-footer-green);
-	font-size: 1.15rem;
-	margin-bottom: 0.4rem;
-}
-
-.pb-footer-tag {
-	font-family: var(--font-serif);
-	font-style: italic;
-	font-size: 0.85rem;
-	color: var(--pb-ink-dim);
-}
-
-.pb-footer-col h4 {
-	color: var(--pb-footer-green);
-	font-size: 0.85rem;
-	margin: 0 0 0.6rem;
-}
-
-.pb-footer-col ul {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	display: flex;
-	flex-direction: column;
-	gap: 0.4rem;
-	font-family: var(--font-serif);
-	font-size: 0.92rem;
-}
-
-.pb-footer-bottom {
-	text-align: center;
-	font-size: 0.75rem;
-	color: var(--pb-ink-dim);
-	padding: 0.8rem;
-	border-top: 1px solid rgba(56, 196, 56, 0.25);
-}
+/* Footer is now the shared PublicFooter component (components/PublicFooter.css) — reused as-is
+   across every public page, not just this one. */
 
 /* Reservation modal — fullscreen */
 .pb-modal-backdrop {
@@ -1045,35 +988,6 @@ button.pb-back-link:hover{
 @media (max-width: 640px) {
 	.pb-hero-card {
 		padding: 1.6rem 1.2rem;
-	}
-
-	.pb-footer-inner {
-		grid-template-columns: 1fr;
-	}
-
-	.pb-footer-col {
-		border-top: 1px solid rgba(56, 196, 56, 0.25);
-		padding-top: 0.7rem;
-	}
-
-	.pb-footer-col:first-child {
-		border-top: none;
-		padding-top: 0;
-	}
-
-	.pb-footer-col ul {
-		display: none;
-	}
-
-	.pb-footer-col.open ul {
-		display: flex;
-	}
-
-	.pb-footer-col h4 {
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
 	}
 }
 

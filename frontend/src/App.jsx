@@ -21,6 +21,14 @@ import AdminTenantsPage from "./pages/AdminTenantsPage.jsx";
 import AdminSupportReportsPage from "./pages/AdminSupportReportsPage.jsx";
 import AdminUsagePage from "./pages/AdminUsagePage.jsx";
 import DashboardHomePage from "./pages/DashboardHomePage.jsx";
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage.jsx";
+import TermsOfServicePage from "./pages/TermsOfServicePage.jsx";
+import TermsOfUsePage from "./pages/TermsOfUsePage.jsx";
+import SitemapPage from "./pages/SitemapPage.jsx";
+import SupportPage from "./pages/SupportPage.jsx";
+import FaqPage from "./pages/FaqPage.jsx";
+import UserManualPage from "./pages/UserManualPage.jsx";
+import AdminManualPage from "./pages/AdminManualPage.jsx";
 
 function RequireAuth({ children }) {
 	const { session } = useAuth();
@@ -41,22 +49,35 @@ function IndexRedirect() {
 function RequirePlatformAdmin({ children }) {
 	const { session } = useAuth();
 	if (!session) return <Navigate to="/login" replace />;
-	if (!session.platformAdmin) return <Navigate to="/" replace />;
+	// Not "/" anymore — that's the public marketing home now, not a tenant-scoped dashboard a
+	// logged-in non-admin would land in usefully. Send them back to their own panel instead.
+	if (!session.platformAdmin) return <Navigate to="/panel" replace />;
 	return children;
 }
 
 export default function App() {
 	return (
 		<Routes>
+			<Route path="/" element={<PricingPage />} />
+			{/* Old URL, kept as a redirect (not a second route rendering the same page) so there's
+			    only one canonical URL for search engines to index. */}
+			<Route path="/precios" element={<Navigate to="/" replace />} />
 			<Route path="/login" element={<LoginPage />} />
-			<Route path="/precios" element={<PricingPage />} />
 			<Route path="/verificar-email" element={<VerifyEmailPage />} />
 			<Route path="/olvide-password" element={<ForgotPasswordPage />} />
 			<Route path="/restablecer-password" element={<ResetPasswordPage />} />
 			<Route path="/dejar-resena" element={<ReviewFormPage />} />
 			<Route path="/reservar/:tenantSlug" element={<BookingPage />} />
+			<Route path="/politica-privacidad" element={<PrivacyPolicyPage />} />
+			<Route path="/condiciones-servicio" element={<TermsOfServicePage />} />
+			<Route path="/condiciones-uso" element={<TermsOfUsePage />} />
+			<Route path="/mapa-sitio" element={<SitemapPage />} />
+			<Route path="/soporte" element={<SupportPage />} />
+			<Route path="/preguntas-frecuentes" element={<FaqPage />} />
+			<Route path="/manual-de-uso" element={<UserManualPage />} />
+			<Route path="/manual-del-panel" element={<AdminManualPage />} />
 			<Route
-				path="/"
+				path="/panel"
 				element={
 					<RequireAuth>
 						<DashboardLayout />

@@ -1,0 +1,149 @@
+/* Shared header for every public "site" page (pricing, legal, support, FAQ, manual, sitemap) —
+   navigation across CapiBooking's own public pages only. Deliberately has no link into any
+   tenant's booking page (those are per-business, not part of site navigation) — the only call to
+   action here is "Ingresar", for owners who already have a business set up. */
+.pub-header {
+	--pub-accent: #38c438;
+	--pub-accent-hover: #4ddb4d;
+	--pub-ink: #0d1f0d;
+	--pub-ink-dim: #4a634a;
+	--pub-font-display: "Coda", sans-serif;
+	--pub-font-body: "Josefin Sans", sans-serif;
+
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.85rem 5%;
+	background: rgba(255, 255, 255, 0.92);
+	backdrop-filter: blur(14px);
+	border-bottom: 1px solid rgba(13, 31, 13, 0.08);
+	font-family: var(--pub-font-body);
+}
+
+.pub-header * {
+	box-sizing: border-box;
+}
+
+.pub-header-logo {
+	display: flex;
+	align-items: center;
+	gap: 0.4rem;
+	font-family: var(--pub-font-display);
+	font-size: 1.2rem;
+	font-weight: 800;
+	color: var(--pub-ink);
+}
+
+.pub-header-logo img {
+	width: 30px;
+	height: 30px;
+}
+
+.pub-header-logo .pub-header-accent {
+	color: var(--pub-accent);
+}
+
+.pub-header-toggle {
+	display: none;
+	flex-direction: column;
+	justify-content: center;
+	gap: 5px;
+	width: 2.2rem;
+	height: 2.2rem;
+	padding: 0;
+	background: transparent;
+	border: none;
+}
+
+.pub-header-toggle-bar {
+	display: block;
+	height: 2px;
+	width: 100%;
+	background: var(--pub-ink);
+	border-radius: 2px;
+}
+
+.pub-header-nav {
+	display: flex;
+	align-items: center;
+	gap: 1.8rem;
+}
+
+.pub-header-nav ul {
+	display: flex;
+	align-items: center;
+	gap: 1.6rem;
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.pub-header-nav a:not(.pub-header-cta) {
+	font-weight: 600;
+	font-size: 0.9rem;
+	color: var(--pub-ink-dim);
+}
+
+.pub-header-nav a:not(.pub-header-cta):hover {
+	color: var(--pub-accent);
+}
+
+.pub-header-cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	background: var(--pub-accent);
+	color: #ffffff;
+	font-family: var(--pub-font-display);
+	font-weight: 700;
+	font-size: 0.85rem;
+	padding: 0.6rem 1.3rem;
+	border-radius: 999px;
+	transition: background 0.25s;
+}
+
+.pub-header-cta:hover {
+	background: var(--pub-accent-hover);
+}
+
+@media (max-width: 860px) {
+	.pub-header-toggle {
+		display: flex;
+	}
+
+	.pub-header-nav {
+		position: fixed;
+		inset: 62px 0 0 0;
+		flex-direction: column;
+		align-items: flex-start;
+		justify-content: flex-start;
+		background: #ffffff;
+		padding: 1.6rem 6%;
+		transform: translateX(100%);
+		transition: transform 0.3s ease;
+	}
+
+	.pub-header-nav.pub-header-nav-open {
+		transform: translateX(0);
+	}
+
+	.pub-header-nav ul {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 1.3rem;
+		width: 100%;
+	}
+
+	.pub-header-nav a:not(.pub-header-cta) {
+		font-size: 1rem;
+	}
+
+	.pub-header-cta {
+		width: 100%;
+		justify-content: center;
+	}
+}

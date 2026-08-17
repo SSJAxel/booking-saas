@@ -8,6 +8,7 @@ import HeaderSearch from "../components/HeaderSearch.jsx";
 import SideMenu from "../components/SideMenu.jsx";
 import InstagramFeed from "../components/InstagramFeed.jsx";
 import PublicReviews from "../components/PublicReviews.jsx";
+import PublicFooter from "../components/PublicFooter.jsx";
 import "./BookingPage.css";
 
 const CalendarIcon = () => (
@@ -65,7 +66,6 @@ export default function BookingPage() {
 
 	const [initializing, setInitializing] = useState(true);
 	const [error, setError] = useState("");
-	const [footerOpen, setFooterOpen] = useState({});
 	const [bookingService, setBookingService] = useState(null);
 	const [bookingProfessional, setBookingProfessional] = useState(null);
 	const [menuOpen, setMenuOpen] = useState(false);
@@ -140,10 +140,6 @@ export default function BookingPage() {
 	function scrollToCategory(name) {
 		const el = document.getElementById(`pb-cat-${slugify(name)}`);
 		if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
-	}
-
-	function toggleFooterCol(key) {
-		setFooterOpen((prev) => ({ ...prev, [key]: !prev[key] }));
 	}
 
 	if (initializing) {
@@ -334,42 +330,7 @@ export default function BookingPage() {
 
 			<InstagramFeed scriptSrc={tenant.instagramFeedUrl} />
 
-			<footer className="pb-footer">
-				<div className="pb-footer-inner">
-					<div className="pb-footer-col">
-						<div className="pb-footer-brand">CapiBooking</div>
-						<p className="pb-footer-tag">Tu marca, tu estilo, todo en un solo lugar.</p>
-					</div>
-					<div className={`pb-footer-col${footerOpen.info ? " open" : ""}`}>
-						<h4 onClick={() => toggleFooterCol("info")}>Información</h4>
-						<ul>
-							<li>Política de privacidad</li>
-							<li>Condiciones del servicio</li>
-							<li>Condiciones de uso</li>
-							<li>Mapa del sitio</li>
-						</ul>
-					</div>
-					<div className={`pb-footer-col${footerOpen.ayudas ? " open" : ""}`}>
-						<h4 onClick={() => toggleFooterCol("ayudas")}>Ayudas</h4>
-						<ul>
-							<li>Soporte</li>
-							<li>Planes y precios</li>
-							<li>Preguntas frecuentes y ayuda</li>
-							<li>Manual de uso</li>
-						</ul>
-					</div>
-					<div className={`pb-footer-col${footerOpen.mas ? " open" : ""}`}>
-						<h4 onClick={() => toggleFooterCol("mas")}>Más servicios</h4>
-						<ul>
-							<li>CapiSpa</li>
-							<li>CapiInk</li>
-							<li>CapiNails</li>
-							<li>Ver todos</li>
-						</ul>
-					</div>
-				</div>
-				<div className="pb-footer-bottom">© {new Date().getFullYear()} CapiBooking — todos los derechos reservados</div>
-			</footer>
+			<PublicFooter />
 
 			{(bookingService || bookingProfessional) && (
 				<ReservationModal

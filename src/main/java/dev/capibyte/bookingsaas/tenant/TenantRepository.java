@@ -26,4 +26,8 @@ public interface TenantRepository extends JpaRepository<Tenant, UUID> {
 	/** Backs TrialExpirationScheduler — {@code trialExpiresAt} is null for every tenant that
 	 * existed before that feature shipped, so this naturally never matches them. */
 	List<Tenant> findByPlanTierAndTrialExpiresAtBefore(PlanTier planTier, Instant cutoff);
+
+	/** Backs the public tenant directory (Mapa del sitio) — only ACTIVE tenants have a reachable
+	 * public booking page, same gate as PublicTenantResolutionFilter. */
+	List<Tenant> findByStatusOrderByNameAsc(TenantStatus status);
 }

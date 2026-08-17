@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="es-AR">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -10,7 +10,16 @@
       href="https://fonts.googleapis.com/css2?family=Coda:wght@400;800&family=Josefin+Sans:ital,wght@0,100..700;1,100..700&family=Google+Sans:ital,opsz,wght@0,17..18,400..700;1,17..18,400..700&display=swap"
       rel="stylesheet"
     />
-    <title>booking-saas admin</title>
+    <!-- Fallback only — every public route overrides this via <Seo> (src/components/Seo.jsx) as
+         soon as React mounts. This is what shows for the instant before that, and on routes that
+         don't render <Seo> (the authenticated app shell, /login, etc).
+         No static <meta name="description"> here on purpose: React 19 hoists a page's own <title>
+         rendered anywhere in the tree and it wins for document.title, but it does NOT remove a
+         pre-existing static <meta> — a static description here would sit alongside <Seo>'s dynamic
+         one (two <meta name="description"> tags in the DOM) instead of being replaced by it, and
+         a crawler reading the first one in document order would get this generic text on every
+         page regardless of <Seo>. Confirmed by testing — don't re-add one here. -->
+    <title>CapiBooking — Sistema de turnos online para peluquerías, barberías y estética</title>
     <script>
       (function () {
         try {

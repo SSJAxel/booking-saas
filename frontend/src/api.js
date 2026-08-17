@@ -245,4 +245,7 @@ export const api = {
 			request(`/api/public/${tenantSlug}/reviews/invite/${token}`, { method: "POST", body, auth: false }),
 		publicReviews: (tenantSlug) => request(`/api/public/${tenantSlug}/reviews`, { auth: false }),
 	},
+	publicDirectory: {
+		tenants: () => request("/api/public-directory/tenants", { auth: false }),
+	},
 };

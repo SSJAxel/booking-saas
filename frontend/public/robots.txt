@@ -1,0 +1,12 @@
+User-agent: *
+Allow: /
+
+# Authenticated app shells — nothing to index, and crawling them just wastes budget
+Disallow: /panel
+Disallow: /admin
+Disallow: /login
+Disallow: /verificar-email
+Disallow: /olvide-password
+Disallow: /restablecer-password
+
+Sitemap: https://booking-saas-inky.vercel.app/sitemap.xml

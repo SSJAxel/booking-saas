@@ -27,7 +27,7 @@ export default function ResetPasswordPage() {
 		setLoading(true);
 		try {
 			await resetPassword({ tenantSlug, token, newPassword });
-			navigate("/", { replace: true });
+			navigate("/panel", { replace: true });
 		} catch (err) {
 			setError(err.message);
 		} finally {

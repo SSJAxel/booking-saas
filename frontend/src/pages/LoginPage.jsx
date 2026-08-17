@@ -22,7 +22,7 @@ export default function LoginPage() {
 				email: form.get("email"),
 				password: form.get("password"),
 			});
-			navigate(res.platformAdmin ? "/admin" : "/");
+			navigate(res.platformAdmin ? "/admin" : "/panel");
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -82,7 +82,7 @@ export default function LoginPage() {
 					<>
 						<RegisterForm />
 						<p className="muted" style={{ marginTop: "1rem" }}>
-							<Link to="/precios">Ver planes y precios</Link>
+							<Link to="/">Ver planes y precios</Link>
 						</p>
 					</>
 				)}

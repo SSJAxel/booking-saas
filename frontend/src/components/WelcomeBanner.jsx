@@ -31,13 +31,13 @@ export default function WelcomeBanner({ onDismiss }) {
 			<p className="label">Para empezar a recibir reservas necesitás cargar, en este orden:</p>
 			<ol className="welcome-steps">
 				<li>
-					Una <Link to="/branches">sucursal</Link> — dónde atendés.
+					Una <Link to="/panel/branches">sucursal</Link> — dónde atendés.
 				</li>
 				<li>
-					Un <Link to="/professionals">profesional</Link> — quién atiende, y su horario semanal.
+					Un <Link to="/panel/professionals">profesional</Link> — quién atiende, y su horario semanal.
 				</li>
 				<li>
-					Un <Link to="/services">servicio</Link> — qué ofrecés, y quién de tu equipo lo puede atender.
+					Un <Link to="/panel/services">servicio</Link> — qué ofrecés, y quién de tu equipo lo puede atender.
 				</li>
 			</ol>
 			<button type="button" className="secondary" onClick={dismiss}>

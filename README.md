@@ -1382,3 +1382,68 @@ pendientes:
     pendiente.
 14. ~~**Re-agendamiento y Sobreturno.**~~ Hecho — ver el Registro de cambios y "Design notes" →
     Double-booking prevention.
+
+
+### A CHEQUEAR
+- Agregar dos servicios de agendamientos seguidos o x separado en dos dias diferentes, ej, agendo corte con Lauti y tratamiento capilar con Facu
+- Configurar el hoario de los empleados como endpoint publico
+
+### PLANES
+
+DEMO: gratis PRO durante 15 Días
+
+PERSONAL: 8 dolares x mes
+  - Sin stock ni productos
+  - Hasta 1 profesional
+  - Hasta 1 sucursal
+  - Hasta 15 servicios
+  - Hasta 30 turnos por semana
+  - Señas solo por transferencia
+  - Solo avisos por mail al usuario
+
+BASIC: 20 dolares x mes
+  - Hasta 15 productos
+  - Hasta 8 profesionales
+  - Hasta 2 sucursales
+  - Hasta 30 servicios
+  - Turnos ilimitados
+  - Señas solo por transferencia
+  - Avisos por WhatsApp (lo sacamos y que sea solo x mail)
+  - Google review Carrousel
+  - Carrousel de Instagram de ultimos 10 posteos
+
+PRO: 27 dolares x mes
+  - Hasta 30 productos
+  - Hasta 20 profesionales
+  - Hasta 5 sucursales
+  - Hasta 50 servicios
+  - Turnos ilimitados
+  - Cobrá señas con Mercado Pago
+  - Comisiones x producto y personal
+  - Estadisticas
+  - Sistemas de Puntos de 
+  - Historial limitado a un mes
+
+Avisos por WhatsApp
+
+MAX: 20 dolares x mes
+  - Hasta 60 productos
+  - Soporte técnico prioritario vía Whatsapp
+  - Historial ilimitado descargable
+  - Ranking de clientes
+
+
+TODAS LAS CUENTAS
+- Personalizacion de colores
+- Botón de reporte de Bugs
+- Aviso de agendamiento x mail
+- Soporte tecnico x mail
+- Manual de panel
+- Alias configurable
+- Slogan y empleados
+- Fotos personalizadas de local, logo y empleados
+- Señas
+- Fechas puntuales habilitadas de local y de empleados
+- Bloqueo de dias temporales por empleados
+- Sección de destacados
+-Fi

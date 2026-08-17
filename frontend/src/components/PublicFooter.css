@@ -1,0 +1,107 @@
+/* Shared footer for every public "site" page (pricing, legal, support, FAQ, manual, sitemap) —
+   same look as the tenant booking page's footer (BookingPage.css .pb-footer), ported standalone
+   so it doesn't depend on being nested under .pb-root. Fixed brand green/cream, never themed. */
+.pub-footer {
+	--pub-footer-green: #38c438;
+	--pub-footer-bg: #f0faf0;
+	--pub-footer-ink: #14140f;
+	--pub-footer-ink-dim: #5b5b52;
+	--pub-footer-font: "Josefin Sans", "Google Sans", sans-serif;
+
+	background: var(--pub-footer-bg);
+	color: var(--pub-footer-ink);
+	border-top: 3px solid var(--pub-footer-green);
+	font-family: var(--pub-footer-font);
+}
+
+.pub-footer * {
+	box-sizing: border-box;
+}
+
+.pub-footer-inner {
+	max-width: 1180px;
+	margin: 0 auto;
+	padding: 2rem 1.2rem 1.2rem;
+	display: grid;
+	grid-template-columns: 1.2fr 1fr 1fr 1fr;
+	gap: 1.5rem;
+}
+
+.pub-footer-brand {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	color: var(--pub-footer-green);
+	font-size: 1.15rem;
+	margin-bottom: 0.4rem;
+}
+
+.pub-footer-tag {
+	font-style: italic;
+	font-size: 0.85rem;
+	color: var(--pub-footer-ink-dim);
+}
+
+.pub-footer-col h4 {
+	color: var(--pub-footer-green);
+	font-size: 0.85rem;
+	margin: 0 0 0.6rem;
+}
+
+.pub-footer-col ul {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+	font-size: 0.92rem;
+}
+
+.pub-footer-col ul li a {
+	color: inherit;
+	text-decoration: none;
+}
+
+.pub-footer-col ul li a:hover {
+	text-decoration: underline;
+}
+
+.pub-footer-bottom {
+	text-align: center;
+	font-size: 0.75rem;
+	color: var(--pub-footer-ink-dim);
+	padding: 0.8rem;
+	border-top: 1px solid rgba(56, 196, 56, 0.25);
+}
+
+@media (max-width: 640px) {
+	.pub-footer-inner {
+		grid-template-columns: 1fr;
+	}
+
+	.pub-footer-col {
+		border-top: 1px solid rgba(56, 196, 56, 0.25);
+		padding-top: 0.7rem;
+	}
+
+	.pub-footer-col:first-child {
+		border-top: none;
+		padding-top: 0;
+	}
+
+	.pub-footer-col ul {
+		display: none;
+	}
+
+	.pub-footer-col.open ul {
+		display: flex;
+	}
+
+	.pub-footer-col h4 {
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+	}
+}

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Manual for now — lists only the static public pages, not each tenant's booking page
+  (/reservar/:slug), since those change as businesses sign up/leave and this file doesn't
+  regenerate itself. A dynamic sitemap (served from the backend, listing active tenants the same
+  way /api/public-directory/tenants does) is the natural next step for that.
+  Keep this in sync with seoConfig.js's SITE_URL if the domain changes.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/soporte</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/preguntas-frecuentes</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/manual-de-uso</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/manual-del-panel</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/mapa-sitio</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.3</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/politica-privacidad</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/condiciones-servicio</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+  <url>
+    <loc>https://booking-saas-inky.vercel.app/condiciones-uso</loc>
+    <changefreq>yearly</changefreq>
+    <priority>0.2</priority>
+  </url>
+</urlset>

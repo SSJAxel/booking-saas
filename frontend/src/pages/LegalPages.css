@@ -1,0 +1,225 @@
+/* Legal/info pages (privacy, terms, support, FAQ, manual, sitemap) — same CapiByte-flavored
+   token overrides as PricingPage.css, so the content sandwiched between the shared PublicHeader
+   and PublicFooter doesn't look like a mismatched admin-panel island in between them. */
+.legal-page {
+	--text: #2a3d2a;
+	--text-h: #0d1f0d;
+	--text-dim: #4a634a;
+	--bg: #f8faf8;
+	--surface: #ffffff;
+	--surface-2: #f0faf0;
+	--border: #eff3ef;
+	--border-strong: #dde8dd;
+	--accent: #38c438;
+	--accent-hover: #4ddb4d;
+	--accent-soft: rgba(56, 196, 56, 0.1);
+	--accent-contrast: #ffffff;
+	--font-display: "Coda", sans-serif;
+	--font-body: "Josefin Sans", sans-serif;
+	--r-sm: 8px;
+	--r-md: 12px;
+	--r-xl: 20px;
+
+	min-height: 100vh;
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-body);
+	display: flex;
+	flex-direction: column;
+}
+
+.legal-page * {
+	box-sizing: border-box;
+}
+
+.legal-main {
+	flex: 1;
+	max-width: 760px;
+	width: 100%;
+	margin: 0 auto;
+	padding: 2.5rem 1.5rem 4rem;
+}
+
+.legal-main h1 {
+	font-size: 1.7rem;
+	color: var(--text-h);
+	margin: 0 0 0.3rem;
+}
+
+.legal-updated {
+	color: var(--text-dim);
+	font-size: 0.85rem;
+	margin: 0 0 2rem;
+}
+
+.legal-main h2 {
+	font-family: var(--font-display);
+	font-weight: 800;
+	font-size: 1.1rem;
+	color: var(--text-h);
+	margin: 2rem 0 0.6rem;
+}
+
+.legal-main p,
+.legal-main li {
+	line-height: 1.6;
+	color: var(--text);
+	font-size: 0.95rem;
+}
+
+.legal-main ul {
+	margin: 0 0 1rem;
+	padding-left: 1.3rem;
+	display: flex;
+	flex-direction: column;
+	gap: 0.4rem;
+}
+
+.legal-main a {
+	color: var(--accent);
+}
+
+.legal-contact {
+	margin-top: 2.5rem;
+	padding: 1rem 1.2rem;
+	background: var(--surface-2);
+	border: 1px solid var(--border);
+	border-radius: var(--r-md);
+}
+
+.legal-contact p {
+	margin: 0.2rem 0;
+}
+
+/* FAQ page */
+.faq-item {
+	border: 1px solid var(--border);
+	border-radius: var(--r-md);
+	padding: 0.2rem 1rem;
+	margin-bottom: 0.7rem;
+	background: var(--surface);
+}
+
+.faq-item summary {
+	cursor: pointer;
+	font-weight: 600;
+	color: var(--text-h);
+	padding: 0.8rem 0;
+	list-style: none;
+}
+
+.faq-item summary::-webkit-details-marker {
+	display: none;
+}
+
+.faq-item summary::before {
+	content: "+";
+	display: inline-block;
+	width: 1.1em;
+	color: var(--accent);
+	font-weight: 700;
+}
+
+.faq-item[open] summary::before {
+	content: "−";
+}
+
+.faq-item p {
+	margin: 0 0 0.9rem 1.4rem;
+	color: var(--text-dim);
+}
+
+.am-cta-wrap {
+	margin-top: 2rem;
+	text-align: center;
+}
+
+/* .legal-main .am-cta (two classes) beats .legal-main a (class+type) so this doesn't lose its
+   white text color to the generic link-color rule and end up green-on-green/invisible. */
+.legal-main .am-cta {
+	display: inline-block;
+	padding: 0.85rem 1.6rem;
+	border-radius: var(--r-pill, 999px);
+	background: var(--accent);
+	color: var(--accent-contrast, #fff);
+	font-weight: 700;
+	text-decoration: none;
+	transition: background 0.25s;
+}
+
+.legal-main .am-cta:hover {
+	background: var(--accent-hover, var(--accent));
+	color: var(--accent-contrast, #fff);
+}
+
+/* Manual completo del panel (AdminManualPage) — reuses .faq-item's <details> look */
+.faq-item p.am-intro {
+	margin-bottom: 1.1rem;
+}
+
+.am-item {
+	margin: 0 0 1.1rem 1.4rem;
+}
+
+.faq-item p.am-item-title {
+	font-weight: 700;
+	color: var(--text-h);
+	margin-bottom: 0.3rem;
+}
+
+/* Manual de uso page */
+.manual-step {
+	display: flex;
+	gap: 0.9rem;
+	margin-bottom: 1.3rem;
+}
+
+.manual-step-number {
+	flex: none;
+	width: 2rem;
+	height: 2rem;
+	border-radius: 50%;
+	background: var(--accent-soft);
+	color: var(--accent);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: 700;
+	font-size: 0.9rem;
+}
+
+.manual-step-body h3 {
+	margin: 0.15rem 0 0.3rem;
+	font-size: 1rem;
+	color: var(--text-h);
+}
+
+.manual-step-body p {
+	margin: 0;
+}
+
+/* Sitemap page */
+.sitemap-section {
+	margin-bottom: 1.8rem;
+}
+
+.sitemap-section h2 {
+	margin-top: 0;
+}
+
+.sitemap-section ul {
+	list-style: none;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+}
+
+.sitemap-section a {
+	font-size: 0.95rem;
+}
+
+.sitemap-empty {
+	color: var(--text-dim);
+	font-size: 0.9rem;
+}

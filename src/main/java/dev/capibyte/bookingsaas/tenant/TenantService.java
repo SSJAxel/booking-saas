@@ -6,6 +6,7 @@ import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -83,6 +84,13 @@ public class TenantService {
 	@Transactional
 	public Tenant findByIdForUpdate(UUID id) {
 		return tenantRepository.findByIdForUpdate(id).orElseThrow(() -> new NotFoundException("Tenant not found: " + id));
+	}
+
+	/** Backs the public tenant directory (Mapa del sitio) — every tenant whose public booking page
+	 * is actually reachable, alphabetically. */
+	@Transactional(readOnly = true)
+	public List<Tenant> findAllActive() {
+		return tenantRepository.findByStatusOrderByNameAsc(TenantStatus.ACTIVE);
 	}
 
 	/**

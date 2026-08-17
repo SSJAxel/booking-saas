@@ -21,7 +21,7 @@ export default function VerifyEmailPage() {
 		verifyEmail({ tenantSlug, token })
 			.then(() => {
 				setStatus("done");
-				navigate("/", { replace: true });
+				navigate("/panel", { replace: true });
 			})
 			.catch((err) => {
 				setStatus("error");
