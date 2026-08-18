@@ -67,6 +67,13 @@ public class Appointment extends BaseTenantEntity {
 	@Column(name = "is_overtime", nullable = false)
 	private boolean overtime;
 
+	/** Null unless this appointment was created as part of a multi-service booking (see
+	 * {@code AppointmentService#bookGroup}) — purely a display/grouping link, e.g. "corte con Lauti"
+	 * + "tratamiento capilar con Facu" booked together. Not a foreign key to anything: two rows
+	 * simply share this value. Cancelling/rescheduling one never cascades to the other. */
+	@Column(name = "booking_group_id")
+	private UUID bookingGroupId;
+
 	/** Single-use invite token for leaving a post-visit review — same two-UUID-concatenation shape
 	 * and lookup/expiry/clear-on-use lifecycle as {@code AppUser}'s reset-password token (see
 	 * {@code ReviewService#issueInviteIfEnabled}/{@code #submit}), just scoped to this appointment

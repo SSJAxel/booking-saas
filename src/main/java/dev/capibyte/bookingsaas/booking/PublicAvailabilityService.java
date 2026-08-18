@@ -16,6 +16,7 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Stream;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,6 +35,18 @@ public class PublicAvailabilityService {
 
 	@Transactional(readOnly = true)
 	public List<TimeSlot> findFreeSlots(UUID professionalId, UUID serviceId, LocalDate date) {
+		return findFreeSlots(professionalId, serviceId, date, null);
+	}
+
+	/**
+	 * {@code preferredAfter}, when given, reorders (never filters) the result so slots at or after
+	 * that time come first — used while picking the 2nd+ leg of a multi-service booking
+	 * ({@code BookGroupItem}), to surface back-to-back-friendly options (e.g. right after the first
+	 * service ends) without hiding earlier-in-the-day or other-day options the client might still
+	 * prefer.
+	 */
+	@Transactional(readOnly = true)
+	public List<TimeSlot> findFreeSlots(UUID professionalId, UUID serviceId, LocalDate date, LocalTime preferredAfter) {
 		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
 		List<TimeSlot> slots = computeSlots(professionalId, serviceId, date, zone);
 		// The calculator only knows about weekly hours/time-off/other bookings — it has no notion
@@ -43,6 +56,11 @@ public class PublicAvailabilityService {
 		if (date.equals(LocalDate.now(zone))) {
 			LocalTime now = LocalTime.now(zone);
 			slots = slots.stream().filter(slot -> !slot.start().isBefore(now)).toList();
+		}
+		if (preferredAfter != null) {
+			List<TimeSlot> onOrAfter = slots.stream().filter(slot -> !slot.start().isBefore(preferredAfter)).toList();
+			List<TimeSlot> before = slots.stream().filter(slot -> slot.start().isBefore(preferredAfter)).toList();
+			slots = Stream.concat(onOrAfter.stream(), before.stream()).toList();
 		}
 		return slots;
 	}

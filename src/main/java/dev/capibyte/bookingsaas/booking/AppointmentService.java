@@ -72,6 +72,32 @@ public class AppointmentService {
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
 			String clientEmail, String clientPhone, String clientInstagram, boolean overtime) {
+		return book(professionalId, serviceId, startTime, clientName, clientEmail, clientPhone, clientInstagram,
+				overtime, null);
+	}
+
+	/**
+	 * Books two or more services in one client flow ("corte con Lauti" + "tratamiento capilar con
+	 * Facu", el mismo día o en días distintos) as one transaction: every item shares the same
+	 * {@code bookingGroupId} and the same (found-or-created) {@link Client}, and if any item beyond
+	 * the first hits an already-taken slot, the whole group rolls back — including items already
+	 * flushed earlier in this loop — instead of leaving a half-booked group. Each resulting
+	 * appointment still goes through the exact same eligibility/availability/weekly-cap checks as a
+	 * single {@link #book} call, in list order; a PERSONAL tenant near its weekly cap can therefore
+	 * have the group rejected by the second item even though the first alone would have fit.
+	 */
+	@Transactional
+	public List<Appointment> bookGroup(List<BookGroupItem> items, String clientName, String clientEmail,
+			String clientPhone, String clientInstagram) {
+		UUID bookingGroupId = UUID.randomUUID();
+		return items.stream()
+				.map(item -> book(item.professionalId(), item.serviceId(), item.startTime(), clientName, clientEmail,
+						clientPhone, clientInstagram, false, bookingGroupId))
+				.toList();
+	}
+
+	private Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
+			String clientEmail, String clientPhone, String clientInstagram, boolean overtime, UUID bookingGroupId) {
 		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
 		PlanTier tier = tenant.getPlanTier();
 		ZoneId zone = ZoneId.of(tenant.getTimezone());
@@ -130,6 +156,7 @@ public class AppointmentService {
 		appointment.setStartTime(startTime);
 		appointment.setEndTime(endTime);
 		appointment.setOvertime(overtime);
+		appointment.setBookingGroupId(bookingGroupId);
 		PaymentStatus paymentStatus = service.getDepositAmount() != null ? PaymentStatus.PENDING : PaymentStatus.NOT_REQUIRED;
 		appointment.setPaymentStatus(paymentStatus);
 		// No deposit to wait for, so there's nothing PENDING should mean here — confirm immediately

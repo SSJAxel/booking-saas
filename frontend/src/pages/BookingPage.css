@@ -937,6 +937,12 @@ button.pb-back-link:hover{
 	margin-bottom: 1rem;
 }
 
+.pb-summary-item + .pb-summary-item {
+	margin-top: 0.7rem;
+	padding-top: 0.7rem;
+	border-top: 1px dashed var(--pb-border);
+}
+
 .pb-cta {
 	background: var(--pb-accent);
 	color: var(--pb-accent-contrast);
@@ -951,6 +957,23 @@ button.pb-back-link:hover{
 .pb-cta:disabled {
 	opacity: 0.5;
 	cursor: not-allowed;
+}
+
+.pb-cta-row {
+	display: flex;
+	gap: 0.6rem;
+	flex-wrap: wrap;
+}
+
+.pb-cta-secondary {
+	background: transparent;
+	color: var(--pb-accent);
+	border: 1px solid var(--pb-accent);
+	border-radius: var(--pb-radius);
+	padding: 0.7rem 1.4rem;
+	font-weight: 700;
+	font-style: italic;
+	cursor: pointer;
 }
 
 .pb-deposit-note {

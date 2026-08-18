@@ -13,7 +13,15 @@ function formatDateDisplay(dateKey) {
 /** Fullscreen booking wizard, opened either from a service card (`service` prop — asks Profesional
  * → Fecha y hora → Tus datos) or from a team-carousel card (`professional` prop — asks Servicio →
  * Fecha y hora → Tus datos, showing only services that professional actually offers). Exactly one
- * of the two is passed in; whichever one is already known is skipped. */
+ * of the two is passed in; whichever one is already known is skipped.
+ *
+ * A client can chain more than one service into the same booking ("corte con Lauti" +
+ * "tratamiento capilar con Facu", el mismo día o en días distintos) via "+ Agregar otro servicio"
+ * at the datetime step. Confirmed legs live in `items`; `service`/`professional`/`date`/`slot`
+ * always describe whichever leg is currently being picked. Each leg keeps its own price/deposit —
+ * there's no combo pricing (see README "PLANES a futuro") — so a multi-leg booking hits
+ * POST .../appointments/group (one booking_group_id, independent per-leg deposits/cancellation);
+ * a single leg still hits the original POST .../appointments, unchanged. */
 export default function ReservationModal({ tenant, tenantSlug, branch, service: initialService, professional: initialProfessional, onClose }) {
 	const fromProfessional = Boolean(initialProfessional);
 	const stepLabels = fromProfessional ? STEPS_FROM_PROFESSIONAL : STEPS_FROM_SERVICE;
@@ -26,7 +34,15 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 	const [professional, setProfessional] = useState(initialProfessional ?? null);
 	const [date, setDate] = useState(null);
 	const [slot, setSlot] = useState(null);
-	const [appointment, setAppointment] = useState(null);
+	const [bookedAppointments, setBookedAppointments] = useState(null);
+
+	// Confirmed legs of a multi-service booking (see the doc comment above). Empty until the client
+	// picks "+ Agregar otro servicio" or reaches "details" for the first time.
+	const [items, setItems] = useState([]);
+	const [pickingExtra, setPickingExtra] = useState(false);
+	const [extraServices, setExtraServices] = useState([]);
+	const [extraProfessionals, setExtraProfessionals] = useState([]);
+	const [extraLoading, setExtraLoading] = useState(false);
 
 	const [step, setStep] = useState(fromProfessional ? "service" : "professional");
 	const [loading, setLoading] = useState(true);
@@ -76,15 +92,19 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		setStep("datetime");
 	}
 
-	async function handlePickDate(dateKey) {
-		setDate(dateKey);
+	/** Shared by the first pick and by "+ Agregar otro servicio". `preferredAfter` only makes sense
+	 * when the new leg lands on the exact same date as the last confirmed one — the backend just
+	 * reorders slots around it, it doesn't filter, so picking a different day is unaffected. */
+	async function loadSlots(professionalId, serviceId, dateKey) {
 		setSlot(null);
 		setSlots([]);
 		setSlotsLoading(true);
 		setError("");
 		const requestId = ++slotsRequestRef.current;
+		const lastItem = items[items.length - 1];
+		const preferredAfter = lastItem && lastItem.date === dateKey ? lastItem.slot.end : undefined;
 		try {
-			const result = await api.public.availability(tenantSlug, professional.id, service.id, dateKey);
+			const result = await api.public.availability(tenantSlug, professionalId, serviceId, dateKey, preferredAfter);
 			if (requestId !== slotsRequestRef.current) return;
 			setSlots(result);
 		} catch (err) {
@@ -95,23 +115,103 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		}
 	}
 
+	async function handlePickDate(dateKey) {
+		setDate(dateKey);
+		await loadSlots(professional.id, service.id, dateKey);
+	}
+
+	function handleAddAnotherService() {
+		setItems((prev) => [...prev, { service, professional, date, slot }]);
+		setService(null);
+		setProfessional(null);
+		setDate(null);
+		setSlot(null);
+		setSlots([]);
+		setPickingExtra(true);
+		setExtraLoading(true);
+		setError("");
+		api.public
+			.services(tenantSlug, branch?.id)
+			.then((list) => setExtraServices(list))
+			.catch((err) => setError(err.message))
+			.finally(() => setExtraLoading(false));
+		setStep("extraService");
+	}
+
+	function handlePickExtraService(s) {
+		setService(s);
+		setExtraLoading(true);
+		setError("");
+		api.public
+			.professionals(tenantSlug, s.id, branch?.id)
+			.then((list) => setExtraProfessionals(list.map((p) => ({ ...p, photoUrl: resolveMediaUrl(p.photoUrl) }))))
+			.catch((err) => setError(err.message))
+			.finally(() => setExtraLoading(false));
+		setStep("extraProfessional");
+	}
+
+	function handlePickExtraProfessional(p) {
+		setProfessional(p);
+		setDate(null);
+		setSlot(null);
+		setSlots([]);
+		setStep("datetime");
+	}
+
+	function handleContinueToDetails() {
+		setItems((prev) => [...prev, { service, professional, date, slot }]);
+		setStep("details");
+	}
+
+	/** Pops the last confirmed leg back into the in-progress fields and re-fetches its slots, so
+	 * "‹ Elegir otro horario" from "details" lands the client exactly where they left off instead of
+	 * an empty datetime step. */
+	async function handleBackFromDetails() {
+		const remaining = items.slice(0, -1);
+		const last = items[items.length - 1];
+		setItems(remaining);
+		setService(last.service);
+		setProfessional(last.professional);
+		setDate(last.date);
+		setStep("datetime");
+		await loadSlots(last.professional.id, last.service.id, last.date);
+		setSlot(last.slot);
+	}
+
 	async function handleSubmit(event) {
 		event.preventDefault();
 		setError("");
 		setLoading(true);
 		const form = new FormData(event.target);
+		const clientPayload = {
+			clientName: form.get("clientName"),
+			clientEmail: form.get("clientEmail"),
+			clientPhone: form.get("clientPhone") || undefined,
+			clientInstagram: form.get("clientInstagram") || undefined,
+		};
 		try {
-			const result = await api.public.book(tenantSlug, {
-				professionalId: professional.id,
-				serviceId: service.id,
-				date,
-				startTime: slot.start,
-				clientName: form.get("clientName"),
-				clientEmail: form.get("clientEmail"),
-				clientPhone: form.get("clientPhone") || undefined,
-				clientInstagram: form.get("clientInstagram") || undefined,
-			});
-			setAppointment(result);
+			if (items.length > 1) {
+				const result = await api.public.bookGroup(tenantSlug, {
+					...clientPayload,
+					items: items.map((it) => ({
+						professionalId: it.professional.id,
+						serviceId: it.service.id,
+						date: it.date,
+						startTime: it.slot.start,
+					})),
+				});
+				setBookedAppointments(result);
+			} else {
+				const only = items[0];
+				const result = await api.public.book(tenantSlug, {
+					professionalId: only.professional.id,
+					serviceId: only.service.id,
+					date: only.date,
+					startTime: only.slot.start,
+					...clientPayload,
+				});
+				setBookedAppointments([result]);
+			}
 			setStep("done");
 		} catch (err) {
 			setError(err.message);
@@ -127,7 +227,7 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 					×
 				</button>
 				<div className="pb-modal-inner">
-					{step !== "done" && (
+					{step !== "done" && items.length === 0 && (
 						<ol className="pb-stepper">
 							{Object.entries(stepLabels).map(([key, label]) => (
 								<li key={key} className={step === key ? "pb-step-active" : ""}>
@@ -135,6 +235,11 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 								</li>
 							))}
 						</ol>
+					)}
+					{step !== "done" && items.length > 0 && (
+						<p className="muted">
+							Ya tenés {items.length} servicio{items.length > 1 ? "s" : ""} para esta reserva.
+						</p>
 					)}
 
 					{error && <p className="pb-error">{error}</p>}
@@ -185,14 +290,66 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 						</div>
 					)}
 
+					{step === "extraService" && (
+						<div className="pb-option-list">
+							<h3>Agregá otro servicio</h3>
+							{extraLoading && <p className="muted">Cargando servicios...</p>}
+							{!extraLoading && extraServices.length === 0 && (
+								<p className="pb-empty">No hay más servicios disponibles ahora mismo.</p>
+							)}
+							{extraServices.map((s) => (
+								<button key={s.id} type="button" className="pb-option-card" onClick={() => handlePickExtraService(s)}>
+									<strong>{s.name}</strong>
+									<span>
+										{s.durationMinutes} min · ${Number(s.price).toLocaleString("es-AR")}
+									</span>
+								</button>
+							))}
+							<button type="button" className="pb-back-link" onClick={() => setStep("details")}>
+								‹ Ya elegí suficiente, continuar
+							</button>
+						</div>
+					)}
+
+					{step === "extraProfessional" && (
+						<div className="pb-option-list">
+							<h3>{service.name}</h3>
+							{extraLoading && <p className="muted">Cargando profesionales...</p>}
+							{!extraLoading && extraProfessionals.length === 0 && (
+								<p className="pb-empty">No hay profesionales disponibles para este servicio.</p>
+							)}
+							{extraProfessionals.map((p) => (
+								<button
+									key={p.id}
+									type="button"
+									className="pb-option-card pb-option-card-professional"
+									onClick={() => handlePickExtraProfessional(p)}
+								>
+									{p.photoUrl ? (
+										<img src={p.photoUrl} alt="" className="pb-option-photo" />
+									) : (
+										<span className="pb-option-photo pb-option-photo-fallback">{p.displayName?.[0] ?? "?"}</span>
+									)}
+									<span className="pb-option-text">
+										<strong>{p.displayName}</strong>
+										{p.bio && <span>{p.bio}</span>}
+									</span>
+								</button>
+							))}
+							<button type="button" className="pb-back-link" onClick={() => setStep("extraService")}>
+								‹ Elegir otro servicio
+							</button>
+						</div>
+					)}
+
 					{step === "datetime" && (
 						<div>
 							<button
 								type="button"
 								className="pb-back-link"
-								onClick={() => setStep(fromProfessional ? "service" : "professional")}
+								onClick={() => setStep(pickingExtra ? "extraProfessional" : fromProfessional ? "service" : "professional")}
 							>
-								‹ {fromProfessional ? "Elegir otro servicio" : "Elegir otro profesional"}
+								‹ {pickingExtra ? "Elegir otro profesional" : fromProfessional ? "Elegir otro servicio" : "Elegir otro profesional"}
 							</button>
 							<Calendar selected={date} onSelect={handlePickDate} />
 							<p className="label">Horarios disponibles</p>
@@ -216,28 +373,37 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 								</div>
 							)}
 							{slot && (
-								<button type="button" className="pb-cta" onClick={() => setStep("details")}>
-									Continuar con {slot.start.slice(0, 5)}
-								</button>
+								<div className="pb-cta-row">
+									<button type="button" className="pb-cta" onClick={handleContinueToDetails}>
+										{items.length > 0 ? "Continuar y confirmar" : `Continuar con ${slot.start.slice(0, 5)}`}
+									</button>
+									<button type="button" className="pb-cta-secondary" onClick={handleAddAnotherService}>
+										+ Agregar otro servicio
+									</button>
+								</div>
 							)}
 						</div>
 					)}
 
 					{step === "details" && (
 						<form onSubmit={handleSubmit} className="pb-form">
-							<button type="button" className="pb-back-link" onClick={() => setStep("datetime")}>
+							<button type="button" className="pb-back-link" onClick={handleBackFromDetails}>
 								‹ Elegir otro horario
 							</button>
 							<div className="pb-summary-box">
-								<p>
-									<strong>{service.name}</strong> con {professional.displayName}
-								</p>
-								<p className="muted">
-									{formatDateDisplay(date)} a las {slot.start.slice(0, 5)}
-								</p>
-								{service.depositAmount && (
-									<p className="muted">Requiere seña de ${Number(service.depositAmount).toLocaleString("es-AR")}</p>
-								)}
+								{items.map((it, i) => (
+									<div className="pb-summary-item" key={i}>
+										<p>
+											<strong>{it.service.name}</strong> con {it.professional.displayName}
+										</p>
+										<p className="muted">
+											{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
+										</p>
+										{it.service.depositAmount && (
+											<p className="muted">Requiere seña de ${Number(it.service.depositAmount).toLocaleString("es-AR")}</p>
+										)}
+									</div>
+								))}
 							</div>
 							<label>
 								Nombre y apellido
@@ -256,28 +422,40 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 								<input name="clientInstagram" placeholder="@usuario" />
 							</label>
 							<button type="submit" className="pb-cta" disabled={loading}>
-								{loading ? "Reservando..." : "Confirmar turno"}
+								{loading ? "Reservando..." : items.length > 1 ? "Confirmar turnos" : "Confirmar turno"}
 							</button>
 						</form>
 					)}
 
-					{step === "done" && appointment && (
+					{step === "done" && bookedAppointments && (
 						<div>
-							<p className="notice">¡Turno reservado!</p>
+							<p className="notice">{bookedAppointments.length > 1 ? "¡Turnos reservados!" : "¡Turno reservado!"}</p>
 							<div className="pb-summary-box">
-								<p>
-									<strong>{service.name}</strong> con {professional.displayName}
-								</p>
-								<p className="muted">
-									{formatDateDisplay(date)} a las {slot.start.slice(0, 5)}
-								</p>
+								{items.map((it, i) => (
+									<div className="pb-summary-item" key={i}>
+										<p>
+											<strong>{it.service.name}</strong> con {it.professional.displayName}
+										</p>
+										<p className="muted">
+											{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
+										</p>
+										{bookedAppointments[i]?.paymentStatus === "PENDING" && (
+											<p className="muted">
+												Todavía no confirmado — requiere seña de $
+												{Number(it.service.depositAmount).toLocaleString("es-AR")}.
+											</p>
+										)}
+									</div>
+								))}
 								<p className="muted">Te enviamos la confirmación a tu email.</p>
 							</div>
-							{appointment.paymentStatus === "PENDING" && (
+							{bookedAppointments.some((a) => a.paymentStatus === "PENDING") && (
 								<div className="pb-deposit-note">
 									<p>
-										<strong>Este turno todavía no está confirmado.</strong> Requiere una seña de $
-										{Number(service.depositAmount).toLocaleString("es-AR")} para confirmarse.
+										<strong>
+											{bookedAppointments.length > 1 ? "Alguno de tus turnos" : "Este turno"} todavía no está confirmado.
+										</strong>{" "}
+										Necesita el pago de la seña indicada arriba para confirmarse.
 									</p>
 									{tenant.transferAlias ? (
 										<p>

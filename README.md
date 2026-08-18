@@ -1385,8 +1385,11 @@ pendientes:
 
 
 ### A CHEQUEAR
-- Agregar dos servicios de agendamientos seguidos o x separado en dos dias diferentes, ej, agendo corte con Lauti y tratamiento capilar con Facu
-- Configurar el hoario de los empleados como endpoint publico
+- ~~Agregar dos servicios de agendamientos seguidos o x separado en dos dias diferentes, ej, agendo corte con Lauti y tratamiento capilar con Facu~~ Hecho — booking_group_id (V42), `AppointmentService.bookGroup`, endpoint `POST .../appointments/group`, wizard de "+ Agregar otro servicio" en ReservationModal. Cada servicio del grupo mantiene su propio precio/seña/estado (cancelar uno no afecta al otro) — sin precio de combo todavía, ver nota abajo.
+- ~~Configurar el hoario de los empleados como endpoint publico~~ Ya estaba hecho — `GET /api/public/{tenantSlug}/professionals` ya devuelve el horario semanal de cada profesional sin auth (`PublicProfessionalResponse.hours` → `PublicWeeklyAvailabilityResponse`). Si esto no cubre lo que hacía falta (ej. excepciones puntuales por fecha en vez del patrón semanal recurrente), volver a abrirlo con el detalle específico.
+
+### IDEA A FUTURO (no arrancar sin pedirlo)
+- **Precio de combo**: que el tenant pueda definir un precio especial para un par de servicios reservados juntos (ej. tatuaje + piercing, corte + tintura), distinto de la suma de sus precios individuales. Útil sobre todo para tatuajes/piercings, donde combinar servicios en una sola sesión suele tener descuento. Necesita su propia entidad (`ServiceCombo` o similar: tenant_id, service_a_id, service_b_id, combo_price) y lógica para detectarlo al armar una reserva conjunta — no confundir con el agendamiento conjunto de arriba, que es puramente de scheduling.
 
 ### PLANES
 
@@ -1426,7 +1429,7 @@ PRO: 27 dolares x mes
 
 Avisos por WhatsApp
 
-MAX: 20 dolares x mes
+MAX: 60 dolares x mes (arrancando desde 4 empleados mínimo)
   - Hasta 60 productos
   - Soporte técnico prioritario vía Whatsapp
   - Historial ilimitado descargable

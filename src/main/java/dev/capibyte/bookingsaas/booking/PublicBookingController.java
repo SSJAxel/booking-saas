@@ -1,6 +1,7 @@
 package dev.capibyte.bookingsaas.booking;
 
 import dev.capibyte.bookingsaas.booking.dto.AppointmentResponse;
+import dev.capibyte.bookingsaas.booking.dto.BookAppointmentGroupRequest;
 import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
 import dev.capibyte.bookingsaas.booking.dto.PublicBranchHoursResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicBranchResponse;
@@ -22,6 +23,7 @@ import dev.capibyte.bookingsaas.tenant.TenantService;
 import jakarta.validation.Valid;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -111,8 +113,9 @@ public class PublicBookingController {
 
 	@GetMapping("/availability")
 	public List<TimeSlot> availability(@PathVariable String tenantSlug, @RequestParam UUID professionalId,
-			@RequestParam UUID serviceId, @RequestParam LocalDate date) {
-		return publicAvailabilityService.findFreeSlots(professionalId, serviceId, date);
+			@RequestParam UUID serviceId, @RequestParam LocalDate date,
+			@RequestParam(required = false) LocalTime preferredAfter) {
+		return publicAvailabilityService.findFreeSlots(professionalId, serviceId, date, preferredAfter);
 	}
 
 	@PostMapping("/appointments")
@@ -131,5 +134,29 @@ public class PublicBookingController {
 		Appointment appointment = appointmentService.book(request.professionalId(), request.serviceId(), startTime,
 				request.clientName(), request.clientEmail(), request.clientPhone(), request.clientInstagram());
 		return AppointmentResponse.from(appointment, appointmentService.findClient(appointment.getClientId()));
+	}
+
+	/**
+	 * Two or more services booked together — see {@link AppointmentService#bookGroup}. Same
+	 * "no past" guard as {@link #book}, applied per item, before any of them reach the service layer.
+	 */
+	@PostMapping("/appointments/group")
+	@ResponseStatus(HttpStatus.CREATED)
+	public List<AppointmentResponse> bookGroup(@PathVariable String tenantSlug,
+			@Valid @RequestBody BookAppointmentGroupRequest request) {
+		ZoneId zone = tenantService.getZoneId(TenantContext.getTenantId());
+		Instant now = Instant.now();
+		List<BookGroupItem> items = request.items().stream().map(item -> {
+			Instant startTime = ZonedDateTime.of(item.date(), item.startTime(), zone).toInstant();
+			if (startTime.isBefore(now)) {
+				throw new BadRequestException("Can't book an appointment in the past");
+			}
+			return new BookGroupItem(item.professionalId(), item.serviceId(), startTime);
+		}).toList();
+		List<Appointment> appointments = appointmentService.bookGroup(items, request.clientName(),
+				request.clientEmail(), request.clientPhone(), request.clientInstagram());
+		return appointments.stream()
+				.map(a -> AppointmentResponse.from(a, appointmentService.findClient(a.getClientId())))
+				.toList();
 	}
 }

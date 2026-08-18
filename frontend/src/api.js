@@ -234,11 +234,13 @@ export const api = {
 			request(`/api/public/${tenantSlug}/services${toQuery({ branchId })}`, { auth: false }),
 		professionals: (tenantSlug, serviceId, branchId) =>
 			request(`/api/public/${tenantSlug}/professionals${toQuery({ serviceId, branchId })}`, { auth: false }),
-		availability: (tenantSlug, professionalId, serviceId, date) =>
-			request(`/api/public/${tenantSlug}/availability${toQuery({ professionalId, serviceId, date })}`, {
+		availability: (tenantSlug, professionalId, serviceId, date, preferredAfter) =>
+			request(`/api/public/${tenantSlug}/availability${toQuery({ professionalId, serviceId, date, preferredAfter })}`, {
 				auth: false,
 			}),
 		book: (tenantSlug, body) => request(`/api/public/${tenantSlug}/appointments`, { method: "POST", body, auth: false }),
+		bookGroup: (tenantSlug, body) =>
+			request(`/api/public/${tenantSlug}/appointments/group`, { method: "POST", body, auth: false }),
 		reviewInvite: (tenantSlug, token) =>
 			request(`/api/public/${tenantSlug}/reviews/invite/${token}`, { auth: false }),
 		submitReview: (tenantSlug, token, body) =>
