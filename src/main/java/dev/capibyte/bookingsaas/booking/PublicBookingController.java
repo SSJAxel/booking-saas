@@ -6,9 +6,12 @@ import dev.capibyte.bookingsaas.booking.dto.BookAppointmentRequest;
 import dev.capibyte.bookingsaas.booking.dto.PublicBranchHoursResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicBranchResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicProfessionalResponse;
+import dev.capibyte.bookingsaas.booking.dto.PublicServiceComboResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicServiceResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicTenantResponse;
 import dev.capibyte.bookingsaas.booking.dto.PublicWeeklyAvailabilityResponse;
+import dev.capibyte.bookingsaas.catalog.ServiceCombo;
+import dev.capibyte.bookingsaas.catalog.ServiceComboService;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.BadRequestException;
@@ -27,9 +30,11 @@ import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -57,6 +62,7 @@ public class PublicBookingController {
 	private final PublicAvailabilityService publicAvailabilityService;
 	private final AppointmentService appointmentService;
 	private final TenantService tenantService;
+	private final ServiceComboService serviceComboService;
 
 	@GetMapping
 	public PublicTenantResponse tenant(@PathVariable String tenantSlug) {
@@ -116,6 +122,21 @@ public class PublicBookingController {
 			@RequestParam UUID serviceId, @RequestParam LocalDate date,
 			@RequestParam(required = false) LocalTime preferredAfter) {
 		return publicAvailabilityService.findFreeSlots(professionalId, serviceId, date, preferredAfter);
+	}
+
+	/**
+	 * Preview-only ("would these two services get a combo price if booked together?") — the client
+	 * queries this while building a multi-service booking to decide what to show, but the actual
+	 * charge is always re-derived server-side by {@link AppointmentService#bookGroup}, never trusted
+	 * from here. 204 (not 404) when no combo applies — this is a normal, expected outcome for most
+	 * service pairs, not an error.
+	 */
+	@GetMapping("/service-combo")
+	public ResponseEntity<PublicServiceComboResponse> serviceCombo(@PathVariable String tenantSlug,
+			@RequestParam UUID serviceAId, @RequestParam UUID serviceBId) {
+		Optional<ServiceCombo> combo = serviceComboService.findApplicableCombo(serviceAId, serviceBId);
+		return combo.map(c -> ResponseEntity.ok(PublicServiceComboResponse.from(c)))
+				.orElseGet(() -> ResponseEntity.noContent().build());
 	}
 
 	@PostMapping("/appointments")

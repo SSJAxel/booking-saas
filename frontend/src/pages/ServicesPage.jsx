@@ -20,6 +20,7 @@ export default function ServicesPage() {
 	const [professionals, setProfessionals] = useState([]);
 	const [assignments, setAssignments] = useState({});
 	const [tenant, setTenant] = useState(null);
+	const [combos, setCombos] = useState([]);
 	const [error, setError] = useState("");
 	const [notice, setNotice] = useState("");
 	const [loading, setLoading] = useState(true);
@@ -41,6 +42,11 @@ export default function ServicesPage() {
 			setTenant(t);
 			const entries = await Promise.all(s.map(async (svc) => [svc.id, await api.services.listProfessionals(svc.id)]));
 			setAssignments(Object.fromEntries(entries));
+			// Combos are MAX-only server-side (ServiceComboService.requirePlanSupport) — only fetch/show
+			// the section at all for a MAX tenant, same gate the backend itself enforces.
+			if (t.planTier === "MAX") {
+				setCombos(await api.serviceCombos.list());
+			}
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -135,6 +141,41 @@ export default function ServicesPage() {
 		} catch (err) {
 			setError(err.message);
 		}
+	}
+
+	async function handleCreateCombo(event) {
+		event.preventDefault();
+		setError("");
+		const form = new FormData(event.target);
+		const comboDepositAmount = form.get("comboDepositAmount");
+		try {
+			await api.serviceCombos.create({
+				serviceAId: form.get("serviceAId"),
+				serviceBId: form.get("serviceBId"),
+				comboPrice: Number(form.get("comboPrice")),
+				comboDepositAmount: comboDepositAmount ? Number(comboDepositAmount) : null,
+			});
+			event.target.reset();
+			refresh();
+			flashNotice("Combo creado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleDeleteCombo(id) {
+		if (!window.confirm("¿Eliminar este combo?")) return;
+		setError("");
+		try {
+			await api.serviceCombos.delete(id);
+			refresh();
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	function serviceName(id) {
+		return services.find((s) => s.id === id)?.name ?? "(servicio eliminado)";
 	}
 
 	if (loading) return <p>Cargando...</p>;
@@ -309,6 +350,73 @@ export default function ServicesPage() {
 					),
 				)}
 			</div>
+
+			{tenant?.planTier === "MAX" && (
+				<div className="card-section" style={{ marginTop: "2rem" }}>
+					<h2>Precio de combo</h2>
+					<p className="muted">
+						Definí un precio (y opcionalmente una seña) combinados para un par de servicios reservados juntos —
+						por ejemplo tatuaje + piercing a un precio distinto de la suma de cada uno por separado.
+					</p>
+					{services.length < 2 ? (
+						<p className="muted">Necesitás al menos 2 servicios cargados para armar un combo.</p>
+					) : (
+						<form className="inline-form" onSubmit={handleCreateCombo}>
+							<select name="serviceAId" required defaultValue="">
+								<option value="" disabled>
+									Servicio A
+								</option>
+								{services.map((s) => (
+									<option key={s.id} value={s.id}>
+										{s.name}
+									</option>
+								))}
+							</select>
+							<select name="serviceBId" required defaultValue="">
+								<option value="" disabled>
+									Servicio B
+								</option>
+								{services.map((s) => (
+									<option key={s.id} value={s.id}>
+										{s.name}
+									</option>
+								))}
+							</select>
+							<input name="comboPrice" type="number" step="0.01" min="0" placeholder="Precio combo" required />
+							<input
+								name="comboDepositAmount"
+								type="number"
+								step="0.01"
+								min="0"
+								placeholder="Seña combo (opcional)"
+							/>
+							<button type="submit">
+								<PlusIcon />
+								Agregar combo
+							</button>
+						</form>
+					)}
+					<div className="cards">
+						{combos.map((c) => (
+							<div className="card" key={c.id}>
+								<h3>
+									{serviceName(c.serviceAId)} + {serviceName(c.serviceBId)}
+								</h3>
+								<p className="muted">
+									Precio combo: ${c.comboPrice}
+									{c.comboDepositAmount != null ? ` · seña combo $${c.comboDepositAmount}` : " · seña sin cambios"}
+								</p>
+								<div className="button-row">
+									<button type="button" className="danger" onClick={() => handleDeleteCombo(c.id)}>
+										<TrashIcon />
+										Eliminar
+									</button>
+								</div>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

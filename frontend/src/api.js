@@ -160,6 +160,12 @@ export const api = {
 		unassignProfessional: (id, professionalId) =>
 			request(`/api/services/${id}/professionals/${professionalId}`, { method: "DELETE" }),
 	},
+	serviceCombos: {
+		list: () => request("/api/service-combos"),
+		create: (body) => request("/api/service-combos", { method: "POST", body }),
+		update: (id, body) => request(`/api/service-combos/${id}`, { method: "PUT", body }),
+		delete: (id) => request(`/api/service-combos/${id}`, { method: "DELETE" }),
+	},
 	products: {
 		list: () => request("/api/products"),
 		create: (body) => request("/api/products", { method: "POST", body }),
@@ -241,6 +247,8 @@ export const api = {
 		book: (tenantSlug, body) => request(`/api/public/${tenantSlug}/appointments`, { method: "POST", body, auth: false }),
 		bookGroup: (tenantSlug, body) =>
 			request(`/api/public/${tenantSlug}/appointments/group`, { method: "POST", body, auth: false }),
+		serviceCombo: (tenantSlug, serviceAId, serviceBId) =>
+			request(`/api/public/${tenantSlug}/service-combo${toQuery({ serviceAId, serviceBId })}`, { auth: false }),
 		reviewInvite: (tenantSlug, token) =>
 			request(`/api/public/${tenantSlug}/reviews/invite/${token}`, { auth: false }),
 		submitReview: (tenantSlug, token, body) =>

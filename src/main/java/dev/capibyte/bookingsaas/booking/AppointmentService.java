@@ -1,5 +1,7 @@
 package dev.capibyte.bookingsaas.booking;
 
+import dev.capibyte.bookingsaas.catalog.ServiceCombo;
+import dev.capibyte.bookingsaas.catalog.ServiceComboService;
 import dev.capibyte.bookingsaas.catalog.ServiceOffering;
 import dev.capibyte.bookingsaas.catalog.ServiceOfferingService;
 import dev.capibyte.bookingsaas.common.BadRequestException;
@@ -14,12 +16,14 @@ import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import dev.capibyte.bookingsaas.waitlist.WaitlistService;
+import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.ZoneId;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -53,6 +57,7 @@ public class AppointmentService {
 	private final ApplicationEventPublisher eventPublisher;
 	private final AppUserService appUserService;
 	private final PublicAvailabilityService publicAvailabilityService;
+	private final ServiceComboService serviceComboService;
 
 	@Transactional
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
@@ -73,7 +78,7 @@ public class AppointmentService {
 	public Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
 			String clientEmail, String clientPhone, String clientInstagram, boolean overtime) {
 		return book(professionalId, serviceId, startTime, clientName, clientEmail, clientPhone, clientInstagram,
-				overtime, null);
+				overtime, null, null);
 	}
 
 	/**
@@ -85,19 +90,48 @@ public class AppointmentService {
 	 * appointment still goes through the exact same eligibility/availability/weekly-cap checks as a
 	 * single {@link #book} call, in list order; a PERSONAL tenant near its weekly cap can therefore
 	 * have the group rejected by the second item even though the first alone would have fit.
+	 *
+	 * <p>Exactly two items whose services match a MAX-plan {@link ServiceCombo} with a
+	 * {@code comboDepositAmount} set get their deposit re-priced: the whole combo deposit is charged
+	 * on the first item, the second becomes {@code PaymentStatus.NOT_REQUIRED} — never two smaller
+	 * charges. Three or more items, or no matching combo, leaves every leg's deposit exactly as a
+	 * standalone {@link #book} call would compute it (see {@code ServiceComboService} for why the
+	 * lookup itself is limited to pairs).
 	 */
 	@Transactional
 	public List<Appointment> bookGroup(List<BookGroupItem> items, String clientName, String clientEmail,
 			String clientPhone, String clientInstagram) {
 		UUID bookingGroupId = UUID.randomUUID();
-		return items.stream()
-				.map(item -> book(item.professionalId(), item.serviceId(), item.startTime(), clientName, clientEmail,
-						clientPhone, clientInstagram, false, bookingGroupId))
-				.toList();
+		BigDecimal[] depositOverrides = computeComboDepositOverrides(items);
+		List<Appointment> booked = new ArrayList<>();
+		for (int i = 0; i < items.size(); i++) {
+			BookGroupItem item = items.get(i);
+			booked.add(book(item.professionalId(), item.serviceId(), item.startTime(), clientName, clientEmail,
+					clientPhone, clientInstagram, false, bookingGroupId, depositOverrides[i]));
+		}
+		return booked;
+	}
+
+	/** {@code null} entries mean "no override, use this leg's own ServiceOffering.depositAmount as
+	 * usual" — returned for every item whenever there isn't exactly a 2-item group matching an active
+	 * combo with a deposit override configured. */
+	private BigDecimal[] computeComboDepositOverrides(List<BookGroupItem> items) {
+		BigDecimal[] overrides = new BigDecimal[items.size()];
+		if (items.size() != 2) {
+			return overrides;
+		}
+		Optional<ServiceCombo> combo = serviceComboService.findApplicableCombo(items.get(0).serviceId(),
+				items.get(1).serviceId());
+		if (combo.isPresent() && combo.get().getComboDepositAmount() != null) {
+			overrides[0] = combo.get().getComboDepositAmount();
+			overrides[1] = BigDecimal.ZERO;
+		}
+		return overrides;
 	}
 
 	private Appointment book(UUID professionalId, UUID serviceId, Instant startTime, String clientName,
-			String clientEmail, String clientPhone, String clientInstagram, boolean overtime, UUID bookingGroupId) {
+			String clientEmail, String clientPhone, String clientInstagram, boolean overtime, UUID bookingGroupId,
+			BigDecimal depositOverride) {
 		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
 		PlanTier tier = tenant.getPlanTier();
 		ZoneId zone = ZoneId.of(tenant.getTimezone());
@@ -157,7 +191,15 @@ public class AppointmentService {
 		appointment.setEndTime(endTime);
 		appointment.setOvertime(overtime);
 		appointment.setBookingGroupId(bookingGroupId);
-		PaymentStatus paymentStatus = service.getDepositAmount() != null ? PaymentStatus.PENDING : PaymentStatus.NOT_REQUIRED;
+		// depositOverride is only ever non-null from bookGroup's combo pricing — every other caller
+		// (single book(), owner's manual/overtime booking) passes null and falls back to exactly the
+		// old behavior of reading the service's own depositAmount.
+		BigDecimal depositAmount = depositOverride != null ? depositOverride : service.getDepositAmount();
+		if (depositOverride != null) {
+			appointment.setDepositAmountOverride(depositOverride);
+		}
+		PaymentStatus paymentStatus = depositAmount != null && depositAmount.signum() > 0 ? PaymentStatus.PENDING
+				: PaymentStatus.NOT_REQUIRED;
 		appointment.setPaymentStatus(paymentStatus);
 		// No deposit to wait for, so there's nothing PENDING should mean here — confirm immediately
 		// instead of leaving it stuck until a human clicks "confirm" for no reason.

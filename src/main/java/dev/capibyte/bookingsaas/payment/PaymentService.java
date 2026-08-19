@@ -14,6 +14,7 @@ import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import java.math.BigDecimal;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -64,16 +65,23 @@ public class PaymentService {
 					+ "confirm the deposit manually instead (transfer + confirm-deposit)");
 		}
 		ServiceOffering service = serviceOfferingService.findById(appointment.getServiceId());
+		// Normally the service's own depositAmount — overridden only when a ServiceCombo assigned the
+		// whole combined deposit to this leg (see AppointmentService#bookGroup); the other leg in that
+		// case never reaches here at all, since its paymentStatus is NOT_REQUIRED.
+		BigDecimal amount = appointment.getDepositAmountOverride() != null ? appointment.getDepositAmountOverride()
+				: service.getDepositAmount();
+		String description = appointment.getDepositAmountOverride() != null ? "Deposit for " + service.getName()
+				+ " (combo)" : "Deposit for " + service.getName();
 
 		Payment payment = new Payment();
 		payment.setAppointmentId(appointmentId);
-		payment.setAmount(service.getDepositAmount());
+		payment.setAmount(amount);
 		payment.setStatus(PaymentStatus.PENDING);
 		payment = paymentRepository.save(payment);
 
 		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
 		MercadoPagoPreference preference = mercadoPagoClient.createPreference(accessToken, tenantId, payment.getId(),
-				"Deposit for " + service.getName(), service.getDepositAmount());
+				description, amount);
 		payment.setProviderPreferenceId(preference.id());
 
 		return new CheckoutResponse(payment.getId(), preference.initPoint());

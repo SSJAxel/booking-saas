@@ -8,6 +8,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
@@ -73,6 +74,13 @@ public class Appointment extends BaseTenantEntity {
 	 * simply share this value. Cancelling/rescheduling one never cascades to the other. */
 	@Column(name = "booking_group_id")
 	private UUID bookingGroupId;
+
+	/** Null in the normal case (deposit is whatever {@code ServiceOffering.depositAmount} says).
+	 * Set only when a {@code ServiceCombo} applies to this appointment's booking group — the entire
+	 * combo deposit lands on one leg (this field), the other leg gets {@code PaymentStatus
+	 * .NOT_REQUIRED} instead of a second, smaller charge. See {@code AppointmentService#bookGroup}. */
+	@Column(name = "deposit_amount_override", precision = 10, scale = 2)
+	private BigDecimal depositAmountOverride;
 
 	/** Single-use invite token for leaving a post-visit review — same two-UUID-concatenation shape
 	 * and lookup/expiry/clear-on-use lifecycle as {@code AppUser}'s reset-password token (see

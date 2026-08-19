@@ -35,6 +35,10 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 	const [date, setDate] = useState(null);
 	const [slot, setSlot] = useState(null);
 	const [bookedAppointments, setBookedAppointments] = useState(null);
+	// Only ever set when items reaches exactly 2 — a MAX-plan ServiceCombo, if one matches those two
+	// services. Preview only, for display; AppointmentService.bookGroup re-derives this itself when
+	// actually booking, never trusts what this fetch returned.
+	const [comboPreview, setComboPreview] = useState(null);
 
 	// Confirmed legs of a multi-service booking (see the doc comment above). Empty until the client
 	// picks "+ Agregar otro servicio" or reaches "details" for the first time.
@@ -158,9 +162,27 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		setStep("datetime");
 	}
 
-	function handleContinueToDetails() {
-		setItems((prev) => [...prev, { service, professional, date, slot }]);
+	async function handleContinueToDetails() {
+		const newItems = [...items, { service, professional, date, slot }];
+		setItems(newItems);
 		setStep("details");
+		await refreshComboPreview(newItems);
+	}
+
+	/** Only ever finds something for exactly 2 items — see ServiceComboService, combos never apply
+	 * to 1 or 3+ services. A failed lookup (e.g. plan doesn't support combos) just means no discount
+	 * shown, not an error worth surfacing to the client mid-booking. */
+	async function refreshComboPreview(currentItems) {
+		if (currentItems.length !== 2) {
+			setComboPreview(null);
+			return;
+		}
+		try {
+			const combo = await api.public.serviceCombo(tenantSlug, currentItems[0].service.id, currentItems[1].service.id);
+			setComboPreview(combo);
+		} catch {
+			setComboPreview(null);
+		}
 	}
 
 	/** Pops the last confirmed leg back into the in-progress fields and re-fetches its slots, so
@@ -170,6 +192,7 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		const remaining = items.slice(0, -1);
 		const last = items[items.length - 1];
 		setItems(remaining);
+		setComboPreview(null);
 		setService(last.service);
 		setProfessional(last.professional);
 		setDate(last.date);
@@ -390,6 +413,12 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 							<button type="button" className="pb-back-link" onClick={handleBackFromDetails}>
 								‹ Elegir otro horario
 							</button>
+							{comboPreview && (
+								<div className="pb-combo-banner">
+									🎉 Precio combo: <strong>${Number(comboPreview.comboPrice).toLocaleString("es-AR")}</strong> en vez de $
+									{items.reduce((sum, it) => sum + Number(it.service.price), 0).toLocaleString("es-AR")}
+								</div>
+							)}
 							<div className="pb-summary-box">
 								{items.map((it, i) => (
 									<div className="pb-summary-item" key={i}>
@@ -399,11 +428,17 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 										<p className="muted">
 											{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
 										</p>
-										{it.service.depositAmount && (
+										{!comboPreview?.comboDepositAmount && it.service.depositAmount && (
 											<p className="muted">Requiere seña de ${Number(it.service.depositAmount).toLocaleString("es-AR")}</p>
 										)}
 									</div>
 								))}
+								{comboPreview?.comboDepositAmount != null && (
+									<p className="muted">
+										Requiere una seña combinada de ${Number(comboPreview.comboDepositAmount).toLocaleString("es-AR")}{" "}
+										para confirmar los dos servicios.
+									</p>
+								)}
 							</div>
 							<label>
 								Nombre y apellido
@@ -442,7 +477,10 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 										{bookedAppointments[i]?.paymentStatus === "PENDING" && (
 											<p className="muted">
 												Todavía no confirmado — requiere seña de $
-												{Number(it.service.depositAmount).toLocaleString("es-AR")}.
+												{Number(bookedAppointments[i].depositAmountOverride ?? it.service.depositAmount).toLocaleString(
+													"es-AR",
+												)}
+												.
 											</p>
 										)}
 									</div>

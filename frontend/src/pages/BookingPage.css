@@ -943,6 +943,15 @@ button.pb-back-link:hover{
 	border-top: 1px dashed var(--pb-border);
 }
 
+.pb-combo-banner {
+	background: color-mix(in srgb, var(--pb-accent) 12%, transparent);
+	border: 1px solid var(--pb-accent);
+	border-radius: var(--pb-radius);
+	padding: 0.6rem 1rem;
+	margin-bottom: 1rem;
+	font-family: var(--font-serif);
+}
+
 .pb-cta {
 	background: var(--pb-accent);
 	color: var(--pb-accent-contrast);
