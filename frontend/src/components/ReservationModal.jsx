@@ -208,8 +208,8 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		setPayingId(appointmentId);
 		setError("");
 		try {
-			const { initPoint } = await api.public.checkout(tenantSlug, appointmentId);
-			window.location.href = initPoint;
+			const { checkoutUrl } = await api.public.checkout(tenantSlug, appointmentId);
+			window.location.href = checkoutUrl;
 		} catch (err) {
 			setError(err.message);
 			setPayingId(null);

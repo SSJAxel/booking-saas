@@ -64,6 +64,20 @@ frontend público simplemente no tenía ningún código que lo llamara. Arreglad
 - En una reserva conjunta (grupo), cada turno pendiente tiene su propio botón — `createCheckout`
   toma un solo `appointmentId`, no hay (todavía) un checkout combinado para el grupo.
 
+**Segundo bug, encontrado recién al probar el botón ya conectado en producción con la cuenta real de
+lusitattoo: `"Unknown business: undefined"` al abrir el checkout.** Descartado paso a paso con la
+cuenta real (curl directo con el `access_token` de lusitattoo generó una preferencia que abrió
+perfecto en el navegador — la cuenta de MP y la config de marketplace de la app están bien) y con
+logging agregado a `PaymentService.createCheckout`/`MercadoPagoAccountService.resolveAccessToken`
+(confirmó que el backend sí resuelve y usa el token conectado, y que Mercado Pago sí devuelve un
+`preferenceId`/`init_point` válido — pegar esa URL a mano andaba perfecto). La causa real: un typo
+de nombre de campo — `CheckoutResponse` en el backend expone el campo como `checkoutUrl`, pero el
+`onClick` del botón en `ReservationModal.jsx` desestructuraba `initPoint` (nombre que nunca existió
+en la respuesta) — `window.location.href = undefined`, de ahí el "undefined" literal en el error de
+Mercado Pago. Arreglado cambiando el frontend a `checkoutUrl`. El logging de diagnóstico se dejó
+(no loguea el token, solo mpUserId/expiración/preferenceId) — es información operativa legítima
+para una integración de pagos, no scaffolding a limpiar.
+
 ### 2026-08-14 — Borrado de datos de Lusi Tattoo y alta de Fadep Barber Studio en producción
 
 No son cambios de código — son operaciones directas contra producción (Neon), documentadas acá
