@@ -1008,6 +1008,18 @@ silently lost. Fixed with `TenantService.applyPlanTierFromSubscription(tenantId,
 `@Transactional` method that does the fetch and the mutation inside one transaction so the
 dirty-checked update actually flushes.
 
+**Plan pricing (dólar blue), decisión definitiva 2026-08-19.** Se cobra en pesos, no en dólares —
+cierra la pregunta abierta que este README traía desde el principio. `PlanPricingScheduler`
+reindexa el precio ARS de cada plan pago contra el dólar blue (`DolarBlueClient`), pero con banda
+ASIMÉTRICA a propósito, no una sola: hace falta que el blue se mueva al menos $115 hacia abajo o
+$130 hacia arriba desde `platform_settings.reference_blue_rate` para que algo cambie — más rápido
+para trasladarle una baja al tenant que para subirle el precio, nunca al revés. Cuando la banda se
+rompe, cada `PlanPricing` se recalcula desde su propio `usd_equivalent` (fijado la primera vez que
+se cargó el precio, no desde el `ars_price` viejo) y el resultado se redondea al múltiplo de $100
+más cercano — un número limpio en una factura, no algo como $23.342. Chequeo periódico
+(`app.pricing.blue-rate-check-interval-ms`, default 24hs), global para toda la plataforma, no por
+tenant.
+
 **Per-tenant MercadoPago accounts (OAuth Connect).** `MercadoPagoClient` takes an
 `accessToken` on every call that moves money or reads a payment/subscription — it has no
 opinion on whose account a call is for. `MercadoPagoAccountService.resolveAccessToken` decides
@@ -1333,10 +1345,10 @@ sección y la decisión de arriba. No son deuda técnica silenciosa, son decisio
 pendientes:
 
 **Precio y modelo comercial**
-- ¿Cobrar en pesos (como está ahora) o directo en dólares (como AgendaPro)? Pesos es más simple
-  para un cliente argentino pagar, pero el precio se licua con la inflación y hay que estar
-  revisándolo a mano. Dólares protege el margen pero puede espantar a un negocio chico que no
-  quiere pensar en tipo de cambio.
+- ~~¿Cobrar en pesos o directo en dólares?~~ Definido (2026-08-19): **en pesos**, indexado al dólar
+  blue con una banda asimétrica — ver "Design notes" → Plan pricing más abajo para el detalle
+  técnico. Más simple para un cliente argentino, y la licuación por inflación queda mitigada por el
+  reindexado automático en vez de depender de revisarlo a mano.
 - El costo de soporte (responder cuando algo se rompe, ayudar a un negocio nuevo a configurarse la
   primera vez) todavía no está metido en la cuenta de margen — hoy el cálculo es solo
   hosting vs. ingreso. ¿Cuánto tiempo por tenant es razonable presupuestar?
