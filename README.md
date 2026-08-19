@@ -42,6 +42,28 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-19 — Reservar con Mercado Pago nunca estaba conectado al frontend público
+
+**Bug real reportado por el usuario probando con `lusitattoo` en producción** (ya tenían su cuenta
+de Mercado Pago conectada vía OAuth Connect): al reservar un servicio con seña, la pantalla de
+confirmación siempre mostraba el texto de "transferí a este alias", nunca un botón para pagar con
+Mercado Pago — ni un error, simplemente esa opción no existía. Causa: `POST
+/api/public/{tenantSlug}/appointments/{appointmentId}/checkout` (`PaymentService.createCheckout`)
+estaba construido y verificado en vivo contra el sandbox hace semanas (ver Design notes →
+Payments/deposits), pero **nadie lo había conectado nunca desde `ReservationModal.jsx`** — el
+frontend público simplemente no tenía ningún código que lo llamara. Arreglado:
+- `PublicTenantResponse` gana `mercadoPagoEnabled` (booleano derivado de
+  `PlanTier.isMercadoPagoEnabled()`, no el nombre del plan — mismo criterio que ya se usaba para
+  exponer `transferAlias` sin exponer el resto de la config del tenant).
+- `ReservationModal.jsx`: cada turno con `paymentStatus=PENDING` en la pantalla final ahora muestra
+  un botón "Pagar seña de $X con Mercado Pago" (si `mercadoPagoEnabled`) que llama al checkout y
+  redirige el navegador al `initPoint` que devuelve MercadoPago — mostrando ahí el monto y el
+  desglose/comisión, eso ya lo maneja el checkout de MercadoPago mismo, no hay nada que replicar de
+  ese lado. El alias de transferencia se mantiene como alternativa (u opción única, si el plan no
+  tiene Mercado Pago) debajo del botón, no lo reemplaza — un negocio puede querer ofrecer ambos.
+- En una reserva conjunta (grupo), cada turno pendiente tiene su propio botón — `createCheckout`
+  toma un solo `appointmentId`, no hay (todavía) un checkout combinado para el grupo.
+
 ### 2026-08-14 — Borrado de datos de Lusi Tattoo y alta de Fadep Barber Studio en producción
 
 No son cambios de código — son operaciones directas contra producción (Neon), documentadas acá
@@ -1391,6 +1413,9 @@ pendientes:
 ### IDEA A FUTURO (no arrancar sin pedirlo)
 - ~~**Precio de combo**~~ Hecho — solo plan MAX (`PlanTier.isServiceCombosEnabled()`, sin toggle propio en `Tenant`: un combo es opt-in por sí mismo). Entidad `ServiceCombo` (`service_a_id`/`service_b_id` en orden canónico, `combo_price` obligatorio, `combo_deposit_amount` opcional), CRUD en `/api/service-combos` (panel → Servicios → sección "Precio de combo", solo visible en MAX), y `GET /api/public/{tenantSlug}/service-combo` como preview para el cliente antes de confirmar. Solo aplica cuando el grupo tiene EXACTAMENTE 2 servicios y coinciden con un combo activo — 3+ servicios vuelven a precio/seña individual, a propósito (ver `ServiceComboService`). Si hay `comboDepositAmount`, se cobra entero en la primera pata del grupo (`Appointment.depositAmountOverride`) y la segunda pasa a `NOT_REQUIRED` — nunca dos cargos parciales. `comboPrice` es puramente informativo (nunca se cobra directo, esta app solo cobra la seña).
 - ~~**Recordatorio de cumpleaños**~~ Hecho (2026-08-18) — idea real de un cliente de la competencia (relayada por chat): ellos ya mandan un mail de cumpleaños automático al cliente, pero nada les avisa A ELLOS que es el cumpleaños, así que a veces se olvidan de aplicar el descuento que dan en persona. El descuento en sí sigue siendo manual a propósito, esto solo evita el olvido. `Client.birthDate` (cargado solo por el dueño/staff desde el panel — nunca pedido al cliente en la reserva pública), `PlanTier.isBirthdayRemindersEnabled()` (PRO/MAX: lista "Cumpleaños del mes" en Turnos → Lista → Clientes) y `PlanTier.isBirthdayAutoEmailEnabled()` (MAX: `Tenant.birthdayMessageTemplate`, mensaje propio del tenant con `{nombre}`, mandado solo por `BirthdayEmailScheduler` el día — mismo patrón "sin toggle" que los combos, un mensaje vacío es el estado apagado). Dedupe por año (`Client.lastBirthdayEmailYear`), no por booleano, para no necesitar un job de limpieza.
+- ~~**Ficha del cliente: preferencias del servicio + alergias**~~ Hecho (2026-08-19) — dos campos nuevos junto a `notes`. `servicePreferences`: técnico ("qué le hicimos y cómo" — fórmula de tinte, guía de máquina, calibre de aguja para piel sensible en tatuajes) para que cualquier profesional del local repita lo que le gustó sin que el cliente tenga que explicar de nuevo. `allergies`: dato de seguridad (reacciones a tinte, látex, queloides), separado de `notes` a propósito. Deliberadamente texto libre, no un formulario estructurado por rubro — cada tenant (barbería, tatuajes, peluquería) lo va a usar como le sirva, y ver eso en producción es señal real para iterar. Los tres campos (notas/preferencias/alergias) se editan juntos desde un solo formulario ("Ficha del cliente" en `ClientHistoryModal`) contra un solo endpoint (`PATCH /api/clients/{id}/profile`, reemplazó al viejo `/notes`) — se editan en la práctica al mismo tiempo, no tenía sentido tener tres botones de guardar separados. `servicePreferences`/`allergies` son PRO/MAX (`PlanTier.isClientProfileEnabled()`) — `notes` sigue libre en todos los planes, existía desde antes de este gate. Borrar siempre se puede en cualquier plan; cargar un valor nuevo está gateado (mismo patrón que el mensaje de cumpleaños), y reenviar el mismo valor que ya estaba guardado no cuenta como "nuevo" — evita romper un tenant bajado de plan que solo quiere editar `notes`.
+- **Historial visual (fotos)**: el profesional sube una foto del resultado (tatuaje, corte) al terminar, queda de registro en la ficha del cliente y, si el cliente da permiso, sirve de portfolio para la página pública del negocio. No arrancar sin que se pida — necesita decidir moderación/consentimiento antes de construirlo.
+- ~~**Eliminar cliente completo (turnos, pagos, reseñas, puntos)**~~ Hecho (2026-08-19) — botón "Eliminar cliente" en `ClientHistoryModal` (Turnos → Lista → Clientes), owner/admin únicamente, con `window.confirm` detallando cuántos turnos/puntos se pierden antes de confirmar (mismo patrón que "Purgar historial" en `AppointmentsPage`, no un modal custom nuevo). `DELETE /api/clients/{id}` → `ClientService.delete`, borrado real e irreversible. V46 agrega `ON DELETE CASCADE` a `appointments.client_id` y `reviews.client_id`/`reviews.appointment_id` (antes de esto, borrar un cliente con algún turno real — que en la práctica era siempre — fallaba con una violación de foreign key). Los turnos borrados en cascada siguen arrastrando las reglas ya existentes de V27 para sus propios hijos (payments se borra con el turno, sales solo pierde la referencia). **Bug latente encontrado y arreglado de paso, sin relación directa con este feature**: `reviews.appointment_id` nunca tuvo `ON DELETE CASCADE` — "Eliminar turno" (`AppointmentController#delete`) ya fallaba hoy con cualquier turno que tuviera una reseña dejada, desde que existen las reseñas (V41).
 
 ### PLANES
 

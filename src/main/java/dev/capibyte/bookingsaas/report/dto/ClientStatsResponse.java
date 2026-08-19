@@ -21,5 +21,7 @@ public record ClientStatsResponse(
 		boolean pinned,
 		String notes,
 		int loyaltyPoints,
-		LocalDate birthDate) {
+		LocalDate birthDate,
+		String servicePreferences,
+		String allergies) {
 }

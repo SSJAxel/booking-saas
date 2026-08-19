@@ -2,7 +2,9 @@ import { useEffect, useState } from "react";
 import { useAuth } from "../auth/AuthContext.jsx";
 import { api } from "../api.js";
 import { statusLabel } from "../labels.js";
+import { planHasClientProfile } from "../planLimits.js";
 import { tenantLongDateTimeLabel } from "../tenantTime.js";
+import { TrashIcon } from "./icons.jsx";
 
 /**
  * "Ver historial" popup for a client, opened from ClientInsights' ClientList — every visit (who
@@ -14,12 +16,23 @@ import { tenantLongDateTimeLabel } from "../tenantTime.js";
  * name/email/notes/loyaltyPoints already loaded by ClientInsights, so only the visit history and
  * (when relevant) the tier list need their own fetch.
  */
-export default function ClientHistoryModal({ client, tenant, onClose, onNotesSaved, onBirthdaySaved, onRewardRedeemed }) {
+export default function ClientHistoryModal({
+	client,
+	tenant,
+	onClose,
+	onProfileSaved,
+	onBirthdaySaved,
+	onRewardRedeemed,
+	onDeleted,
+}) {
 	const { session } = useAuth();
 	const canEditNotes = session.role === "OWNER" || session.role === "ADMIN";
 	const [visits, setVisits] = useState(null);
 	const [error, setError] = useState("");
+	const [deleting, setDeleting] = useState(false);
 	const [notes, setNotes] = useState(client?.notes ?? "");
+	const [servicePreferences, setServicePreferences] = useState(client?.servicePreferences ?? "");
+	const [allergies, setAllergies] = useState(client?.allergies ?? "");
 	const [birthDate, setBirthDate] = useState(client?.birthDate ?? "");
 	const [saving, setSaving] = useState(false);
 	const [savingBirthday, setSavingBirthday] = useState(false);
@@ -32,6 +45,8 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 	useEffect(() => {
 		if (!client) return;
 		setNotes(client.notes ?? "");
+		setServicePreferences(client.servicePreferences ?? "");
+		setAllergies(client.allergies ?? "");
 		setBirthDate(client.birthDate ?? "");
 		setVisits(null);
 		setError("");
@@ -59,15 +74,19 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 
 	if (!client) return null;
 
-	async function handleSaveNotes(event) {
+	async function handleSaveProfile(event) {
 		event.preventDefault();
 		setSaving(true);
 		setError("");
 		try {
-			const updated = await api.clients.updateNotes(client.clientId, notes.trim() || null);
+			const updated = await api.clients.updateProfile(client.clientId, {
+				notes: notes.trim() || null,
+				servicePreferences: servicePreferences.trim() || null,
+				allergies: allergies.trim() || null,
+			});
 			setNotice("Guardado.");
 			setTimeout(() => setNotice(""), 3000);
-			onNotesSaved?.(updated);
+			onProfileSaved?.(updated);
 		} catch (err) {
 			setError(err.message);
 		} finally {
@@ -88,6 +107,26 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 			setError(err.message);
 		} finally {
 			setSavingBirthday(false);
+		}
+	}
+
+	async function handleDelete() {
+		const visitCount = visits?.length ?? client.totalAppointments ?? 0;
+		const warning =
+			`¿Eliminar a ${client.clientName} definitivamente?\n\n` +
+			`Esto borra para siempre sus ${visitCount} turno${visitCount === 1 ? "" : "s"}, sus ${
+				client.loyaltyPoints
+			} puntos de fidelidad, sus reseñas y toda su ficha (notas, preferencias, alergias, cumpleaños). ` +
+			"No se puede deshacer.";
+		if (!window.confirm(warning)) return;
+		setDeleting(true);
+		setError("");
+		try {
+			await api.clients.delete(client.clientId);
+			onDeleted?.();
+		} catch (err) {
+			setError(err.message);
+			setDeleting(false);
 		}
 	}
 
@@ -142,20 +181,51 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 					)}
 
 					{canEditNotes && (
-						<form onSubmit={handleSaveNotes} style={{ marginTop: "0.8rem" }}>
-							<label>
+						<form onSubmit={handleSaveProfile} style={{ marginTop: "0.8rem" }}>
+							<p className="label" style={{ marginBottom: "0.3rem" }}>
+								Ficha del cliente
+							</p>
+							{planHasClientProfile(tenant.planTier) ? (
+								<>
+									<label>
+										Preferencias del servicio
+										<textarea
+											value={servicePreferences}
+											onChange={(event) => setServicePreferences(event.target.value)}
+											rows={2}
+											maxLength={2000}
+											placeholder="Qué le hicimos y cómo — fórmula de tinte, guía de máquina, estilo de trazo..."
+										/>
+									</label>
+									<label style={{ marginTop: "0.5rem" }}>
+										Alergias / contraindicaciones
+										<textarea
+											value={allergies}
+											onChange={(event) => setAllergies(event.target.value)}
+											rows={2}
+											maxLength={1000}
+											placeholder="Reacciones a tinte, alergia al látex, piel sensible..."
+										/>
+									</label>
+								</>
+							) : (
+								<p className="muted">
+									Preferencias del servicio y alergias son de plan PRO en adelante.
+								</p>
+							)}
+							<label style={{ marginTop: "0.5rem" }}>
 								Notas
 								<textarea
 									value={notes}
 									onChange={(event) => setNotes(event.target.value)}
-									rows={3}
+									rows={2}
 									maxLength={2000}
-									placeholder="Comentarios sobre este cliente..."
+									placeholder="Comentarios generales sobre este cliente..."
 								/>
 							</label>
 							<div className="button-row" style={{ marginTop: "0.4rem" }}>
 								<button type="submit" disabled={saving}>
-									{saving ? "Guardando..." : "Guardar notas"}
+									{saving ? "Guardando..." : "Guardar ficha"}
 								</button>
 								{notice && <span className="notice">{notice}</span>}
 							</div>
@@ -209,6 +279,18 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 								</li>
 							))}
 						</ul>
+					)}
+
+					{canEditNotes && (
+						<div style={{ marginTop: "1.5rem", paddingTop: "1rem", borderTop: "1px solid var(--border)" }}>
+							<button type="button" className="danger" onClick={handleDelete} disabled={deleting}>
+								<TrashIcon />
+								{deleting ? "Eliminando..." : "Eliminar cliente"}
+							</button>
+							<p className="muted" style={{ marginTop: "0.4rem" }}>
+								Borra al cliente, todos sus turnos, puntos, reseñas y ficha. No se puede deshacer.
+							</p>
+						</div>
 					)}
 				</div>
 			</div>

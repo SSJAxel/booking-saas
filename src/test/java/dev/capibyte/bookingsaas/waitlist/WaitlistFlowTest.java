@@ -3,6 +3,9 @@ package dev.capibyte.bookingsaas.waitlist;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.capibyte.bookingsaas.IntegrationTestBase;
+import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -30,7 +33,7 @@ class WaitlistFlowTest extends IntegrationTestBase {
 		restTemplate.exchange("/api/services/" + serviceId + "/professionals", HttpMethod.POST,
 				new HttpEntity<>(Map.of("professionalId", professionalId), headers), Void.class);
 
-		String date = "2026-08-17"; // a Monday
+		String date = nextMonday().toString();
 
 		Map<String, Object> bookingBody = Map.of(
 				"professionalId", professionalId, "serviceId", serviceId, "date", date, "startTime", "10:00:00",
@@ -77,5 +80,9 @@ class WaitlistFlowTest extends IntegrationTestBase {
 		ResponseEntity<Map> response = restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers),
 				Map.class);
 		return response.getBody();
+	}
+
+	private LocalDate nextMonday() {
+		return LocalDate.now().plusWeeks(3).with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
 	}
 }

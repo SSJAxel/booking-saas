@@ -13,6 +13,7 @@ export const PLAN_LIMITS = {
 		reviewsEnabled: false,
 		birthdayRemindersEnabled: false,
 		birthdayAutoEmailEnabled: false,
+		clientProfileEnabled: false,
 	},
 	PERSONAL: {
 		maxProfessionals: 1,
@@ -27,6 +28,7 @@ export const PLAN_LIMITS = {
 		reviewsEnabled: false,
 		birthdayRemindersEnabled: false,
 		birthdayAutoEmailEnabled: false,
+		clientProfileEnabled: false,
 	},
 	BASIC: {
 		maxProfessionals: 4,
@@ -41,6 +43,7 @@ export const PLAN_LIMITS = {
 		reviewsEnabled: false,
 		birthdayRemindersEnabled: false,
 		birthdayAutoEmailEnabled: false,
+		clientProfileEnabled: false,
 	},
 	PRO: {
 		maxProfessionals: 10,
@@ -55,6 +58,7 @@ export const PLAN_LIMITS = {
 		reviewsEnabled: true,
 		birthdayRemindersEnabled: true,
 		birthdayAutoEmailEnabled: false,
+		clientProfileEnabled: true,
 	},
 	MAX: {
 		maxProfessionals: 20,
@@ -69,6 +73,7 @@ export const PLAN_LIMITS = {
 		reviewsEnabled: true,
 		birthdayRemindersEnabled: true,
 		birthdayAutoEmailEnabled: true,
+		clientProfileEnabled: true,
 	},
 };
 
@@ -98,4 +103,8 @@ export function planHasBirthdayReminders(tier) {
 
 export function planHasBirthdayAutoEmail(tier) {
 	return PLAN_LIMITS[tier]?.birthdayAutoEmailEnabled ?? false;
+}
+
+export function planHasClientProfile(tier) {
+	return PLAN_LIMITS[tier]?.clientProfileEnabled ?? false;
 }

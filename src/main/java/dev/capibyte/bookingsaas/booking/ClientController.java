@@ -1,16 +1,18 @@
 package dev.capibyte.bookingsaas.booking;
 
+import dev.capibyte.bookingsaas.booking.dto.ClientProfileUpdateRequest;
 import dev.capibyte.bookingsaas.booking.dto.ClientSummaryResponse;
 import dev.capibyte.bookingsaas.booking.dto.ClientVisitResponse;
 import dev.capibyte.bookingsaas.booking.dto.PinClientRequest;
 import dev.capibyte.bookingsaas.booking.dto.RedeemRewardRequest;
 import dev.capibyte.bookingsaas.booking.dto.UpdateClientBirthdayRequest;
-import dev.capibyte.bookingsaas.booking.dto.UpdateClientNotesRequest;
 import jakarta.validation.Valid;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -18,6 +20,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -45,12 +48,14 @@ public class ClientController {
 		return ClientSummaryResponse.from(clientService.setPinned(id, request.pinned()));
 	}
 
-	/** Owner/admin: freeform notes about this client — "keep track of this client" tool, not a
-	 * receptionist action, so it doesn't share STAFF's default read access below. */
-	@PatchMapping("/{id}/notes")
+	/** Owner/admin: "ficha del cliente" — notas generales, preferencias técnicas del servicio,
+	 * alergias — "keep track of this client" tool, not a receptionist action, so it doesn't share
+	 * STAFF's default read access below. */
+	@PatchMapping("/{id}/profile")
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
-	public ClientSummaryResponse updateNotes(@PathVariable UUID id, @Valid @RequestBody UpdateClientNotesRequest request) {
-		return ClientSummaryResponse.from(clientService.updateNotes(id, request.notes()));
+	public ClientSummaryResponse updateProfile(@PathVariable UUID id, @Valid @RequestBody ClientProfileUpdateRequest request) {
+		return ClientSummaryResponse
+				.from(clientService.updateProfile(id, request.notes(), request.servicePreferences(), request.allergies()));
 	}
 
 	/** Owner/admin: only staff enters this, never the client themselves (see PlanTier's Javadoc on
@@ -80,5 +85,16 @@ public class ClientController {
 	@PostMapping("/{id}/redeem-reward")
 	public ClientSummaryResponse redeemReward(@PathVariable UUID id, @Valid @RequestBody RedeemRewardRequest request) {
 		return ClientSummaryResponse.from(clientService.redeemReward(id, request.rewardTierId()));
+	}
+
+	/** Owner/admin: borrado permanente del cliente entero — turnos, pagos, reseñas y puntos
+	 * desaparecen con él (ver ClientService#delete). Mismo nivel de acceso que "Eliminar turno"/
+	 * "Purgar historial" en AppointmentController — STAFF no puede. La confirmación ("esto es
+	 * irreversible") es responsabilidad del panel antes de llamar a este endpoint. */
+	@DeleteMapping("/{id}")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	@ResponseStatus(HttpStatus.NO_CONTENT)
+	public void delete(@PathVariable UUID id) {
+		clientService.delete(id);
 	}
 }

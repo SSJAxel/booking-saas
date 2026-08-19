@@ -4,19 +4,27 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.capibyte.bookingsaas.IntegrationTestBase;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.jdbc.core.JdbcTemplate;
 
 /**
  * "Seguimiento de clientes" — who a client saw, when, for what, plus freeform notes. Backs
  * ClientHistoryModal.jsx.
  */
 class ClientHistoryFlowTest extends IntegrationTestBase {
+
+	@Autowired
+	private JdbcTemplate jdbcTemplate;
 
 	@Test
 	void historyListsEveryVisitMostRecentFirstWithServiceAndProfessionalNames() {
@@ -39,17 +47,18 @@ class ClientHistoryFlowTest extends IntegrationTestBase {
 		assign(cutId, proA, headers);
 		assign(colorId, proB, headers);
 
-		Map<String, Object> firstBody = Map.of("professionalId", proA, "serviceId", cutId, "date", "2026-08-17",
-				"startTime", "09:00:00", "clientName", "Repeat Client", "clientEmail", "repeat@example.com",
-				"clientPhone", "+549111222333");
+		LocalDate firstMonday = nextMonday();
+		Map<String, Object> firstBody = Map.of("professionalId", proA, "serviceId", cutId, "date",
+				firstMonday.toString(), "startTime", "09:00:00", "clientName", "Repeat Client", "clientEmail",
+				"repeat@example.com", "clientPhone", "+549111222333");
 		ResponseEntity<Map> first = restTemplate.postForEntity("/api/public/" + tenant.slug() + "/appointments",
 				firstBody, Map.class);
 		String clientId = (String) first.getBody().get("clientId");
 		String firstAppointmentId = (String) first.getBody().get("id");
 
-		Map<String, Object> secondBody = Map.of("professionalId", proB, "serviceId", colorId, "date", "2026-08-24",
-				"startTime", "10:00:00", "clientName", "Repeat Client", "clientEmail", "repeat@example.com",
-				"clientPhone", "+549111222333");
+		Map<String, Object> secondBody = Map.of("professionalId", proB, "serviceId", colorId, "date",
+				firstMonday.plusWeeks(1).toString(), "startTime", "10:00:00", "clientName", "Repeat Client",
+				"clientEmail", "repeat@example.com", "clientPhone", "+549111222333");
 		restTemplate.postForEntity("/api/public/" + tenant.slug() + "/appointments", secondBody, Map.class);
 
 		restTemplate.exchange("/api/appointments/" + firstAppointmentId + "/status", HttpMethod.PATCH,
@@ -71,19 +80,51 @@ class ClientHistoryFlowTest extends IntegrationTestBase {
 	}
 
 	@Test
-	void ownerCanSetAndClearClientNotes() {
+	void ownerCanSetAndClearClientProfileFieldsOnProPlan() {
 		RegisteredTenant tenant = registerTenant();
+		jdbcTemplate.update("UPDATE tenants SET plan_tier = 'PRO' WHERE slug = ?", tenant.slug());
 		HttpHeaders headers = authHeaders(tenant.token());
 		String clientId = bookAClientAndReturnItsId(tenant, headers);
 
-		ResponseEntity<Map> set = restTemplate.exchange("/api/clients/" + clientId + "/notes", HttpMethod.PATCH,
-				new HttpEntity<>(Map.of("notes", "Alérgico a la tintura X"), headers), Map.class);
+		ResponseEntity<Map> set = restTemplate.exchange("/api/clients/" + clientId + "/profile", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("notes", "Prefiere charlar poco", "servicePreferences",
+						"Fade #2, sin navaja en el contorno", "allergies", "Alérgico a la tintura X"), headers),
+				Map.class);
 		assertThat(set.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(set.getBody().get("notes")).isEqualTo("Alérgico a la tintura X");
+		assertThat(set.getBody().get("notes")).isEqualTo("Prefiere charlar poco");
+		assertThat(set.getBody().get("servicePreferences")).isEqualTo("Fade #2, sin navaja en el contorno");
+		assertThat(set.getBody().get("allergies")).isEqualTo("Alérgico a la tintura X");
 
-		ResponseEntity<Map> cleared = restTemplate.exchange("/api/clients/" + clientId + "/notes", HttpMethod.PATCH,
-				new HttpEntity<>(java.util.Collections.singletonMap("notes", null), headers), Map.class);
+		Map<String, Object> clearBody = new HashMap<>();
+		clearBody.put("notes", null);
+		clearBody.put("servicePreferences", null);
+		clearBody.put("allergies", null);
+		ResponseEntity<Map> cleared = restTemplate.exchange("/api/clients/" + clientId + "/profile", HttpMethod.PATCH,
+				new HttpEntity<>(clearBody, headers), Map.class);
 		assertThat(cleared.getBody().get("notes")).isNull();
+		assertThat(cleared.getBody().get("servicePreferences")).isNull();
+		assertThat(cleared.getBody().get("allergies")).isNull();
+	}
+
+	/**
+	 * {@code notes} predates the PRO gate and stays free on every plan — only servicePreferences/
+	 * allergies are blocked below PRO, and only when actually setting a new value (not when a form
+	 * just resends whatever was already there, see ClientService#updateProfile's Javadoc).
+	 */
+	@Test
+	void settingServicePreferencesOrAllergiesRejectedBelowProPlanButNotesStaysFree() {
+		RegisteredTenant tenant = registerTenant(); // defaults to TRIAL
+		HttpHeaders headers = authHeaders(tenant.token());
+		String clientId = bookAClientAndReturnItsId(tenant, headers);
+
+		ResponseEntity<Map> rejected = restTemplate.exchange("/api/clients/" + clientId + "/profile", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("servicePreferences", "Fade #2"), headers), Map.class);
+		assertThat(rejected.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+
+		ResponseEntity<Map> notesOnly = restTemplate.exchange("/api/clients/" + clientId + "/profile", HttpMethod.PATCH,
+				new HttpEntity<>(Map.of("notes", "Cliente puntual"), headers), Map.class);
+		assertThat(notesOnly.getStatusCode()).isEqualTo(HttpStatus.OK);
+		assertThat(notesOnly.getBody().get("notes")).isEqualTo("Cliente puntual");
 	}
 
 	private String bookAClientAndReturnItsId(RegisteredTenant tenant, HttpHeaders headers) {
@@ -97,8 +138,8 @@ class ClientHistoryFlowTest extends IntegrationTestBase {
 		assign(serviceId, professionalId, headers);
 
 		Map<String, Object> body = Map.of("professionalId", professionalId, "serviceId", serviceId, "date",
-				"2026-08-17", "startTime", "09:00:00", "clientName", "Client", "clientEmail", "notes@example.com",
-				"clientPhone", "+549111222333");
+				nextMonday().toString(), "startTime", "09:00:00", "clientName", "Client", "clientEmail",
+				"notes@example.com", "clientPhone", "+549111222333");
 		ResponseEntity<Map> created = restTemplate.postForEntity("/api/public/" + tenant.slug() + "/appointments",
 				body, Map.class);
 		return (String) created.getBody().get("clientId");
@@ -113,5 +154,9 @@ class ClientHistoryFlowTest extends IntegrationTestBase {
 		ResponseEntity<Map> response = restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers),
 				Map.class);
 		return response.getBody();
+	}
+
+	private LocalDate nextMonday() {
+		return LocalDate.now().plusWeeks(3).with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
 	}
 }

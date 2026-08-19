@@ -21,13 +21,18 @@ import java.math.BigDecimal;
  * {@code extraProfessionalPrice} es solo un número de referencia para esa negociación manual —
  * ninguna lógica de cobro automática lo usa (los upgrades de empleados no son self-service).
  * <pre>
- * Plan      maxProf(incl)  maxProducts  maxBranches  maxServices  maxAppt/semana  MP     WhatsApp  Loyalty  Commissions  Reviews  Combos  Birthdays  BirthdayMail  extraProfPrice
- * TRIAL         2               5            2            6            null      false   true      false    false        false   false   false      false         —
- * PERSONAL      1               0            1            3            20        false   false     false    false        false   false   false      false         —
- * BASIC         2               5            2            6            null      false   true      false    false        false   false   false      false         3000.00
- * PRO           5              10            3            8            null      true    true      true     true         true    false   true       false         2500.00
- * MAX          10              20            4           12            null      true    true      true     true         true    true    true       true          2000.00
+ * Plan      maxProf(incl)  maxProducts  maxBranches  maxServices  maxAppt/semana  MP     WhatsApp  Loyalty  Commissions  Reviews  Combos  Birthdays  BirthdayMail  ClientProfile  extraProfPrice
+ * TRIAL         2               5            2            6            null      false   true      false    false        false   false   false      false         false          —
+ * PERSONAL      1               0            1            3            20        false   false     false    false        false   false   false      false         false          —
+ * BASIC         2               5            2            6            null      false   true      false    false        false   false   false      false         false          3000.00
+ * PRO           5              10            3            8            null      true    true      true     true         true    false   true       false         true           2500.00
+ * MAX          10              20            4           12            null      true    true      true     true         true    true    true       true          true           2000.00
  * </pre>
+ * {@code clientProfileEnabled} (PRO/MAX) gates {@code ClientService#updateProfile}'s
+ * {@code servicePreferences}/{@code allergies} fields specifically — {@code notes} itself stays
+ * free on every plan (it predates this flag). Same "clearing is always free, setting a real value
+ * is gated" pattern as the birthday message: a BASIC tenant that already had values saved before a
+ * downgrade keeps seeing them, just can't write new ones.
  * {@code serviceCombosEnabled} (MAX only, stricter than the PRO/MAX split every other flag above
  * uses) gates {@code ServiceComboService#create} — a deliberately narrower differentiator than the
  * rest, per the same 2026-08-14 founder thread. Unlike loyalty/commissions/reviews there's no
@@ -54,21 +59,22 @@ import java.math.BigDecimal;
  */
 public enum PlanTier {
 
-	TRIAL(2, 5, 2, 6, null, false, true, false, false, false, false, false, false, BigDecimal.ZERO, null),
+	TRIAL(2, 5, 2, 6, null, false, true, false, false, false, false, false, false, false, BigDecimal.ZERO, null),
 	// Mismos límites operativos que BASIC (ver Javadoc de la clase) — precio genuinamente gratis,
 	// el único tier que lo es de verdad.
-	PERSONAL(1, 0, 1, 3, 20, false, false, false, false, false, false, false, false, null, null),
+	PERSONAL(1, 0, 1, 3, 20, false, false, false, false, false, false, false, false, false, null, null),
 	// Escalón de entrada, un solo profesional, sin stock ni Mercado Pago ni WhatsApp — el único
 	// tope de turnos/semana de toda la matriz vive acá. Sin cargo por empleado extra: no hay
 	// upgrade de cantidad dentro de este tier, directamente se sube a BASIC.
-	BASIC(2, 5, 2, 6, null, false, true, false, false, false, false, false, false, null, new BigDecimal("3000.00")),
+	BASIC(2, 5, 2, 6, null, false, true, false, false, false, false, false, false, false, null,
+			new BigDecimal("3000.00")),
 	// Matriz de precios 2026-08-11: base ARS 30.000, 2 empleados incluidos, $3.000 por cada
 	// empleado extra aprobado a mano por el founder.
-	PRO(5, 10, 3, 8, null, true, true, true, true, true, false, true, false, null, new BigDecimal("2500.00")),
+	PRO(5, 10, 3, 8, null, true, true, true, true, true, false, true, false, true, null, new BigDecimal("2500.00")),
 	// Base ARS 50.000, 5 empleados incluidos, $2.500 por extra — más barato que el de BASIC
 	// ($3.000) a propósito, "descuento por volumen": un negocio grande no debería pagar
 	// proporcionalmente más que uno chico por el mismo empleado adicional.
-	MAX(10, 20, 4, 12, null, true, true, true, true, true, true, true, true, null, new BigDecimal("2000.00"));
+	MAX(10, 20, 4, 12, null, true, true, true, true, true, true, true, true, true, null, new BigDecimal("2000.00"));
 	// Base ARS 80.000, 10 empleados incluidos, $2.000 por extra. Sin techo técnico de empleados
 	// en código — los casos grandes se negocian con el founder aparte (integración a medida).
 
@@ -85,6 +91,7 @@ public enum PlanTier {
 	private final boolean serviceCombosEnabled;
 	private final boolean birthdayRemindersEnabled;
 	private final boolean birthdayAutoEmailEnabled;
+	private final boolean clientProfileEnabled;
 	private final BigDecimal monthlyPrice;
 	private final BigDecimal extraProfessionalPrice;
 
@@ -92,7 +99,7 @@ public enum PlanTier {
 			Integer maxAppointmentsPerWeek, boolean mercadoPagoEnabled, boolean whatsappEnabled,
 			boolean loyaltyRewardsEnabled, boolean commissionsEnabled, boolean reviewsEnabled,
 			boolean serviceCombosEnabled, boolean birthdayRemindersEnabled, boolean birthdayAutoEmailEnabled,
-			BigDecimal monthlyPrice, BigDecimal extraProfessionalPrice) {
+			boolean clientProfileEnabled, BigDecimal monthlyPrice, BigDecimal extraProfessionalPrice) {
 		this.maxProfessionals = maxProfessionals;
 		this.maxProducts = maxProducts;
 		this.maxBranches = maxBranches;
@@ -106,6 +113,7 @@ public enum PlanTier {
 		this.serviceCombosEnabled = serviceCombosEnabled;
 		this.birthdayRemindersEnabled = birthdayRemindersEnabled;
 		this.birthdayAutoEmailEnabled = birthdayAutoEmailEnabled;
+		this.clientProfileEnabled = clientProfileEnabled;
 		this.monthlyPrice = monthlyPrice;
 		this.extraProfessionalPrice = extraProfessionalPrice;
 	}
@@ -164,6 +172,10 @@ public enum PlanTier {
 
 	public boolean isBirthdayAutoEmailEnabled() {
 		return birthdayAutoEmailEnabled;
+	}
+
+	public boolean isClientProfileEnabled() {
+		return clientProfileEnabled;
 	}
 
 	/** Solo tiene un valor real para TRIAL (siempre gratis). Para PERSONAL/BASIC/PRO/MAX es null

@@ -4,6 +4,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import dev.capibyte.bookingsaas.IntegrationTestBase;
 import java.time.DayOfWeek;
+import java.time.LocalDate;
+import java.time.temporal.TemporalAdjusters;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpEntity;
@@ -35,7 +37,7 @@ class ClientPinFlowTest extends IntegrationTestBase {
 
 		Map<String, Object> body = Map.of(
 				"professionalId", professionalId, "serviceId", serviceId,
-				"date", "2026-08-17", "startTime", "09:00:00",
+				"date", nextMonday().toString(), "startTime", "09:00:00",
 				"clientName", "Cliente Fiel De Toda La Vida", "clientEmail", "fiel@example.com",
 				"clientPhone", "+549111222333");
 		ResponseEntity<Map> created = restTemplate.postForEntity("/api/public/" + tenant.slug() + "/appointments",
@@ -88,5 +90,9 @@ class ClientPinFlowTest extends IntegrationTestBase {
 		ResponseEntity<Map> response = restTemplate.exchange(path, HttpMethod.POST, new HttpEntity<>(body, headers),
 				Map.class);
 		return response.getBody();
+	}
+
+	private LocalDate nextMonday() {
+		return LocalDate.now().plusWeeks(3).with(TemporalAdjusters.nextOrSame(DayOfWeek.MONDAY));
 	}
 }

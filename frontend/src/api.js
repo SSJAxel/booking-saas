@@ -195,12 +195,14 @@ export const api = {
 	clients: {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),
 		setPinned: (id, pinned) => request(`/api/clients/${id}/pin`, { method: "PATCH", body: { pinned } }),
-		updateNotes: (id, notes) => request(`/api/clients/${id}/notes`, { method: "PATCH", body: { notes } }),
+		updateProfile: (id, { notes, servicePreferences, allergies }) =>
+			request(`/api/clients/${id}/profile`, { method: "PATCH", body: { notes, servicePreferences, allergies } }),
 		updateBirthday: (id, birthDate) => request(`/api/clients/${id}/birthday`, { method: "PATCH", body: { birthDate } }),
 		birthdaysThisMonth: () => request("/api/clients/birthdays-this-month"),
 		history: (id) => request(`/api/clients/${id}/history`),
 		redeemReward: (id, rewardTierId) =>
 			request(`/api/clients/${id}/redeem-reward`, { method: "POST", body: { rewardTierId } }),
+		delete: (id) => request(`/api/clients/${id}`, { method: "DELETE" }),
 	},
 	support: {
 		report: (message, imageFile) => {
@@ -253,6 +255,8 @@ export const api = {
 			request(`/api/public/${tenantSlug}/appointments/group`, { method: "POST", body, auth: false }),
 		serviceCombo: (tenantSlug, serviceAId, serviceBId) =>
 			request(`/api/public/${tenantSlug}/service-combo${toQuery({ serviceAId, serviceBId })}`, { auth: false }),
+		checkout: (tenantSlug, appointmentId) =>
+			request(`/api/public/${tenantSlug}/appointments/${appointmentId}/checkout`, { method: "POST", auth: false }),
 		reviewInvite: (tenantSlug, token) =>
 			request(`/api/public/${tenantSlug}/reviews/invite/${token}`, { auth: false }),
 		submitReview: (tenantSlug, token, body) =>

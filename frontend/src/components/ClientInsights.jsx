@@ -140,8 +140,17 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 				client={selectedClient}
 				tenant={tenant}
 				onClose={() => setSelectedClient(null)}
-				onNotesSaved={(updated) => {
-					setSelectedClient((prev) => (prev ? { ...prev, notes: updated.notes } : prev));
+				onProfileSaved={(updated) => {
+					setSelectedClient((prev) =>
+						prev
+							? {
+									...prev,
+									notes: updated.notes,
+									servicePreferences: updated.servicePreferences,
+									allergies: updated.allergies,
+								}
+							: prev,
+					);
 					onChange();
 				}}
 				onBirthdaySaved={(updated) => {
@@ -149,6 +158,10 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 					onChange();
 				}}
 				onRewardRedeemed={() => {
+					setSelectedClient(null);
+					onChange();
+				}}
+				onDeleted={() => {
 					setSelectedClient(null);
 					onChange();
 				}}

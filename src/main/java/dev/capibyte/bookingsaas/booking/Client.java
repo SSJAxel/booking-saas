@@ -31,6 +31,20 @@ public class Client extends BaseTenantEntity {
 	@Column
 	private String notes;
 
+	/** Técnico, no de personalidad — "qué le hicimos y cómo" (fórmula de tinte, guía de máquina,
+	 * estilo de trazo) para que cualquier profesional del local repita lo que le gustó sin que el
+	 * cliente tenga que explicar de nuevo. Siempre cargado por quien presta el servicio, mismo
+	 * criterio que {@link #birthDate}. Deliberadamente un campo separado de {@link #notes} (que
+	 * queda para comentarios generales de trato/personalidad) en vez de mezclar ambos en un solo
+	 * texto libre. */
+	@Column(name = "service_preferences")
+	private String servicePreferences;
+
+	/** Alergias/contraindicaciones (tinte, látex, tendencia a queloides) — dato de seguridad, no de
+	 * conveniencia. Mismo criterio de carga que {@link #birthDate}/{@link #servicePreferences}. */
+	@Column
+	private String allergies;
+
 	@Column(name = "instagram_handle")
 	private String instagramHandle;
 

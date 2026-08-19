@@ -35,6 +35,9 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 	const [date, setDate] = useState(null);
 	const [slot, setSlot] = useState(null);
 	const [bookedAppointments, setBookedAppointments] = useState(null);
+	// Which pending appointment's Mercado Pago checkout is in flight — disables just that one
+	// button (a group booking can have more than one PENDING leg at once) while the redirect happens.
+	const [payingId, setPayingId] = useState(null);
 	// Only ever set when items reaches exactly 2 — a MAX-plan ServiceCombo, if one matches those two
 	// services. Preview only, for display; AppointmentService.bookGroup re-derives this itself when
 	// actually booking, never trusts what this fetch returned.
@@ -199,6 +202,18 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		setStep("datetime");
 		await loadSlots(last.professional.id, last.service.id, last.date);
 		setSlot(last.slot);
+	}
+
+	async function handlePayWithMercadoPago(appointmentId) {
+		setPayingId(appointmentId);
+		setError("");
+		try {
+			const { initPoint } = await api.public.checkout(tenantSlug, appointmentId);
+			window.location.href = initPoint;
+		} catch (err) {
+			setError(err.message);
+			setPayingId(null);
+		}
 	}
 
 	async function handleSubmit(event) {
@@ -466,48 +481,56 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 						<div>
 							<p className="notice">{bookedAppointments.length > 1 ? "¡Turnos reservados!" : "¡Turno reservado!"}</p>
 							<div className="pb-summary-box">
-								{items.map((it, i) => (
-									<div className="pb-summary-item" key={i}>
-										<p>
-											<strong>{it.service.name}</strong> con {it.professional.displayName}
-										</p>
-										<p className="muted">
-											{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
-										</p>
-										{bookedAppointments[i]?.paymentStatus === "PENDING" && (
-											<p className="muted">
-												Todavía no confirmado — requiere seña de $
-												{Number(bookedAppointments[i].depositAmountOverride ?? it.service.depositAmount).toLocaleString(
-													"es-AR",
-												)}
-												.
+								{items.map((it, i) => {
+									const appt = bookedAppointments[i];
+									const pending = appt?.paymentStatus === "PENDING";
+									const depositAmount = Number(appt?.depositAmountOverride ?? it.service.depositAmount);
+									return (
+										<div className="pb-summary-item" key={i}>
+											<p>
+												<strong>{it.service.name}</strong> con {it.professional.displayName}
 											</p>
-										)}
-									</div>
-								))}
+											<p className="muted">
+												{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
+											</p>
+											{pending && (
+												<>
+													<p className="muted">
+														Todavía no confirmado — requiere seña de ${depositAmount.toLocaleString("es-AR")}.
+													</p>
+													{tenant.mercadoPagoEnabled && (
+														<button
+															type="button"
+															className="pb-cta"
+															style={{ marginTop: "0.5rem" }}
+															onClick={() => handlePayWithMercadoPago(appt.id)}
+															disabled={payingId === appt.id}
+														>
+															{payingId === appt.id
+																? "Redirigiendo a Mercado Pago..."
+																: `Pagar seña de $${depositAmount.toLocaleString("es-AR")} con Mercado Pago`}
+														</button>
+													)}
+													{tenant.transferAlias && (
+														<p className="muted" style={{ marginTop: "0.4rem" }}>
+															{tenant.mercadoPagoEnabled ? "O transferí" : "Transferí"} el monto al alias{" "}
+															<strong>{tenant.transferAlias}</strong>. Apenas el negocio vea el pago, tu turno queda
+															confirmado.
+														</p>
+													)}
+													{!tenant.mercadoPagoEnabled && !tenant.transferAlias && (
+														<p className="muted">
+															Este negocio todavía no cargó una forma de pagar la seña — va a contactarte para
+															coordinarla.
+														</p>
+													)}
+												</>
+											)}
+										</div>
+									);
+								})}
 								<p className="muted">Te enviamos la confirmación a tu email.</p>
 							</div>
-							{bookedAppointments.some((a) => a.paymentStatus === "PENDING") && (
-								<div className="pb-deposit-note">
-									<p>
-										<strong>
-											{bookedAppointments.length > 1 ? "Alguno de tus turnos" : "Este turno"} todavía no está confirmado.
-										</strong>{" "}
-										Necesita el pago de la seña indicada arriba para confirmarse.
-									</p>
-									{tenant.transferAlias ? (
-										<p>
-											Transferí ese monto al alias <strong>{tenant.transferAlias}</strong>. Apenas el negocio vea el
-											pago, tu turno queda confirmado.
-										</p>
-									) : (
-										<p className="muted">
-											Este negocio todavía no cargó un alias de transferencia — va a contactarte para coordinar la
-											seña.
-										</p>
-									)}
-								</div>
-							)}
 							<button type="button" className="pb-cta" style={{ marginTop: "1.2rem" }} onClick={onClose}>
 								Cerrar
 							</button>
