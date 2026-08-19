@@ -16,12 +16,16 @@ import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.math.BigDecimal;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class PaymentService {
+
+	private static final Logger log = LoggerFactory.getLogger(PaymentService.class);
 
 	private final PaymentRepository paymentRepository;
 	private final AppointmentService appointmentService;
@@ -83,6 +87,12 @@ public class PaymentService {
 		MercadoPagoPreference preference = mercadoPagoClient.createPreference(accessToken, tenantId, payment.getId(),
 				description, amount);
 		payment.setProviderPreferenceId(preference.id());
+		// Diagnostic for the "Unknown business: undefined" checkout report (2026-08-19) — the
+		// preference id/init_point aren't secret (they're already returned to the client), logging
+		// them lets us compare this real request's preference against a known-good one created
+		// manually with the same tenant's token.
+		log.info("createCheckout appointment={} tenant={} amount={} description={} -> preferenceId={} initPoint={}",
+				appointmentId, tenantId, amount, description, preference.id(), preference.initPoint());
 
 		return new CheckoutResponse(payment.getId(), preference.initPoint());
 	}

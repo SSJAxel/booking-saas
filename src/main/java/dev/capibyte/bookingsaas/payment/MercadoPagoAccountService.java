@@ -6,6 +6,8 @@ import dev.capibyte.bookingsaas.payment.dto.MercadoPagoOAuthToken;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Service
 public class MercadoPagoAccountService {
+
+	private static final Logger log = LoggerFactory.getLogger(MercadoPagoAccountService.class);
 
 	private final MercadoPagoAccountRepository accountRepository;
 	private final MercadoPagoClient mercadoPagoClient;
@@ -87,15 +91,25 @@ public class MercadoPagoAccountService {
 	public String resolveAccessToken(UUID tenantId) {
 		Optional<MercadoPagoAccount> maybeAccount = accountRepository.findFirstByOrderByCreatedAtDesc();
 		if (maybeAccount.isEmpty()) {
+			log.info("resolveAccessToken tenant={}: no connected MercadoPagoAccount found, falling back to platform token",
+					tenantId);
 			return platformAccessToken;
 		}
 
 		MercadoPagoAccount account = maybeAccount.get();
+		// Diagnostic for the "Unknown business: undefined" checkout report (2026-08-19) — never logs
+		// the token itself, only which account/expiry this call resolved to, so a Render log line can
+		// be compared against what a manual curl test with the same tenant's real token produced.
+		log.info("resolveAccessToken tenant={}: using connected account mpUserId={}, expiresAt={}, expired={}",
+				tenantId, account.getMercadoPagoUserId(), account.getExpiresAt(),
+				Instant.now().isAfter(account.getExpiresAt()));
 		if (Instant.now().isAfter(account.getExpiresAt())) {
 			MercadoPagoOAuthToken refreshed = mercadoPagoClient.refreshAccessToken(account.getRefreshToken());
 			account.setAccessToken(refreshed.accessToken());
 			account.setRefreshToken(refreshed.refreshToken());
 			account.setExpiresAt(Instant.now().plusSeconds(refreshed.expiresInSeconds()));
+			log.info("resolveAccessToken tenant={}: refreshed expired token, new expiresAt={}", tenantId,
+					account.getExpiresAt());
 		}
 		return account.getAccessToken();
 	}
