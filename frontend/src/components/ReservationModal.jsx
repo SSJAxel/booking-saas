@@ -289,7 +289,7 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 							))}
 						</ol>
 					)}
-					{step !== "done" && items.length > 0 && (
+					{step !== "done" && step !== "details" && items.length > 0 && (
 						<p className="muted">
 							Ya tenés {items.length} servicio{items.length > 1 ? "s" : ""} para esta reserva.
 						</p>
@@ -433,6 +433,36 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 									<button type="button" className="pb-cta-secondary" onClick={handleAddAnotherService}>
 										+ Agregar otro servicio
 									</button>
+								</div>
+							)}
+
+							{items.length > 0 && (
+								<div className="pb-summary-box pb-summary-box-recap">
+									<p className="muted">
+										Ya tenés {items.length} servicio{items.length > 1 ? "s" : ""} para esta reserva:
+									</p>
+									{items.map((it, i) => (
+										<div className="pb-summary-item" key={i}>
+											<div className="pb-summary-item-row">
+												<div>
+													<p>
+														<strong>{it.service.name}</strong> con {it.professional.displayName}
+													</p>
+													<p className="muted">
+														{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
+													</p>
+												</div>
+												<button
+													type="button"
+													className="pb-summary-item-remove"
+													aria-label={`Quitar ${it.service.name}`}
+													onClick={() => handleRemoveItem(i)}
+												>
+													<TrashIcon />
+												</button>
+											</div>
+										</div>
+									))}
 								</div>
 							)}
 						</div>
