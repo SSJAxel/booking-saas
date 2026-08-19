@@ -106,6 +106,8 @@ export const api = {
 		updateReviews: (enabled) => request("/api/tenant/reviews", { method: "PATCH", body: { enabled } }),
 		updateBirthdayMessage: (message) =>
 			request("/api/tenant/birthday-message", { method: "PATCH", body: { message } }),
+		updateMercadoPagoFee: (feePercent) =>
+			request("/api/tenant/mercadopago-fee", { method: "PATCH", body: { feePercent } }),
 	},
 	loyaltyTiers: {
 		list: () => request("/api/tenant/loyalty-rewards/tiers"),

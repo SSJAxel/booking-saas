@@ -192,6 +192,16 @@ public class Tenant extends BaseEntity {
 	@Column(name = "birthday_message_template", length = 1000)
 	private String birthdayMessageTemplate;
 
+	/** La comisión real que Mercado Pago le cobra a ESTE tenant por cobro (0–30) — no es un número
+	 * fijo de la plataforma: varía según el plazo de acreditación que el tenant eligió (inmediato
+	 * vs. 10/18/35 días con comisión menor) y puede cambiar con el tiempo, así que lo carga el
+	 * tenant mismo. Null = no recargar nada al cliente (comportamiento de siempre, el tenant absorbe
+	 * el costo). Cuando está seteado, {@code PaymentService#createCheckout} le suma este % a la seña
+	 * SOLO para el checkout de Mercado Pago — el alias de transferencia nunca lo usa, no tiene
+	 * comisión. */
+	@Column(name = "mercadopago_fee_percent", precision = 5, scale = 2)
+	private BigDecimal mercadoPagoFeePercent;
+
 	/** Single source of truth for "how many professionals can this tenant have" — the override if
 	 * the founder set one, otherwise the plan tier's default included count. */
 	public int getEffectiveProfessionalLimit() {

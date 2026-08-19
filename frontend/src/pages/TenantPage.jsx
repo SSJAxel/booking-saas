@@ -3,7 +3,7 @@ import { api, resolveMediaUrl } from "../api.js";
 import { useAuth } from "../auth/AuthContext.jsx";
 import HelpManual from "../components/HelpManual.jsx";
 import { planLabel } from "../labels.js";
-import { planHasWhatsApp } from "../planLimits.js";
+import { planHasMercadoPago, planHasWhatsApp } from "../planLimits.js";
 import { LayersIcon } from "../components/icons.jsx";
 
 export default function TenantPage() {
@@ -16,6 +16,7 @@ export default function TenantPage() {
 	const [timezoneNotice, setTimezoneNotice] = useState("");
 	const [notificationsNotice, setNotificationsNotice] = useState("");
 	const [transferAliasNotice, setTransferAliasNotice] = useState("");
+	const [mercadoPagoFeeNotice, setMercadoPagoFeeNotice] = useState("");
 	const [clientRankingNotice, setClientRankingNotice] = useState("");
 	const [planUpgradeOpen, setPlanUpgradeOpen] = useState(false);
 	const [planUpgradeSending, setPlanUpgradeSending] = useState(false);
@@ -221,6 +222,20 @@ export default function TenantPage() {
 				}),
 			);
 			setTransferAliasNotice("Guardado.");
+		} catch (err) {
+			setError(err.message);
+		}
+	}
+
+	async function handleSaveMercadoPagoFee(event) {
+		event.preventDefault();
+		setError("");
+		setMercadoPagoFeeNotice("");
+		const form = new FormData(event.target);
+		const raw = form.get("feePercent")?.trim();
+		try {
+			setTenant(await api.tenant.updateMercadoPagoFee(raw ? Number(raw) : null));
+			setMercadoPagoFeeNotice("Guardado.");
 		} catch (err) {
 			setError(err.message);
 		}
@@ -484,6 +499,38 @@ export default function TenantPage() {
 					)
 				) : (
 					<p className="muted">Solo el dueño puede conectar la cuenta.</p>
+				)}
+				{planHasMercadoPago(tenant.planTier) && (
+					<div style={{ marginTop: "1rem" }}>
+						<p className="muted">
+							Comisión que Mercado Pago te cobra por cobro (depende de tu plazo de acreditación elegido —
+							revisalo en tu cuenta de Mercado Pago). Si la cargás, se la sumamos al cliente en el checkout
+							de la seña, para que a vos te llegue el monto completo. Vacío = no se suma nada, la comisión
+							la absorbés vos como hasta ahora.
+						</p>
+						{canManage ? (
+							<form className="inline-form small" onSubmit={handleSaveMercadoPagoFee}>
+								<input
+									name="feePercent"
+									type="number"
+									step="0.01"
+									min="0"
+									max="30"
+									placeholder="ej: 6.6"
+									defaultValue={tenant.mercadoPagoFeePercent ?? ""}
+									style={{ width: "6rem" }}
+								/>
+								<span className="muted">%</span>
+								<button type="submit">Guardar</button>
+								{mercadoPagoFeeNotice && <span className="notice">{mercadoPagoFeeNotice}</span>}
+							</form>
+						) : (
+							<p className="muted">
+								Comisión actual: <strong>{tenant.mercadoPagoFeePercent ?? "sin cargar"}</strong>
+								{tenant.mercadoPagoFeePercent != null && "%"}. Solo el dueño o un admin pueden cambiarla.
+							</p>
+						)}
+					</div>
 				)}
 				<p className="muted" style={{ marginTop: "1rem" }}>
 					Alternativa: si un cliente reserva un servicio con seña, le mostramos este alias para que

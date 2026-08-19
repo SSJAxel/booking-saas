@@ -2,6 +2,7 @@ package dev.capibyte.bookingsaas.tenant;
 
 import dev.capibyte.bookingsaas.common.BadRequestException;
 import dev.capibyte.bookingsaas.common.NotFoundException;
+import java.math.BigDecimal;
 import java.time.DateTimeException;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -238,6 +239,25 @@ public class TenantService {
 			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include automated birthday emails");
 		}
 		tenant.setBirthdayMessageTemplate(message);
+		return tenant;
+	}
+
+	/** Clearing (null) is always allowed — same reasoning as the birthday message. Setting a real
+	 * value requires a plan that actually has Mercado Pago (this % only ever affects that checkout,
+	 * never the transfer alias), and is bounded 0–30 both here and by the DB check (V47) — same
+	 * triple-validation pattern as topClientsCount. */
+	@Transactional
+	public Tenant updateMercadoPagoFeePercent(UUID tenantId, BigDecimal feePercent) {
+		Tenant tenant = findById(tenantId);
+		if (feePercent != null) {
+			if (!tenant.getPlanTier().isMercadoPagoEnabled()) {
+				throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include Mercado Pago");
+			}
+			if (feePercent.signum() < 0 || feePercent.compareTo(new BigDecimal("30")) > 0) {
+				throw new BadRequestException("mercadoPagoFeePercent must be between 0 and 30");
+			}
+		}
+		tenant.setMercadoPagoFeePercent(feePercent);
 		return tenant;
 	}
 

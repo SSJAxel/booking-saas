@@ -485,6 +485,11 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 									const appt = bookedAppointments[i];
 									const pending = appt?.paymentStatus === "PENDING";
 									const depositAmount = Number(appt?.depositAmountOverride ?? it.service.depositAmount);
+									// Preview only — PaymentService.createCheckout recomputes this server-side, this
+									// just lets the client see what they're about to pay before clicking the button.
+									const chargedAmount = tenant.mercadoPagoFeePercent
+										? depositAmount * (1 + Number(tenant.mercadoPagoFeePercent) / 100)
+										: depositAmount;
 									return (
 										<div className="pb-summary-item" key={i}>
 											<p>
@@ -498,27 +503,30 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 													<p className="muted">
 														Todavía no confirmado — requiere seña de ${depositAmount.toLocaleString("es-AR")}.
 													</p>
-													{tenant.mercadoPagoEnabled && (
-														<button
-															type="button"
-															className="pb-cta"
-															style={{ marginTop: "0.5rem" }}
-															onClick={() => handlePayWithMercadoPago(appt.id)}
-															disabled={payingId === appt.id}
-														>
-															{payingId === appt.id
-																? "Redirigiendo a Mercado Pago..."
-																: `Pagar seña de $${depositAmount.toLocaleString("es-AR")} con Mercado Pago`}
-														</button>
-													)}
-													{tenant.transferAlias && (
+													{tenant.mercadoPagoEnabled ? (
+														<>
+															<button
+																type="button"
+																className="pb-cta"
+																style={{ marginTop: "0.5rem" }}
+																onClick={() => handlePayWithMercadoPago(appt.id)}
+																disabled={payingId === appt.id}
+															>
+																{payingId === appt.id
+																	? "Redirigiendo a Mercado Pago..."
+																	: `Pagar $${chargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} con Mercado Pago`}
+															</button>
+															<p className="muted" style={{ marginTop: "0.4rem" }}>
+																Vas a ser redirigido a Mercado Pago para completar el pago de forma segura. Apenas se
+																acredite, tu turno queda confirmado automáticamente.
+															</p>
+														</>
+													) : tenant.transferAlias ? (
 														<p className="muted" style={{ marginTop: "0.4rem" }}>
-															{tenant.mercadoPagoEnabled ? "O transferí" : "Transferí"} el monto al alias{" "}
-															<strong>{tenant.transferAlias}</strong>. Apenas el negocio vea el pago, tu turno queda
-															confirmado.
+															Transferí el monto al alias <strong>{tenant.transferAlias}</strong>. Apenas el negocio
+															vea el pago, tu turno queda confirmado.
 														</p>
-													)}
-													{!tenant.mercadoPagoEnabled && !tenant.transferAlias && (
+													) : (
 														<p className="muted">
 															Este negocio todavía no cargó una forma de pagar la seña — va a contactarte para
 															coordinarla.

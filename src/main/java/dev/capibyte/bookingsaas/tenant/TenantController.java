@@ -14,6 +14,7 @@ import dev.capibyte.bookingsaas.tenant.dto.CommissionsSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.DepositExpirationUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.HistoryRetentionUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.LoyaltyRewardsSettingsRequest;
+import dev.capibyte.bookingsaas.tenant.dto.MercadoPagoFeeUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.NotificationSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.PlanChangeRequest;
 import dev.capibyte.bookingsaas.tenant.dto.ReviewsSettingsRequest;
@@ -149,6 +150,16 @@ public class TenantController {
 	public TenantResponse updateBirthdayMessage(@Valid @RequestBody BirthdayMessageUpdateRequest request) {
 		return TenantResponse
 				.from(tenantService.updateBirthdayMessageTemplate(TenantContext.getTenantId(), request.message()));
+	}
+
+	/** Owner/admin: la comisión real (%) que Mercado Pago le cobra a este tenant — cuando está
+	 * cargada, el checkout de la seña le suma ese % al cliente en vez de que el tenant absorba el
+	 * costo (ver Tenant.mercadoPagoFeePercent). Null apaga el recargo. */
+	@PatchMapping("/mercadopago-fee")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateMercadoPagoFee(@Valid @RequestBody MercadoPagoFeeUpdateRequest request) {
+		return TenantResponse
+				.from(tenantService.updateMercadoPagoFeePercent(TenantContext.getTenantId(), request.feePercent()));
 	}
 
 	/**

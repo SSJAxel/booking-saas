@@ -97,6 +97,46 @@ class PaymentServiceTest {
 	}
 
 	@Test
+	void createCheckoutAddsTheTenantsMercadoPagoFeeOnTopOfTheDeposit() {
+		UUID appointmentId = UUID.randomUUID();
+		UUID serviceId = UUID.randomUUID();
+		Appointment appointment = new Appointment();
+		appointment.setPaymentStatus(PaymentStatus.PENDING);
+		appointment.setServiceId(serviceId);
+		when(appointmentService.findById(appointmentId)).thenReturn(appointment);
+
+		ServiceOffering service = new ServiceOffering();
+		service.setName("Cut");
+		service.setDepositAmount(new BigDecimal("50.00"));
+		when(serviceOfferingService.findById(serviceId)).thenReturn(service);
+
+		when(paymentRepository.save(any(Payment.class))).thenAnswer(invocation -> {
+			Payment saved = invocation.getArgument(0);
+			org.springframework.test.util.ReflectionTestUtils.setField(saved, "id", UUID.randomUUID());
+			return saved;
+		});
+		when(mercadoPagoAccountService.resolveAccessToken(any())).thenReturn("tenant-access-token");
+		// 50.00 + 6.6% = 53.30 — the client pays the commission, not the tenant (see Tenant
+		// .mercadoPagoFeePercent's Javadoc). Only the Mercado Pago checkout is marked up; the
+		// deposit's own configured value (50.00) is untouched everywhere else.
+		when(mercadoPagoClient.createPreference(eq("tenant-access-token"), any(), any(), anyString(),
+				eq(new BigDecimal("53.30"))))
+				.thenReturn(new MercadoPagoPreference("pref-fee", "https://mp.example/checkout/pref-fee"));
+
+		Tenant tenant = new Tenant();
+		tenant.setPlanTier(PlanTier.PRO);
+		tenant.setMercadoPagoFeePercent(new BigDecimal("6.6"));
+		when(tenantService.findById(any())).thenReturn(tenant);
+
+		TenantContext.setTenantId(UUID.randomUUID());
+		CheckoutResponse response = paymentService.createCheckout(appointmentId);
+
+		assertThat(response.checkoutUrl()).isEqualTo("https://mp.example/checkout/pref-fee");
+		verify(mercadoPagoClient).createPreference(eq("tenant-access-token"), any(), any(), anyString(),
+				eq(new BigDecimal("53.30")));
+	}
+
+	@Test
 	void createCheckoutRejectsWhenThePlanDoesNotIncludeMercadoPago() {
 		UUID appointmentId = UUID.randomUUID();
 		Appointment appointment = new Appointment();

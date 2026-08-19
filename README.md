@@ -42,6 +42,27 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-19 — La comisión de Mercado Pago la paga el cliente, no el tenant
+
+A pedido directo del usuario, una vez que el botón de pago con Mercado Pago quedó funcionando: si
+un tenant tiene una seña de $50 y el cliente paga por Mercado Pago (no por alias), Mercado Pago le
+descuenta su comisión al tenant antes de acreditarle el dinero — sin este cambio, el tenant termina
+recibiendo menos de lo que configuró como seña. `Tenant.mercadoPagoFeePercent` (nullable, 0–30,
+cargado por el propio tenant desde el panel → Cobros — **no es un número fijo de la plataforma**:
+Mercado Pago mismo confirmó que varía según el plazo de acreditación elegido, 10/18/35 días con
+comisión menor que el inmediato, y puede ser distinto por cuenta). Cuando está cargado,
+`PaymentService.createCheckout` le suma ese % a la seña SOLO para el checkout de Mercado Pago (ej.
+$50 + 6,6% = $53,30) — el alias de transferencia sigue mostrando el monto de seña sin recargo, no
+tiene comisión de por medio. `PublicTenantResponse` expone el % para que `ReservationModal.jsx`
+muestre el monto real en el botón ("Pagar $53,30 con Mercado Pago") antes de que el cliente toque
+nada — el cálculo real y autoritativo sigue siendo el del backend en el momento de crear el
+checkout, esto es solo preview, mismo patrón que el preview de precio de combo.
+
+De paso, a pedido: cuando Mercado Pago está disponible, ya no se muestra el alias de transferencia
+como alternativa debajo del botón (podía ser confuso tener dos caminos) — en su lugar aparece una
+aclaración corta ("vas a ser redirigido a Mercado Pago para completar el pago de forma segura").
+El alias solo se sigue mostrando cuando el tenant NO tiene Mercado Pago habilitado en su plan.
+
 ### 2026-08-19 — Reservar con Mercado Pago nunca estaba conectado al frontend público
 
 **Bug real reportado por el usuario probando con `lusitattoo` en producción** (ya tenían su cuenta

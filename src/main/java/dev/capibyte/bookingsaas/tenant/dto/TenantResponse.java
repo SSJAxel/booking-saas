@@ -3,6 +3,7 @@ package dev.capibyte.bookingsaas.tenant.dto;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantStatus;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 public record TenantResponse(UUID id, String name, String slug, String timezone, TenantStatus status,
@@ -10,7 +11,8 @@ public record TenantResponse(UUID id, String name, String slug, String timezone,
 		boolean whatsappEnabled, String contactEmail, String whatsappNumber, String transferAlias,
 		int topClientsThreshold, int topClientsCount, int historyRetentionMonths, int depositExpirationMinutes,
 		String instagramUrl, String facebookUrl, String instagramFeedUrl, boolean loyaltyRewardsEnabled,
-		int loyaltyPointsCap, boolean commissionsEnabled, boolean reviewsEnabled, String birthdayMessageTemplate) {
+		int loyaltyPointsCap, boolean commissionsEnabled, boolean reviewsEnabled, String birthdayMessageTemplate,
+		BigDecimal mercadoPagoFeePercent) {
 
 	public static TenantResponse from(Tenant tenant) {
 		return new TenantResponse(tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getTimezone(),
@@ -20,6 +22,7 @@ public record TenantResponse(UUID id, String name, String slug, String timezone,
 				tenant.getTopClientsCount(), tenant.getHistoryRetentionMonths(),
 				tenant.getDepositExpirationMinutes(), tenant.getInstagramUrl(), tenant.getFacebookUrl(),
 				tenant.getInstagramFeedUrl(), tenant.isLoyaltyRewardsEnabled(), tenant.getLoyaltyPointsCap(),
-				tenant.isCommissionsEnabled(), tenant.isReviewsEnabled(), tenant.getBirthdayMessageTemplate());
+				tenant.isCommissionsEnabled(), tenant.isReviewsEnabled(), tenant.getBirthdayMessageTemplate(),
+				tenant.getMercadoPagoFeePercent());
 	}
 }

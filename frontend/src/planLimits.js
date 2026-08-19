@@ -81,6 +81,10 @@ export function planHasWhatsApp(tier) {
 	return PLAN_LIMITS[tier]?.whatsappEnabled ?? true;
 }
 
+export function planHasMercadoPago(tier) {
+	return PLAN_LIMITS[tier]?.mercadoPagoEnabled ?? false;
+}
+
 export function planHasLoyaltyRewards(tier) {
 	return PLAN_LIMITS[tier]?.loyaltyRewardsEnabled ?? false;
 }

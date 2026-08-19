@@ -13,8 +13,10 @@ import dev.capibyte.bookingsaas.payment.dto.CheckoutResponse;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPayment;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoPreference;
 import dev.capibyte.bookingsaas.tenant.PlanTier;
+import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -63,7 +65,8 @@ public class PaymentService {
 					"This appointment doesn't require a deposit, or its deposit was already handled");
 		}
 		UUID tenantId = TenantContext.getTenantId();
-		PlanTier tier = tenantService.findById(tenantId).getPlanTier();
+		Tenant tenant = tenantService.findById(tenantId);
+		PlanTier tier = tenant.getPlanTier();
 		if (!tier.isMercadoPagoEnabled()) {
 			throw new BadRequestException("Plan " + tier + " doesn't include Mercado Pago deposits — "
 					+ "confirm the deposit manually instead (transfer + confirm-deposit)");
@@ -72,27 +75,38 @@ public class PaymentService {
 		// Normally the service's own depositAmount — overridden only when a ServiceCombo assigned the
 		// whole combined deposit to this leg (see AppointmentService#bookGroup); the other leg in that
 		// case never reaches here at all, since its paymentStatus is NOT_REQUIRED.
-		BigDecimal amount = appointment.getDepositAmountOverride() != null ? appointment.getDepositAmountOverride()
-				: service.getDepositAmount();
+		BigDecimal depositAmount = appointment.getDepositAmountOverride() != null
+				? appointment.getDepositAmountOverride() : service.getDepositAmount();
+		// Mercado Pago's own cut is never on the house — when the tenant told us their real commission
+		// %, the CLIENT pays deposit + that %, not the tenant, so the tenant's net for this booking
+		// still matches the seña they configured. Only applies to this checkout, never the transfer
+		// alias (no processing fee on a direct bank transfer) — see Tenant.mercadoPagoFeePercent.
+		BigDecimal chargedAmount = tenant.getMercadoPagoFeePercent() != null
+				? depositAmount
+						.multiply(BigDecimal.ONE.add(tenant.getMercadoPagoFeePercent().movePointLeft(2)))
+						.setScale(2, RoundingMode.HALF_UP)
+				: depositAmount;
 		String description = appointment.getDepositAmountOverride() != null ? "Deposit for " + service.getName()
 				+ " (combo)" : "Deposit for " + service.getName();
 
 		Payment payment = new Payment();
 		payment.setAppointmentId(appointmentId);
-		payment.setAmount(amount);
+		payment.setAmount(chargedAmount);
 		payment.setStatus(PaymentStatus.PENDING);
 		payment = paymentRepository.save(payment);
 
 		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
 		MercadoPagoPreference preference = mercadoPagoClient.createPreference(accessToken, tenantId, payment.getId(),
-				description, amount);
+				description, chargedAmount);
 		payment.setProviderPreferenceId(preference.id());
 		// Diagnostic for the "Unknown business: undefined" checkout report (2026-08-19) — the
 		// preference id/init_point aren't secret (they're already returned to the client), logging
 		// them lets us compare this real request's preference against a known-good one created
 		// manually with the same tenant's token.
-		log.info("createCheckout appointment={} tenant={} amount={} description={} -> preferenceId={} initPoint={}",
-				appointmentId, tenantId, amount, description, preference.id(), preference.initPoint());
+		log.info(
+				"createCheckout appointment={} tenant={} depositAmount={} chargedAmount={} description={} -> preferenceId={} initPoint={}",
+				appointmentId, tenantId, depositAmount, chargedAmount, description, preference.id(),
+				preference.initPoint());
 
 		return new CheckoutResponse(payment.getId(), preference.initPoint());
 	}
