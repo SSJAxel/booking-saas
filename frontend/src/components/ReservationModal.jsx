@@ -509,13 +509,8 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 														<>
 															{tenant.mercadoPagoFeePercent ? (
 																<div className="muted" style={{ marginTop: "0.3rem" }}>
-																	<div>{money("Costo por servicio (seña)", depositAmount)}</div>
-																	<div>
-																		{money(
-																			`+ Comisión Mercado Pago (${Number(tenant.mercadoPagoFeePercent)}%)`,
-																			chargedAmount - depositAmount,
-																		)}
-																	</div>
+																	<div>{money("Seña", depositAmount)}</div>
+																	<div>{money("Costo de servicio", chargedAmount - depositAmount)}</div>
 																	<div>
 																		<strong>{money("Total a pagar", chargedAmount)}</strong>
 																	</div>
