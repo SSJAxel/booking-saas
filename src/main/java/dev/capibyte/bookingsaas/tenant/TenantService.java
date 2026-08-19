@@ -227,6 +227,20 @@ public class TenantService {
 		return tenant;
 	}
 
+	/** Clearing the message (null/blank) is always allowed, on any plan — same "turning it off never
+	 * needs the feature to still be available" reasoning as everywhere else. Only setting a real
+	 * message is gated, since that's the action that actually turns BirthdayEmailScheduler on for
+	 * this tenant. */
+	@Transactional
+	public Tenant updateBirthdayMessageTemplate(UUID tenantId, String message) {
+		Tenant tenant = findById(tenantId);
+		if (message != null && !message.isBlank() && !tenant.getPlanTier().isBirthdayAutoEmailEnabled()) {
+			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include automated birthday emails");
+		}
+		tenant.setBirthdayMessageTemplate(message);
+		return tenant;
+	}
+
 	/** {@code pointsCap} bounds (5–200) are also enforced by validation on the request DTO and a DB
 	 * check constraint (V39) — same three-places-deliberately pattern as updateClientRankingSettings.
 	 * Also refuses to drop the cap below an existing RewardTier's requirement — a tier a client can

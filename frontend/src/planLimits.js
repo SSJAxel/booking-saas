@@ -11,6 +11,8 @@ export const PLAN_LIMITS = {
 		loyaltyRewardsEnabled: false,
 		commissionsEnabled: false,
 		reviewsEnabled: false,
+		birthdayRemindersEnabled: false,
+		birthdayAutoEmailEnabled: false,
 	},
 	PERSONAL: {
 		maxProfessionals: 1,
@@ -23,6 +25,8 @@ export const PLAN_LIMITS = {
 		loyaltyRewardsEnabled: false,
 		commissionsEnabled: false,
 		reviewsEnabled: false,
+		birthdayRemindersEnabled: false,
+		birthdayAutoEmailEnabled: false,
 	},
 	BASIC: {
 		maxProfessionals: 4,
@@ -35,6 +39,8 @@ export const PLAN_LIMITS = {
 		loyaltyRewardsEnabled: false,
 		commissionsEnabled: false,
 		reviewsEnabled: false,
+		birthdayRemindersEnabled: false,
+		birthdayAutoEmailEnabled: false,
 	},
 	PRO: {
 		maxProfessionals: 10,
@@ -47,6 +53,8 @@ export const PLAN_LIMITS = {
 		loyaltyRewardsEnabled: true,
 		commissionsEnabled: true,
 		reviewsEnabled: true,
+		birthdayRemindersEnabled: true,
+		birthdayAutoEmailEnabled: false,
 	},
 	MAX: {
 		maxProfessionals: 20,
@@ -59,6 +67,8 @@ export const PLAN_LIMITS = {
 		loyaltyRewardsEnabled: true,
 		commissionsEnabled: true,
 		reviewsEnabled: true,
+		birthdayRemindersEnabled: true,
+		birthdayAutoEmailEnabled: true,
 	},
 };
 
@@ -80,4 +90,12 @@ export function planHasProducts(tier) {
 
 export function planHasReviews(tier) {
 	return PLAN_LIMITS[tier]?.reviewsEnabled ?? false;
+}
+
+export function planHasBirthdayReminders(tier) {
+	return PLAN_LIMITS[tier]?.birthdayRemindersEnabled ?? false;
+}
+
+export function planHasBirthdayAutoEmail(tier) {
+	return PLAN_LIMITS[tier]?.birthdayAutoEmailEnabled ?? false;
 }

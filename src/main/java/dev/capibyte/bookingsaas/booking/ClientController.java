@@ -4,6 +4,7 @@ import dev.capibyte.bookingsaas.booking.dto.ClientSummaryResponse;
 import dev.capibyte.bookingsaas.booking.dto.ClientVisitResponse;
 import dev.capibyte.bookingsaas.booking.dto.PinClientRequest;
 import dev.capibyte.bookingsaas.booking.dto.RedeemRewardRequest;
+import dev.capibyte.bookingsaas.booking.dto.UpdateClientBirthdayRequest;
 import dev.capibyte.bookingsaas.booking.dto.UpdateClientNotesRequest;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -50,6 +51,20 @@ public class ClientController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public ClientSummaryResponse updateNotes(@PathVariable UUID id, @Valid @RequestBody UpdateClientNotesRequest request) {
 		return ClientSummaryResponse.from(clientService.updateNotes(id, request.notes()));
+	}
+
+	/** Owner/admin: only staff enters this, never the client themselves (see PlanTier's Javadoc on
+	 * why it's not on the public booking form). */
+	@PatchMapping("/{id}/birthday")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public ClientSummaryResponse updateBirthday(@PathVariable UUID id, @Valid @RequestBody UpdateClientBirthdayRequest request) {
+		return ClientSummaryResponse.from(clientService.updateBirthDate(id, request.birthDate()));
+	}
+
+	/** "Cumpleaños del mes" panel list — PRO/MAX only, see PlanTier's Javadoc. */
+	@GetMapping("/birthdays-this-month")
+	public List<ClientSummaryResponse> birthdaysThisMonth() {
+		return clientService.birthdaysThisMonth().stream().map(ClientSummaryResponse::from).toList();
 	}
 
 	/** Every visit this client has ever had, most recent first — who served them, when, what

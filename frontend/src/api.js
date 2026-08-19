@@ -104,6 +104,8 @@ export const api = {
 			request("/api/tenant/loyalty-rewards", { method: "PATCH", body: { enabled, pointsCap } }),
 		updateCommissions: (enabled) => request("/api/tenant/commissions", { method: "PATCH", body: { enabled } }),
 		updateReviews: (enabled) => request("/api/tenant/reviews", { method: "PATCH", body: { enabled } }),
+		updateBirthdayMessage: (message) =>
+			request("/api/tenant/birthday-message", { method: "PATCH", body: { message } }),
 	},
 	loyaltyTiers: {
 		list: () => request("/api/tenant/loyalty-rewards/tiers"),
@@ -194,6 +196,8 @@ export const api = {
 		search: (q) => request(`/api/clients/search${toQuery({ q })}`),
 		setPinned: (id, pinned) => request(`/api/clients/${id}/pin`, { method: "PATCH", body: { pinned } }),
 		updateNotes: (id, notes) => request(`/api/clients/${id}/notes`, { method: "PATCH", body: { notes } }),
+		updateBirthday: (id, birthDate) => request(`/api/clients/${id}/birthday`, { method: "PATCH", body: { birthDate } }),
+		birthdaysThisMonth: () => request("/api/clients/birthdays-this-month"),
 		history: (id) => request(`/api/clients/${id}/history`),
 		redeemReward: (id, rewardTierId) =>
 			request(`/api/clients/${id}/redeem-reward`, { method: "POST", body: { rewardTierId } }),

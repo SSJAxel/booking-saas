@@ -7,6 +7,7 @@ import dev.capibyte.bookingsaas.payment.SubscriptionService;
 import dev.capibyte.bookingsaas.payment.dto.MercadoPagoConnectionStatusResponse;
 import dev.capibyte.bookingsaas.payment.dto.OAuthConnectResponse;
 import dev.capibyte.bookingsaas.payment.dto.SubscriptionCheckoutResponse;
+import dev.capibyte.bookingsaas.tenant.dto.BirthdayMessageUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.BrandingUpdateRequest;
 import dev.capibyte.bookingsaas.tenant.dto.ClientRankingSettingsRequest;
 import dev.capibyte.bookingsaas.tenant.dto.CommissionsSettingsRequest;
@@ -138,6 +139,16 @@ public class TenantController {
 	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
 	public TenantResponse updateReviews(@Valid @RequestBody ReviewsSettingsRequest request) {
 		return TenantResponse.from(tenantService.updateReviewsEnabled(TenantContext.getTenantId(), request.enabled()));
+	}
+
+	/** Owner/admin: the tenant's own custom "feliz cumpleaños" message (MAX only) — BirthdayEmailScheduler
+	 * sends it automatically to a client on their birthday, {@code {nombre}} substituted. Clearing it
+	 * (null/blank) is allowed on any plan. */
+	@PatchMapping("/birthday-message")
+	@PreAuthorize("hasAnyRole('OWNER','ADMIN')")
+	public TenantResponse updateBirthdayMessage(@Valid @RequestBody BirthdayMessageUpdateRequest request) {
+		return TenantResponse
+				.from(tenantService.updateBirthdayMessageTemplate(TenantContext.getTenantId(), request.message()));
 	}
 
 	/**

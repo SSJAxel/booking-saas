@@ -182,6 +182,16 @@ public class Tenant extends BaseEntity {
 	@Column(name = "professional_limit_override")
 	private Integer professionalLimitOverride;
 
+	/** Free text the tenant writes themselves, e.g. "¡Feliz cumple {nombre}! Este mes tenés 15% en
+	 * cualquier servicio." — {@code BirthdayEmailScheduler} substitutes {@code {nombre}} with the
+	 * client's name and sends it on their birthday. Null/blank is both the default AND the "off"
+	 * state (see PlanTier's Javadoc) — no separate enabled flag, same pattern as ServiceCombo. Only
+	 * takes effect on a plan with {@code PlanTier#isBirthdayAutoEmailEnabled()} (MAX); setting a
+	 * non-blank value on a lower plan is rejected by {@code TenantService
+	 * #updateBirthdayMessageTemplate}, same as every other plan-gated setting here. */
+	@Column(name = "birthday_message_template", length = 1000)
+	private String birthdayMessageTemplate;
+
 	/** Single source of truth for "how many professionals can this tenant have" — the override if
 	 * the founder set one, otherwise the plan tier's default included count. */
 	public int getEffectiveProfessionalLimit() {

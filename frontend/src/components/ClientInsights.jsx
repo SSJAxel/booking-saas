@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
-import { planHasLoyaltyRewards } from "../planLimits.js";
+import { planHasBirthdayReminders, planHasLoyaltyRewards } from "../planLimits.js";
+import BirthdaysCard from "./BirthdaysCard.jsx";
 import ClientHistoryModal from "./ClientHistoryModal.jsx";
 import LoyaltyRewardsCard from "./LoyaltyRewardsCard.jsx";
 
@@ -129,6 +130,8 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 				</div>
 			</div>
 
+			{planHasBirthdayReminders(tenant.planTier) && <BirthdaysCard tenant={tenant} onChange={onChange} />}
+
 			{planHasLoyaltyRewards(tenant.planTier) && (
 				<LoyaltyRewardsCard stats={stats} tenant={tenant} onChange={onChange} />
 			)}
@@ -139,6 +142,10 @@ function ClientInsightLists({ stats, tenant, onChange }) {
 				onClose={() => setSelectedClient(null)}
 				onNotesSaved={(updated) => {
 					setSelectedClient((prev) => (prev ? { ...prev, notes: updated.notes } : prev));
+					onChange();
+				}}
+				onBirthdaySaved={(updated) => {
+					setSelectedClient((prev) => (prev ? { ...prev, birthDate: updated.birthDate } : prev));
 					onChange();
 				}}
 				onRewardRedeemed={() => {

@@ -1,5 +1,6 @@
 package dev.capibyte.bookingsaas.report.dto;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 /**
@@ -19,5 +20,6 @@ public record ClientStatsResponse(
 		int rating,
 		boolean pinned,
 		String notes,
-		int loyaltyPoints) {
+		int loyaltyPoints,
+		LocalDate birthDate) {
 }

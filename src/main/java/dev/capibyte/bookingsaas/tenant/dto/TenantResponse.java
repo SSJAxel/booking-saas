@@ -10,7 +10,7 @@ public record TenantResponse(UUID id, String name, String slug, String timezone,
 		boolean whatsappEnabled, String contactEmail, String whatsappNumber, String transferAlias,
 		int topClientsThreshold, int topClientsCount, int historyRetentionMonths, int depositExpirationMinutes,
 		String instagramUrl, String facebookUrl, String instagramFeedUrl, boolean loyaltyRewardsEnabled,
-		int loyaltyPointsCap, boolean commissionsEnabled, boolean reviewsEnabled) {
+		int loyaltyPointsCap, boolean commissionsEnabled, boolean reviewsEnabled, String birthdayMessageTemplate) {
 
 	public static TenantResponse from(Tenant tenant) {
 		return new TenantResponse(tenant.getId(), tenant.getName(), tenant.getSlug(), tenant.getTimezone(),
@@ -20,6 +20,6 @@ public record TenantResponse(UUID id, String name, String slug, String timezone,
 				tenant.getTopClientsCount(), tenant.getHistoryRetentionMonths(),
 				tenant.getDepositExpirationMinutes(), tenant.getInstagramUrl(), tenant.getFacebookUrl(),
 				tenant.getInstagramFeedUrl(), tenant.isLoyaltyRewardsEnabled(), tenant.getLoyaltyPointsCap(),
-				tenant.isCommissionsEnabled(), tenant.isReviewsEnabled());
+				tenant.isCommissionsEnabled(), tenant.isReviewsEnabled(), tenant.getBirthdayMessageTemplate());
 	}
 }

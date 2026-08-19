@@ -151,7 +151,7 @@ public class ReportService {
 							clientAppointments.size(), byStatus.getOrDefault(AppointmentStatus.COMPLETED, 0L),
 							byStatus.getOrDefault(AppointmentStatus.CANCELLED, 0L),
 							byStatus.getOrDefault(AppointmentStatus.NO_SHOW, 0L), client.getRating(),
-							client.isPinned(), client.getNotes(), client.getLoyaltyPoints());
+							client.isPinned(), client.getNotes(), client.getLoyaltyPoints(), client.getBirthDate());
 				})
 				.sorted(Comparator.comparingLong(ClientStatsResponse::totalAppointments).reversed())
 				.toList();

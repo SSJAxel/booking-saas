@@ -7,6 +7,7 @@ import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.time.Instant;
+import java.time.LocalDate;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -69,6 +70,21 @@ public class Client extends BaseTenantEntity {
 	 * predates this system or doesn't fit neatly into the automatic scoring. */
 	@Column(nullable = false)
 	private boolean pinned = false;
+
+	/** Optional, entered by staff from the panel (e.g. "Editar" on ClientHistoryModal) — never asked
+	 * of the client on the public booking form, see PlanTier's Javadoc on why. Drives both the
+	 * "cumpleaños del mes" panel list (PRO/MAX) and BirthdayEmailScheduler (MAX). Only month/day
+	 * ever matter for either — the year is stored anyway since it's a normal date field, but nothing
+	 * computes an age from it. */
+	@Column(name = "birth_date")
+	private LocalDate birthDate;
+
+	/** Null until BirthdayEmailScheduler sends this client's first automated birthday email — dedupe
+	 * so a scheduler re-run (or simply firing more than once on the actual day) doesn't send a
+	 * second one, without needing a separate cleanup job to reset it: next year's date just won't
+	 * match this stored year anymore. */
+	@Column(name = "last_birthday_email_year")
+	private Integer lastBirthdayEmailYear;
 
 	@Column(name = "created_at", nullable = false, updatable = false)
 	private Instant createdAt;

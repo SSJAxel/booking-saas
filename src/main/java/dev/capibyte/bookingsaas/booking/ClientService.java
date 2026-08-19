@@ -10,6 +10,7 @@ import dev.capibyte.bookingsaas.tenant.RewardTier;
 import dev.capibyte.bookingsaas.tenant.RewardTierRepository;
 import dev.capibyte.bookingsaas.tenant.Tenant;
 import dev.capibyte.bookingsaas.tenant.TenantService;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,25 @@ public class ClientService {
 		Client client = findById(id);
 		client.setNotes(notes);
 		return client;
+	}
+
+	@Transactional
+	public Client updateBirthDate(UUID id, LocalDate birthDate) {
+		Client client = findById(id);
+		client.setBirthDate(birthDate);
+		return client;
+	}
+
+	/** "Cumpleaños del mes" panel list (PRO/MAX) — see PlanTier's Javadoc for why this is a passive
+	 * list and not an automated discount. */
+	@Transactional(readOnly = true)
+	public List<Client> birthdaysThisMonth() {
+		Tenant tenant = tenantService.findById(TenantContext.getTenantId());
+		if (!tenant.getPlanTier().isBirthdayRemindersEnabled()) {
+			throw new BadRequestException("Plan " + tenant.getPlanTier() + " doesn't include birthday reminders");
+		}
+		int month = LocalDate.now(tenantService.getZoneId(tenant.getId())).getMonthValue();
+		return clientRepository.findByBirthMonth(month);
 	}
 
 	/** Every visit this client has ever had with the tenant, most recent first — see the "who did

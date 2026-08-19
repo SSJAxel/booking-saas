@@ -14,14 +14,17 @@ import { tenantLongDateTimeLabel } from "../tenantTime.js";
  * name/email/notes/loyaltyPoints already loaded by ClientInsights, so only the visit history and
  * (when relevant) the tier list need their own fetch.
  */
-export default function ClientHistoryModal({ client, tenant, onClose, onNotesSaved, onRewardRedeemed }) {
+export default function ClientHistoryModal({ client, tenant, onClose, onNotesSaved, onBirthdaySaved, onRewardRedeemed }) {
 	const { session } = useAuth();
 	const canEditNotes = session.role === "OWNER" || session.role === "ADMIN";
 	const [visits, setVisits] = useState(null);
 	const [error, setError] = useState("");
 	const [notes, setNotes] = useState(client?.notes ?? "");
+	const [birthDate, setBirthDate] = useState(client?.birthDate ?? "");
 	const [saving, setSaving] = useState(false);
+	const [savingBirthday, setSavingBirthday] = useState(false);
 	const [notice, setNotice] = useState("");
+	const [birthdayNotice, setBirthdayNotice] = useState("");
 	const [tiers, setTiers] = useState(null);
 	const [selectedTierId, setSelectedTierId] = useState("");
 	const [redeeming, setRedeeming] = useState(false);
@@ -29,6 +32,7 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 	useEffect(() => {
 		if (!client) return;
 		setNotes(client.notes ?? "");
+		setBirthDate(client.birthDate ?? "");
 		setVisits(null);
 		setError("");
 		api.clients
@@ -71,6 +75,22 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 		}
 	}
 
+	async function handleSaveBirthday(event) {
+		event.preventDefault();
+		setSavingBirthday(true);
+		setError("");
+		try {
+			const updated = await api.clients.updateBirthday(client.clientId, birthDate || null);
+			setBirthdayNotice("Guardado.");
+			setTimeout(() => setBirthdayNotice(""), 3000);
+			onBirthdaySaved?.(updated);
+		} catch (err) {
+			setError(err.message);
+		} finally {
+			setSavingBirthday(false);
+		}
+	}
+
 	const eligibleTiers = tiers?.filter((t) => client.loyaltyPoints >= t.pointsRequired) ?? [];
 	const tierIdToRedeem = selectedTierId || eligibleTiers[0]?.id || "";
 
@@ -100,6 +120,26 @@ export default function ClientHistoryModal({ client, tenant, onClose, onNotesSav
 					<p className="muted">{client.clientEmail}</p>
 
 					{error && <p className="error">{error}</p>}
+
+					{canEditNotes && (
+						<form onSubmit={handleSaveBirthday} style={{ marginTop: "0.8rem" }}>
+							<label>
+								Fecha de nacimiento
+								<input
+									type="date"
+									value={birthDate}
+									onChange={(event) => setBirthDate(event.target.value)}
+									style={{ maxWidth: "10rem" }}
+								/>
+							</label>
+							<div className="button-row" style={{ marginTop: "0.4rem" }}>
+								<button type="submit" disabled={savingBirthday}>
+									{savingBirthday ? "Guardando..." : "Guardar cumpleaños"}
+								</button>
+								{birthdayNotice && <span className="notice">{birthdayNotice}</span>}
+							</div>
+						</form>
+					)}
 
 					{canEditNotes && (
 						<form onSubmit={handleSaveNotes} style={{ marginTop: "0.8rem" }}>
