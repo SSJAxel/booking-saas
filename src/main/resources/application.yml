@@ -114,6 +114,11 @@ app:
     success-url: ${MERCADOPAGO_SUCCESS_URL:https://example.com/payment/success}
     failure-url: ${MERCADOPAGO_FAILURE_URL:https://example.com/payment/failure}
     pending-url: ${MERCADOPAGO_PENDING_URL:https://example.com/payment/pending}
+    # Where a CLIENT's browser lands after paying (or failing to pay) a deposit via Checkout Pro —
+    # deliberately separate from success-url/failure-url/pending-url above, which are for the OWNER
+    # subscribing to a paid plan (back to the admin panel) via createPreapproval, not a client on the
+    # public booking page. No trailing slash — MercadoPagoClient appends /reservar/{tenantSlug}.
+    return-base-url: ${MERCADOPAGO_RETURN_BASE_URL:http://localhost:5180}
     # OAuth Connect ("Application" credentials from MercadoPago's developer dashboard — platform-
     # wide, not per-tenant) — used only for the authorization-code exchange itself.
     client-id: ${MERCADOPAGO_CLIENT_ID:}

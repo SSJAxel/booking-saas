@@ -42,6 +42,30 @@ Bitácora de qué se hizo y por qué, para tener noción del avance sin tener qu
 entero. Entradas más nuevas arriba. El detalle técnico de cada feature vive en
 [Design notes](#design-notes); esto es solo el resumen fechado.
 
+### 2026-08-19 — Después de pagar, Mercado Pago devolvía al cliente a `example.com`
+
+**Bug real reportado por el usuario** ("la página queda caída" después de pagar): `success-url`/
+`failure-url`/`pending-url` (usados como `back_urls` del Checkout Pro) nunca se configuraron con un
+valor real en Render, así que caían en el default de `application.yml`
+(`https://example.com/payment/...`) — mismo patrón que el bug de `MAIL_VERIFICATION_BASE_URL` de
+2026-08-14. Con `auto_return=approved`, Mercado Pago redirige ahí solo apenas se confirma el pago.
+
+Separado de eso: esas tres variables son platform-wide y en realidad las usa
+`MercadoPagoClient.createPreapproval` (el OWNER suscribiéndose a un plan pago, vuelve al panel
+admin) — no tenía sentido reusarlas para el CLIENTE pagando una seña, que tiene que volver a la
+página pública del tenant específico que está reservando, no a una URL fija de la plataforma.
+Arreglado con una variable nueva, `MERCADOPAGO_RETURN_BASE_URL` (`app.mercadopago.return-base-url`,
+default local `http://localhost:5180`) — `MercadoPagoClient.createPreference` ahora arma
+`{returnBaseUrl}/reservar/{tenantSlug}` (mismo destino para success/failure/pending, el cliente
+solo necesita volver a una página real; el estado del turno se refleja solo apenas llega el
+webhook). `PaymentService.createCheckout` ya tenía el `Tenant` completo cargado (para el % de
+comisión de arriba), así que solo hizo falta pasarle `tenant.getSlug()`.
+
+**Pendiente de acción manual, no de código**: hay que cargar `MERCADOPAGO_RETURN_BASE_URL` en las
+variables de entorno de Render (servicio `CapiBooking`) apuntando a
+`https://booking-saas-inky.vercel.app` — sin esto, en producción sigue usando el default de
+`localhost:5180`, que no existe ahí.
+
 ### 2026-08-19 — La comisión de Mercado Pago la paga el cliente, no el tenant
 
 A pedido directo del usuario, una vez que el botón de pago con Mercado Pago quedó funcionando: si

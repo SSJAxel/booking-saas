@@ -82,11 +82,12 @@ class PaymentServiceTest {
 		});
 		when(mercadoPagoAccountService.resolveAccessToken(any())).thenReturn("tenant-access-token");
 		when(mercadoPagoClient.createPreference(eq("tenant-access-token"), any(), any(), anyString(),
-				eq(new BigDecimal("20.00"))))
+				eq(new BigDecimal("20.00")), eq("lusi-tattoo")))
 				.thenReturn(new MercadoPagoPreference("pref-1", "https://mp.example/checkout/pref-1"));
 
 		Tenant tenant = new Tenant();
 		tenant.setPlanTier(PlanTier.PRO);
+		tenant.setSlug("lusi-tattoo");
 		when(tenantService.findById(any())).thenReturn(tenant);
 
 		TenantContext.setTenantId(UUID.randomUUID());
@@ -120,12 +121,13 @@ class PaymentServiceTest {
 		// .mercadoPagoFeePercent's Javadoc). Only the Mercado Pago checkout is marked up; the
 		// deposit's own configured value (50.00) is untouched everywhere else.
 		when(mercadoPagoClient.createPreference(eq("tenant-access-token"), any(), any(), anyString(),
-				eq(new BigDecimal("53.30"))))
+				eq(new BigDecimal("53.30")), anyString()))
 				.thenReturn(new MercadoPagoPreference("pref-fee", "https://mp.example/checkout/pref-fee"));
 
 		Tenant tenant = new Tenant();
 		tenant.setPlanTier(PlanTier.PRO);
 		tenant.setMercadoPagoFeePercent(new BigDecimal("6.6"));
+		tenant.setSlug("lusi-tattoo");
 		when(tenantService.findById(any())).thenReturn(tenant);
 
 		TenantContext.setTenantId(UUID.randomUUID());
@@ -133,7 +135,7 @@ class PaymentServiceTest {
 
 		assertThat(response.checkoutUrl()).isEqualTo("https://mp.example/checkout/pref-fee");
 		verify(mercadoPagoClient).createPreference(eq("tenant-access-token"), any(), any(), anyString(),
-				eq(new BigDecimal("53.30")));
+				eq(new BigDecimal("53.30")), anyString());
 	}
 
 	@Test
@@ -150,7 +152,7 @@ class PaymentServiceTest {
 
 		TenantContext.setTenantId(tenantId);
 		assertThatThrownBy(() -> paymentService.createCheckout(appointmentId)).isInstanceOf(BadRequestException.class);
-		verify(mercadoPagoClient, never()).createPreference(any(), any(), any(), anyString(), any());
+		verify(mercadoPagoClient, never()).createPreference(any(), any(), any(), anyString(), any(), anyString());
 	}
 
 	@Test

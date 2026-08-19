@@ -97,7 +97,7 @@ public class PaymentService {
 
 		String accessToken = mercadoPagoAccountService.resolveAccessToken(tenantId);
 		MercadoPagoPreference preference = mercadoPagoClient.createPreference(accessToken, tenantId, payment.getId(),
-				description, chargedAmount);
+				description, chargedAmount, tenant.getSlug());
 		payment.setProviderPreferenceId(preference.id());
 		// Diagnostic for the "Unknown business: undefined" checkout report (2026-08-19) — the
 		// preference id/init_point aren't secret (they're already returned to the client), logging

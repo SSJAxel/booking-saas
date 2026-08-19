@@ -36,7 +36,8 @@ class MercadoPagoClientTest {
 		RestClient.Builder builder = RestClient.builder();
 		mockServer = MockRestServiceServer.bindTo(builder).build();
 		client = new MercadoPagoClient(builder, "https://api.mercadopago.com", "TEST-client-id", "TEST-client-secret",
-				"https://example.com/success", "https://example.com/failure", "https://example.com/pending");
+				"https://example.com/success", "https://example.com/failure", "https://example.com/pending",
+				"https://booking.example.com");
 	}
 
 	@Test
@@ -49,6 +50,7 @@ class MercadoPagoClientTest {
 				.andExpect(header("Authorization", "Bearer tenant-access-token"))
 				.andExpect(content().string(containsString(tenantId + ":" + paymentId)))
 				.andExpect(content().string(containsString("Deposit for Small Tattoo")))
+				.andExpect(content().string(containsString("https://booking.example.com/reservar/lusi-tattoo")))
 				.andRespond(withSuccess(
 						"""
 						{"id":"pref-123","init_point":"https://mercadopago.com/checkout/pref-123"}
@@ -56,7 +58,7 @@ class MercadoPagoClientTest {
 						MediaType.APPLICATION_JSON));
 
 		MercadoPagoPreference preference = client.createPreference("tenant-access-token", tenantId, paymentId,
-				"Deposit for Small Tattoo", new BigDecimal("50.00"));
+				"Deposit for Small Tattoo", new BigDecimal("50.00"), "lusi-tattoo");
 
 		assertThat(preference.id()).isEqualTo("pref-123");
 		assertThat(preference.initPoint()).isEqualTo("https://mercadopago.com/checkout/pref-123");

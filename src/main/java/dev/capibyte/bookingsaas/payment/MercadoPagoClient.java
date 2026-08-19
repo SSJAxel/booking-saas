@@ -40,6 +40,7 @@ public class MercadoPagoClient {
 	private final String successUrl;
 	private final String failureUrl;
 	private final String pendingUrl;
+	private final String returnBaseUrl;
 
 	public MercadoPagoClient(RestClient.Builder builder,
 			@Value("${app.mercadopago.base-url}") String baseUrl,
@@ -47,20 +48,32 @@ public class MercadoPagoClient {
 			@Value("${app.mercadopago.client-secret}") String clientSecret,
 			@Value("${app.mercadopago.success-url}") String successUrl,
 			@Value("${app.mercadopago.failure-url}") String failureUrl,
-			@Value("${app.mercadopago.pending-url}") String pendingUrl) {
+			@Value("${app.mercadopago.pending-url}") String pendingUrl,
+			@Value("${app.mercadopago.return-base-url}") String returnBaseUrl) {
 		this.clientId = clientId;
 		this.clientSecret = clientSecret;
 		this.successUrl = successUrl;
 		this.failureUrl = failureUrl;
 		this.pendingUrl = pendingUrl;
+		this.returnBaseUrl = returnBaseUrl;
 		this.restClient = builder.baseUrl(baseUrl).build();
 	}
 
+	/**
+	 * {@code tenantSlug} drives where the CLIENT's browser lands after paying (or failing to pay) a
+	 * deposit — back on that tenant's own public booking page ({@code /reservar/{tenantSlug}}), not
+	 * the fixed {@link #successUrl}/{@link #failureUrl}/{@link #pendingUrl} used by
+	 * {@link #createPreapproval} (those are for the OWNER subscribing, back to the admin panel — a
+	 * different flow with a different natural destination). Same URL for all three outcomes on
+	 * purpose: the client just needs to end up back on a real page, not a dedicated one per outcome —
+	 * the appointment's own status (confirmed once the webhook lands) is what actually matters.
+	 */
 	public MercadoPagoPreference createPreference(String accessToken, UUID tenantId, UUID paymentId,
-			String description, BigDecimal amount) {
+			String description, BigDecimal amount, String tenantSlug) {
 		// tenantId embedded here (not just paymentId) so the webhook can resolve TenantContext
 		// before it needs to look up the tenant-scoped Payment row — see PaymentService.
 		String externalReference = tenantId + ":" + paymentId;
+		String returnUrl = returnBaseUrl + "/reservar/" + tenantSlug;
 
 		Map<String, Object> item = Map.of(
 				"title", description,
@@ -70,7 +83,7 @@ public class MercadoPagoClient {
 		Map<String, Object> body = Map.of(
 				"items", List.of(item),
 				"external_reference", externalReference,
-				"back_urls", Map.of("success", successUrl, "failure", failureUrl, "pending", pendingUrl),
+				"back_urls", Map.of("success", returnUrl, "failure", returnUrl, "pending", returnUrl),
 				"auto_return", "approved");
 
 		return restClient.post()
