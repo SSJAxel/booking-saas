@@ -61,10 +61,9 @@ solo necesita volver a una página real; el estado del turno se refleja solo ape
 webhook). `PaymentService.createCheckout` ya tenía el `Tenant` completo cargado (para el % de
 comisión de arriba), así que solo hizo falta pasarle `tenant.getSlug()`.
 
-**Pendiente de acción manual, no de código**: hay que cargar `MERCADOPAGO_RETURN_BASE_URL` en las
-variables de entorno de Render (servicio `CapiBooking`) apuntando a
-`https://booking-saas-inky.vercel.app` — sin esto, en producción sigue usando el default de
-`localhost:5180`, que no existe ahí.
+**Hecho** — `MERCADOPAGO_RETURN_BASE_URL` cargada en Render apuntando a
+`https://booking-saas-inky.vercel.app` y verificado en vivo con un pago real de punta a punta
+(redirige de vuelta a `/reservar/lusi-tattoo` correctamente).
 
 ### 2026-08-19 — La comisión de Mercado Pago la paga el cliente, no el tenant
 
