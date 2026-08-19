@@ -10,6 +10,10 @@ function formatDateDisplay(dateKey) {
 	return new Date(y, m - 1, d).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 }
 
+function money(label, amount) {
+	return `${label}: $${amount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
 /** Fullscreen booking wizard, opened either from a service card (`service` prop — asks Profesional
  * → Fecha y hora → Tus datos) or from a team-carousel card (`professional` prop — asks Servicio →
  * Fecha y hora → Tus datos, showing only services that professional actually offers). Exactly one
@@ -500,11 +504,25 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 											</p>
 											{pending && (
 												<>
-													<p className="muted">
-														Todavía no confirmado — requiere seña de ${depositAmount.toLocaleString("es-AR")}.
-													</p>
+													<p className="muted">Todavía no confirmado.</p>
 													{tenant.mercadoPagoEnabled ? (
 														<>
+															{tenant.mercadoPagoFeePercent ? (
+																<div className="muted" style={{ marginTop: "0.3rem" }}>
+																	<div>{money("Costo por servicio (seña)", depositAmount)}</div>
+																	<div>
+																		{money(
+																			`+ Comisión Mercado Pago (${Number(tenant.mercadoPagoFeePercent)}%)`,
+																			chargedAmount - depositAmount,
+																		)}
+																	</div>
+																	<div>
+																		<strong>{money("Total a pagar", chargedAmount)}</strong>
+																	</div>
+																</div>
+															) : (
+																<p className="muted">Requiere seña de ${depositAmount.toLocaleString("es-AR")}.</p>
+															)}
 															<button
 																type="button"
 																className="pb-cta"
@@ -516,16 +534,15 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 																	? "Redirigiendo a Mercado Pago..."
 																	: `Pagar $${chargedAmount.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} con Mercado Pago`}
 															</button>
-															<p className="muted" style={{ marginTop: "0.4rem" }}>
-																Vas a ser redirigido a Mercado Pago para completar el pago de forma segura. Apenas se
-																acredite, tu turno queda confirmado automáticamente.
-															</p>
 														</>
 													) : tenant.transferAlias ? (
-														<p className="muted" style={{ marginTop: "0.4rem" }}>
-															Transferí el monto al alias <strong>{tenant.transferAlias}</strong>. Apenas el negocio
-															vea el pago, tu turno queda confirmado.
-														</p>
+														<>
+															<p className="muted">Requiere seña de ${depositAmount.toLocaleString("es-AR")}.</p>
+															<p className="muted" style={{ marginTop: "0.4rem" }}>
+																Transferí el monto al alias <strong>{tenant.transferAlias}</strong>. Apenas el negocio
+																vea el pago, tu turno queda confirmado.
+															</p>
+														</>
 													) : (
 														<p className="muted">
 															Este negocio todavía no cargó una forma de pagar la seña — va a contactarte para
