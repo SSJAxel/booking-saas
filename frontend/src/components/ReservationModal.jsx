@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { api, resolveMediaUrl } from "../api.js";
 import Calendar from "./Calendar.jsx";
+import { TrashIcon } from "./icons.jsx";
 
 const STEPS_FROM_SERVICE = { professional: "Profesional", datetime: "Fecha y hora", details: "Tus datos" };
 const STEPS_FROM_PROFESSIONAL = { service: "Servicio", datetime: "Fecha y hora", details: "Tus datos" };
@@ -206,6 +207,16 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 		setStep("datetime");
 		await loadSlots(last.professional.id, last.service.id, last.date);
 		setSlot(last.slot);
+	}
+
+	/** Removes one confirmed leg from the "details" summary without leaving the step — the client
+	 * picked one service too many and wants to drop it, not redo the whole datetime flow like
+	 * `handleBackFromDetails` does. Kept disabled at exactly 1 remaining item; a booking always needs
+	 * at least one service. */
+	async function handleRemoveItem(index) {
+		const newItems = items.filter((_, i) => i !== index);
+		setItems(newItems);
+		await refreshComboPreview(newItems);
 	}
 
 	async function handlePayWithMercadoPago(appointmentId) {
@@ -441,15 +452,29 @@ export default function ReservationModal({ tenant, tenantSlug, branch, service: 
 							<div className="pb-summary-box">
 								{items.map((it, i) => (
 									<div className="pb-summary-item" key={i}>
-										<p>
-											<strong>{it.service.name}</strong> con {it.professional.displayName}
-										</p>
-										<p className="muted">
-											{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
-										</p>
-										{!comboPreview?.comboDepositAmount && it.service.depositAmount && (
-											<p className="muted">Requiere seña de ${Number(it.service.depositAmount).toLocaleString("es-AR")}</p>
-										)}
+										<div className="pb-summary-item-row">
+											<div>
+												<p>
+													<strong>{it.service.name}</strong> con {it.professional.displayName}
+												</p>
+												<p className="muted">
+													{formatDateDisplay(it.date)} a las {it.slot.start.slice(0, 5)}
+												</p>
+												{!comboPreview?.comboDepositAmount && it.service.depositAmount && (
+													<p className="muted">Requiere seña de ${Number(it.service.depositAmount).toLocaleString("es-AR")}</p>
+												)}
+											</div>
+											{items.length > 1 && (
+												<button
+													type="button"
+													className="pb-summary-item-remove"
+													aria-label={`Quitar ${it.service.name}`}
+													onClick={() => handleRemoveItem(i)}
+												>
+													<TrashIcon />
+												</button>
+											)}
+										</div>
 									</div>
 								))}
 								{comboPreview?.comboDepositAmount != null && (

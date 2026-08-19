@@ -33,18 +33,22 @@ const PhoneIcon = () => (
 
 /** Groups services by `service.category` — null/unset falls into a single "Servicios" bucket.
  * Services flagged `service.featured` also appear a second time, up front, in a synthetic
- * "Destacados" group (the featured flag doesn't exist on ServiceOffering yet — see the request to
- * Axel — so `s.featured` is always falsy today and this group simply never renders until it does). */
+ * "Destacados" group. `category` is free text typed by the owner (no dropdown, see
+ * ServicesPage.jsx), so two services meant to share a category can end up with slightly different
+ * strings ("Cortes" vs "cortes " vs " Cortes") — grouping keys off a normalized (trimmed,
+ * lowercased) form so those don't render as separate, identical-looking category sections, while
+ * still displaying whichever trimmed casing was typed first. */
 function groupByCategory(services) {
 	const groups = new Map();
 	const featured = services.filter((s) => s.featured);
-	if (featured.length > 0) groups.set("Destacados", featured);
+	if (featured.length > 0) groups.set("destacados", { name: "Destacados", items: featured });
 	for (const s of services) {
-		const key = s.category || "Servicios";
-		if (!groups.has(key)) groups.set(key, []);
-		groups.get(key).push(s);
+		const name = s.category?.trim() || "Servicios";
+		const key = name.toLowerCase();
+		if (!groups.has(key)) groups.set(key, { name, items: [] });
+		groups.get(key).items.push(s);
 	}
-	return Array.from(groups.entries()).map(([name, items]) => ({ name, items }));
+	return Array.from(groups.values());
 }
 
 function slugify(name) {

@@ -67,7 +67,7 @@ export default function ServicesPage() {
 			await api.services.create({
 				name: form.get("name"),
 				description: form.get("description") || null,
-				category: form.get("category") || null,
+				category: form.get("category")?.trim() || null,
 				durationMinutes: Number(form.get("durationMinutes")),
 				price: Number(form.get("price")),
 				depositAmount: deposit ? Number(deposit) : null,
@@ -115,7 +115,7 @@ export default function ServicesPage() {
 			await api.services.update(id, {
 				name: editDraft.name,
 				description: editDraft.description || null,
-				category: editDraft.category || null,
+				category: editDraft.category?.trim() || null,
 				durationMinutes: Number(editDraft.durationMinutes),
 				price: Number(editDraft.price),
 				depositAmount: editDraft.depositAmount ? Number(editDraft.depositAmount) : null,

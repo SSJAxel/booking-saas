@@ -943,6 +943,32 @@ button.pb-back-link:hover{
 	border-top: 1px dashed var(--pb-border);
 }
 
+.pb-summary-item-row {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.6rem;
+}
+
+.pb-summary-item-remove {
+	flex-shrink: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	width: 30px;
+	height: 30px;
+	border: 1px solid var(--pb-border);
+	border-radius: 8px;
+	background: var(--pb-surface);
+	color: #b3261e;
+	cursor: pointer;
+}
+
+.pb-summary-item-remove:hover {
+	background: color-mix(in srgb, #b3261e 10%, transparent);
+	border-color: #b3261e;
+}
+
 .pb-combo-banner {
 	background: color-mix(in srgb, var(--pb-accent) 12%, transparent);
 	border: 1px solid var(--pb-accent);
